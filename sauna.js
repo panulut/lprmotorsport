@@ -200,6 +200,14 @@ window.LPRSaunaLife = class LPRSaunaLife {
 
   doorOpen() { return this.guests.some(g => { const phase = this.pose(g.index).phase; return phase > 4 && phase < 11; }); }
 
+  canWalk(x,z) {
+    // Stay within the cabin and clear of the stove and bench guard rails.
+    if (x < 1980 || x > 2019 || z < -12 || z > 12) return false;
+    if (x > 2010 && z < -2) return false;
+    if (Math.abs(x - 2006) < 2 && Math.abs(z) > 3) return false;
+    return true;
+  }
+
   floorAt(x,z) {
     if(x<2007.8) return 4.5;
     if(x<2010.1) return 1+7/3;

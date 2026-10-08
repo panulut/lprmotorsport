@@ -15,7 +15,9 @@ const files = {
   '/sale.js': ['sale.js', 'text/javascript; charset=utf-8'],
   '/tilt.js': ['tilt.js', 'text/javascript; charset=utf-8'],
   '/sauna.js': ['sauna.js', 'text/javascript; charset=utf-8'],
-  '/assets/lpr-logo.jpg': ['assets/lpr-logo.jpg', 'image/jpeg']
+  '/assets/lpr-logo.jpg': ['assets/lpr-logo.jpg', 'image/jpeg'],
+  ...Object.fromEntries(['hk-sininen','megaforce','karjala','fazer-sininen','remix','lihapiirakka','snellman-nakki']
+    .map(id=>[`/assets/${id}.jpg`,[`assets/${id}.jpg`,'image/jpeg']]))
 };
 
 const port = Number(process.env.PORT) || 8000;

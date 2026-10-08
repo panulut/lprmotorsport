@@ -39,11 +39,38 @@ window.VehicleDynamics = class VehicleDynamics {
     state.speed = 0;
   }
 
+  applyImpact(state, normal) {
+    const cos=Math.cos(state.angle), sin=Math.sin(state.angle);
+    const worldVx=state.vx*cos-state.vy*sin;
+    const worldVy=state.vx*sin+state.vy*cos;
+    const normalVelocity=worldVx*normal.x+worldVy*normal.y;
+    const impactSpeed=Math.max(0,-normalVelocity);
+    // Provisional game damage: energy scales with speed squared. A perpendicular
+    // 8 m/s impact disables this lightweight car; parking nudges cause no damage.
+    const damage=Math.max(0,impactSpeed**2-2**2)/(8**2-2**2);
+    state.damage=Math.min(1,(state.damage || 0)+damage);
+    state.crashed=state.damage>=1;
+    state.impactSpeed=impactSpeed;
+    state.impactEnergy=.5*this.parameters.mass*impactSpeed**2;
+    state.impactSide=normal.x*(-sin)+normal.y*cos;
+    const vx=(worldVx-normalVelocity*normal.x)*.9;
+    const vy=(worldVy-normalVelocity*normal.y)*.9;
+    state.vx=state.crashed?0:vx*cos+vy*sin;
+    state.vy=state.crashed?0:-vx*sin+vy*cos;
+    state.yawRate=0;
+    state.speed=Math.hypot(state.vx,state.vy);
+    state.bodySlip=Math.atan2(state.vy,Math.max(state.vx,.5));
+    state.lateralG=state.longitudinalG=0;
+    state.tcActive=false;
+    return damage;
+  }
+
   step(state, input, seconds, grassContact) {
+    if(state.crashed) return;
     const p = this.parameters;
     const dt = Math.min(seconds, 1 / 90);
     const gravity = 9.81;
-    const throttle = Math.max(0, Math.min(1, input.gas));
+    const throttle = Math.max(0, Math.min(1, input.gas))*(1-.65*(state.damage || 0));
     const brake = Math.max(0, Math.min(1, input.brake));
     const desiredSteer = Math.max(-1, Math.min(1, input.steer));
     const analog = !!input.analog;

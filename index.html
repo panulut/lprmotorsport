@@ -8,14 +8,14 @@
     <title>LPR Lap Challenge</title>
     <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
     <link rel="stylesheet" href="3d.css?v=tilt-20261008" />
-    <script src="i18n.js?v=language-20261008" defer></script>
-    <script src="campus.js?v=lut-5" defer></script>
-    <script src="sale.js?v=sale-1" defer></script>
-    <script src="renderer3d.js?v=sale-1" defer></script>
+    <script src="i18n.js?v=production-20261008" defer></script>
+    <script src="campus.js?v=lut-logo-6" defer></script>
+    <script src="sale.js?v=assortment-14" defer></script>
+    <script src="renderer3d.js?v=assortment-4" defer></script>
     <script src="vehicle.js" defer></script>
     <script src="tilt.js?v=tilt-20261008" defer></script>
     <script src="sauna.js?v=ovi-20261008-2" defer></script>
-    <script src="game.js?v=sale-1" defer></script>
+    <script src="game.js?v=production-20261008" defer></script>
   </head>
   <body>
     <main class="app">
@@ -36,7 +36,7 @@
         </div>
         <canvas id="track" aria-label="3D-näkymä kuljettajan paikalta"></canvas>
         <canvas id="cockpit" aria-hidden="true"></canvas>
-        <div class="sauna-actions"><span id="sauna-hint" role="status">Saunapaku on ensimmäisen mutkan ulkopuolella.</span><button id="sale-enter" type="button" disabled>Mene Saleen (R)</button><button id="sauna-enter" type="button" disabled>Mene saunaan (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
+        <div class="sauna-actions"><span id="sauna-hint" role="status">Saunapaku on ensimmäisen mutkan ulkopuolella.</span><button id="sale-enter" type="button" hidden disabled>Mene Saleen (E)</button><button id="sauna-enter" type="button" hidden disabled>Mene saunaan (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
         <div id="sauna-dialogue" class="sauna-dialogue" role="status" aria-live="polite" hidden></div>
         <div class="telemetry"><strong id="lateral-g">0.0 G</strong><span id="grip-state">PITO OK</span><span id="tc-status">TC PÄÄLLÄ</span></div>
         <div id="notice" class="notice" role="status">Paina kaasua ja lähde ajamaan!</div>

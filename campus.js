@@ -37,6 +37,53 @@ window.LPRCampus = (() => {
     [550,690,55,38,65],[543,758,48,35,65]
   ];
   const saunaSite = world(654,281);
+  // Ground-level footprints share the dimensions used to draw the buildings.
+  const solidBuildings = [...buildings, [454,337,12,57], [461,349,1,30], [463,349,1,12]];
+  for (let i=0;i<12;i++) solidBuildings.push([450+Math.sin(i/11*Math.PI)*13,365+i*3.8,5,4.2]);
+  const buildingBounds = solidBuildings.map(([x,y,w,d]) => {
+    const p=world(x,y);
+    return {minX:p.x-w*scale/2,maxX:p.x+w*scale/2,minY:p.y-d*scale/2,maxY:p.y+d*scale/2};
+  });
+  // Sale's facade is rendered separately in sale.js (300 by 100 world units).
+  const saleCenter=world(550,462);
+  buildingBounds.push({minX:saleCenter.x-150,maxX:saleCenter.x+150,minY:saleCenter.y-50,maxY:saleCenter.y+50});
+
+  function resolveBuildingCollision(state, previous) {
+    // A conservative circular footprint includes the nose and wheels at every
+    // heading. Sweep it along the entire step so thin walls cannot be skipped.
+    const radius=14, dx=state.x-previous.x, dy=state.y-previous.y;
+    let firstHit=Infinity, normal={x:0,y:0};
+    for(const bounds of buildingBounds) {
+      let enter=0, exit=1, hitNormal={x:0,y:0};
+      for(const [axis,start,delta,min,max] of [
+        ['x',previous.x,dx,bounds.minX-radius,bounds.maxX+radius],
+        ['y',previous.y,dy,bounds.minY-radius,bounds.maxY+radius]
+      ]) {
+        if(Math.abs(delta)<1e-12) {
+          if(start<=min || start>=max) { exit=-1; break; }
+        } else {
+          const a=(min-start)/delta, b=(max-start)/delta;
+          const near=Math.min(a,b);
+          if(near>=enter) {
+            enter=near;
+            hitNormal={x:0,y:0};
+            hitNormal[axis]=-Math.sign(delta);
+          }
+          exit=Math.min(exit,Math.max(a,b));
+        }
+      }
+      if(enter<exit && exit>0 && enter<firstHit) { firstHit=enter; normal=hitNormal; }
+    }
+    if(!Number.isFinite(firstHit)) return false;
+    const fraction=Math.max(0,firstHit-.001/Math.max(Math.hypot(dx,dy),.001));
+    state.x=previous.x+dx*fraction;
+    state.y=previous.y+dy*fraction;
+    if(normal.x===0 && normal.y===0) {
+      const distance=Math.hypot(dx,dy);
+      if(distance>0) normal={x:-dx/distance,y:-dy/distance};
+    }
+    return {normal};
+  }
   const bonfireSite = world(625,228);
   const parkClearing = (x,z) => [saunaSite,bonfireSite].some(p=>Math.hypot(x-p.x,z-p.y)<110);
   const occupied = (x,z) => (parkClearing(x,z) || (x > world(449,0).x && x < world(612,0).x &&
@@ -175,28 +222,20 @@ window.LPRCampus = (() => {
       block(x+2.6,z,.4,.5,41,[.68,.7,.66]);
       block(x,z,5.5,4.3,2,[.3,.33,.32],41);
     }
-    // Geometric lettering is visible in the 3D world without a texture dependency.
-    const glyphs = {L:['100','100','100','100','111'],U:['101','101','101','101','111'],T:['111','010','010','010','010']};
-    Object.assign(glyphs, {
-      N:['101','111','111','111','101'],I:['111','010','010','010','111'],
-      V:['101','101','101','101','010'],E:['111','100','110','100','111'],
-      R:['110','101','110','101','101'],S:['111','100','111','001','111'],
-      Y:['101','101','010','010','010']
-    });
     // Raised white wall lettering, traced as smooth strokes from Logo_0.jpg.
     // Viewed from the east, north (-Z) is screen-right.
     const wallX = world(460.2,0).x;
     const originZ = world(0,328).y;
     const white = [.96,.96,.92];
-    function stroke(path,width) {
+    const wallPoint=(u,v)=>[wallX,v,originZ-u];
+    function stroke(path,width,point=wallPoint,color=white) {
       for(let i=1;i<path.length;i++) {
         const [u0,v0]=path[i-1], [u1,v1]=path[i];
         const length=Math.hypot(u1-u0,v1-v0);
         if(!length) continue;
         const du=-(v1-v0)*width/length/2, dv=(u1-u0)*width/length/2;
-        const point=(u,v)=>[wallX,v,originZ-u];
         quad(point(u0+du,v0+dv),point(u1+du,v1+dv),
-             point(u1-du,v1-dv),point(u0-du,v0-dv),white);
+             point(u1-du,v1-dv),point(u0-du,v0-dv),color);
       }
     }
     function arc(cx,cy,rx,ry,start,end) {
@@ -223,10 +262,10 @@ window.LPRCampus = (() => {
       t:[[[.2,.96],[.2,.13],[.26,.02],[.42,.03]],[[0,.68],[.43,.68]]],
       y:[[[0,.68],[.28,.04]],[[.56,.68],[.24,-.18],[.14,-.27],[0,-.27]]]
     };
-    function wallText(text,x,y,height) {
+    function wallText(text,x,y,height,point=wallPoint,color=white) {
       let cursor=x;
       for(const letter of text) {
-        for(const path of letters[letter]) stroke(path.map(([u,v])=>[cursor+u*height,y+v*height]),height*.065);
+        for(const path of letters[letter]) stroke(path.map(([u,v])=>[cursor+u*height,y+v*height]),height*.065,point,color);
         cursor+=height*(letter==='i' ? .32 : letter==='r' || letter==='t' ? .55 : .82);
       }
     }
@@ -234,12 +273,22 @@ window.LPRCampus = (() => {
     wallText('University',23,15,14);
     function sign(x,z) {
       const p=world(x,z);
-      box(p.x,0,p.y,6,92,6,[.35,.37,.35]);
-      box(p.x,58,p.y,100,34,5,[.06,.08,.08]);
-      for(const [letterIndex,letter] of [...'LUT'].entries()) {
-        glyphs[letter].forEach((row,r)=>[...row].forEach((bit,c)=>{
-          if(bit==='1') for(const side of [-1,1]) box(p.x-40+letterIndex*29+c*7,82-r*5,p.y+side*3,6,4,1,[.96,.97,.91]);
-        }));
+      // End the support at the panel's lower edge so both faces stay unobstructed.
+      box(p.x,0,p.y,6,58,6,[.35,.37,.35]);
+      box(p.x,58,p.y,100,34,5,[1,1,1]);
+      for(const side of [-1,1]) {
+        // Each face has its own left-to-right coordinates, avoiding mirrored text.
+        const face=(u,v)=>[p.x+side*(u-50),58+v,p.y+side*2.6];
+        const mark=(u,v)=>face(7+u*.65,3+v*.65);
+        const red=[.93,.04,.28],orange=[1,.51,.1],green=[.1,.74,0];
+        stroke([[8,38],[5,34],[4,29],[5,25],[8,21],[31,0]],5,mark,red);
+        stroke([[24,7],[33,15]],5,mark,red);
+        stroke(arc(12,12,11,11,Math.PI*.78,Math.PI*1.73),5,mark,orange);
+        stroke([[4,20],[21,36]],5,mark,orange);
+        stroke(arc(17,11,10,10,Math.PI*1.25,Math.PI*1.83),5,mark,green);
+        const black=[0,0,0];
+        wallText('LUT',34,18,11,face,black);
+        wallText('University',34,6,8,face,black);
       }
     }
     sign(479,212); sign(226,418);
@@ -273,5 +322,5 @@ window.LPRCampus = (() => {
     // Three small marina jetties on the lakefront.
     for(let i=0;i<3;i++) block(727+i*24,213,5,64,1,[.56,.46,.32]);
   }
-  return { track, length, world, occupied, build, saunaSite, bonfireSite, bounds:{width:5200,height:4400} };
+  return { track, length, world, occupied, build, saunaSite, bonfireSite, buildingBounds, resolveBuildingCollision, bounds:{width:5200,height:4400} };
 })();

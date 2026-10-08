@@ -65,6 +65,10 @@
   let saunaHoverPosition = null;
   let saunaSteamSelected = false;
   function updateSteamTarget() {
+    if (document.pointerLockElement === canvas) {
+      const rect = canvas.getBoundingClientRect();
+      saunaHoverPosition = {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};
+    }
     const hovered=car.sauna && !ui.dialog.open && !saunaLookPointer && saunaHoverPosition &&
       renderer.saunaSteamTarget(car,saunaHoverPosition.x,saunaHoverPosition.y,performance.now());
     // Keep the revealed action available while moving from the prop to its button.
@@ -81,11 +85,23 @@
   canvas.addEventListener('pointerdown', event => {
     if (!(car.sauna || car.sale) || ui.dialog.open || saunaLookPointer || event.button !== 0) return;
     event.preventDefault();
+    if (event.pointerType === 'mouse' && canvas.requestPointerLock) {
+      if (document.pointerLockElement === canvas) {
+        if (car.sauna && saunaSteamSelected) throwSteam();
+      } else {
+        try {
+          const request = canvas.requestPointerLock();
+          request?.catch(() => {});
+        } catch {}
+      }
+      return;
+    }
     saunaLookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startX:event.clientX, startY:event.clientY, dragged:false };
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('looking');
   });
   canvas.addEventListener('pointermove', event => {
+    if (document.pointerLockElement === canvas) return;
     if (!saunaLookPointer) {
       saunaHoverPosition = event.pointerType === 'touch' ? null : {x:event.clientX,y:event.clientY};
       updateSteamTarget();
@@ -99,6 +115,17 @@
     lookAround(-(event.clientX - saunaLookPointer.x) * sensitivity, (event.clientY - saunaLookPointer.y) * sensitivity);
     saunaLookPointer.x = event.clientX;
     saunaLookPointer.y = event.clientY;
+  });
+  document.addEventListener('mousemove', event => {
+    if (document.pointerLockElement !== canvas || !(car.sauna || car.sale) || ui.dialog.open) return;
+    lookAround(event.movementX * .0025, -event.movementY * .0025);
+    updateSteamTarget();
+  });
+  document.addEventListener('pointerlockchange', () => {
+    stopLooking();
+    canvas.classList.toggle('looking', document.pointerLockElement === canvas);
+    if (document.pointerLockElement !== canvas) saunaHoverPosition = null;
+    updateSteamTarget();
   });
   function stopLooking() {
     const pointer = saunaLookPointer;
@@ -125,10 +152,11 @@
 
   function nearSale() {
     const entrance=window.LPRSale?.entrance;
-    return !!entrance && Math.hypot(car.x-entrance.x,car.y-entrance.y)<90;
+    return !!entrance && Math.hypot(car.x-entrance.x,car.y-entrance.y)<40;
   }
 
   function toggleSale() {
+    if(car.crashed) return;
     if(ui.dialog.open || car.sauna || (!car.sale && (!nearSale() || Math.abs(car.speed)>.5))) return;
     clearInput();
     stopLooking();
@@ -147,25 +175,28 @@
   }
 
   function nearSauna() {
-    return Math.hypot(car.x-renderer.saunaStop.x,car.y-renderer.saunaStop.y) < 65;
+    return Math.hypot(car.x-renderer.saunaStop.x,car.y-renderer.saunaStop.y) < 40;
   }
 
   function updateSaunaUI() {
-    saleEnter.disabled = car.sauna || (!car.sale && (!nearSale() || Math.abs(car.speed)>.5));
-    saleEnter.textContent = car.sale ? t('Palaa autoon (R)') : t('Mene Saleen (R)');
-    saunaEnter.disabled = car.sale || !car.sauna && (!nearSauna() || Math.abs(car.speed) > .5);
+    saleEnter.disabled = car.crashed || ui.dialog.open || car.sauna || (!car.sale && (!nearSale() || Math.abs(car.speed)>.5));
+    saleEnter.hidden = saleEnter.disabled;
+    saleEnter.textContent = car.sale ? t('Palaa autoon (E)') : t('Mene Saleen (E)');
+    saunaEnter.disabled = car.crashed || ui.dialog.open || car.sale || !car.sauna && (!nearSauna() || Math.abs(car.speed) > .5);
+    saunaEnter.hidden = saunaEnter.disabled;
     saunaEnter.textContent = car.sauna ? t("Palaa autoon (E)") : t("Mene saunaan (E)");
     updateSteamTarget();
     saunaSeat.hidden = !car.sauna;
     saunaSound.hidden = !car.sauna;
-    saunaHint.textContent = car.sauna ? t("Katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku ja palju ovat Tervahaudanpuistossa.");
-    if(car.sale) saunaHint.textContent=t('Salessa: katsele vet?m?ll?. W/S tai kaasu/jarru liikuttaa, A/D k??nt??. Palaa autoon: R.');
-    else if(nearSale()) saunaHint.textContent=t('Pys?hdy Salen ovelle ja mene sis??n painikkeella tai R-n?pp?imell?.');
+    saunaHint.textContent = car.sauna ? t("W/S: eteen/taakse, A/D: sivuille. Klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku ja palju ovat Tervahaudanpuistossa.");
+    if(car.sale) saunaHint.textContent=t('Salessa: klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. W/S: eteen/taakse, A/D: sivuille. Palaa autoon: E.');
+    else if(nearSale()) saunaHint.textContent=t('Pysähdy Salen ovelle ja mene sisään painikkeella tai E-näppäimellä.');
     canvas.classList.toggle('sauna-view', !!(car.sauna || car.sale));
-    document.querySelector('#track').setAttribute('aria-label', car.sale ? t("Sale Skinnarilan sis?tila") : car.sauna ? t("Saunapakun lauteet ja kiuas") : t("3D-n\u00e4kym\u00e4 kuljettajan paikalta"));
+    document.querySelector('#track').setAttribute('aria-label', car.sale ? t("Sale Skinnarilan sisätila") : car.sauna ? t("Saunapakun lauteet ja kiuas") : t("3D-n\u00e4kym\u00e4 kuljettajan paikalta"));
   }
 
   function toggleSauna() {
+    if(car.crashed) return;
     if (car.sale || ui.dialog.open || (!car.sauna && (!nearSauna() || Math.abs(car.speed) > .5))) return;
     clearInput();
     car.sauna = !car.sauna;
@@ -175,6 +206,7 @@
       car.saunaYaw = 0;
       car.saunaPitch = -.12;
       car.saunaSide = -1;
+      car.saunaX = 1986; car.saunaZ = -6;
       car.steamActor = 'player';
       car.saunaLife = saunaLife;
       saunaLife.enter();
@@ -191,6 +223,7 @@
     if (!car.sauna || ui.dialog.open) return;
     clearInput();
     car.saunaSide = -(car.saunaSide || -1);
+    car.saunaX = 1986; car.saunaZ = car.saunaSide * 6;
     // Finish any ladle movement before moving its bucket to the opposite seat.
     car.steamAt = -10000;
     car.steamActor = 'player';
@@ -214,7 +247,7 @@
   function reset() {
     clearInput();
     saunaLife.leave();
-    car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false };
+    car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false, damage:0, crashed:false };
     dynamics.reset(car);
     updateSaunaUI();
     ui.lap.textContent = '1';
@@ -373,6 +406,10 @@
   function update(dt, now) {
     tiltSteer = tilt.read(dt);
     const input = readInput();
+    if(car.crashed) {
+      showNotice(t("Auto hajosi! Aloita uudelleen."),0);
+      return;
+    }
     if (now - lastDeviceUpdate > 1000) {
       ui.device.textContent = activePad ? t("deviceDetails", { device: activePad.id, axes: activePad.axes.length, buttons: activePad.buttons.length }) : t("Odotetaan ohjainta\u2026 K\u00e4\u00e4nn\u00e4 rattia tai paina sen painiketta.");
       ui.input.textContent = activePad ? calibration ? t("RATTI JA POLKIMET") : activePad.mapping === 'standard' ? t("PELIOHJAIN") : t("OHJAIN \u00b7 KALIBROI") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6");
@@ -383,16 +420,21 @@
       if (car.started) car.lapStart += dt * 1000;
       if (car.sauna && !ui.dialog.open) {
         saunaLife.update(dt,car,now);
-        lookAround(((held.right ? 1 : 0) - (held.left ? 1 : 0)) * dt * 1.6,
-          ((held.gas ? 1 : 0) - (held.brake ? 1 : 0)) * dt * 1.2);
       }
-      if(car.sale && !ui.dialog.open) {
-        lookAround(((held.right?1:0)-(held.left?1:0))*dt*1.6,0);
-        const movement=((held.gas?1:0)-(held.brake?1:0))*dt*22;
-        const nextX=car.saleX+Math.cos(car.saunaYaw)*movement;
-        const nextZ=car.saleZ+Math.sin(car.saunaYaw)*movement;
-        if(window.LPRSale.canWalk(nextX,car.saleZ)) car.saleX=nextX;
-        if(window.LPRSale.canWalk(car.saleX,nextZ)) car.saleZ=nextZ;
+      if ((car.sauna || car.sale) && !ui.dialog.open) {
+        const forward = input.gas - input.brake;
+        const sideways = input.steer;
+        const scale = dt * (car.sale ? 22 : 10) / Math.max(1, Math.hypot(forward, sideways));
+        const yaw = car.saunaYaw || 0;
+        const dx = (Math.cos(yaw) * forward - Math.sin(yaw) * sideways) * scale;
+        const dz = (Math.sin(yaw) * forward + Math.cos(yaw) * sideways) * scale;
+        if (car.sale) {
+          if (window.LPRSale.canWalk(car.saleX + dx, car.saleZ)) car.saleX += dx;
+          if (window.LPRSale.canWalk(car.saleX, car.saleZ + dz)) car.saleZ += dz;
+        } else {
+          if (saunaLife.canWalk(car.saunaX + dx, car.saunaZ)) car.saunaX += dx;
+          if (saunaLife.canWalk(car.saunaX, car.saunaZ + dz)) car.saunaZ += dz;
+        }
       }
       return;
     }
@@ -405,7 +447,18 @@
     const steps = Math.max(1, Math.ceil(dt * 90));
     for (let i = 0; i < steps; i++) {
       car.grassFraction = grassContact(car);
+      const previous = { x:car.x, y:car.y };
       dynamics.step(car, input, dt / steps, car.grassFraction);
+      const collision=window.LPRCampus.resolveBuildingCollision(car, previous);
+      if(collision) {
+        const damage=dynamics.applyImpact(car,collision.normal);
+        if(damage>0) showNotice(t("Auto vaurioitui."),2500);
+        if(car.crashed) {
+          car.crashedAt=now;
+          showNotice(t("Auto hajosi! Aloita uudelleen."),0);
+          break;
+        }
+      }
     }
     const boundedX = Math.max(12, Math.min(WORLD.width - 12, car.x));
     const boundedY = Math.max(12, Math.min(WORLD.height - 12, car.y));
@@ -416,7 +469,7 @@
     const nearest = nearestTrack(car.x, car.y);
     car.grassFraction = grassContact(car);
     car.offroad = car.grassFraction > .5;
-    if (nearest.distance < ROAD_HALF && car.speed > 2.2) {
+    if (!car.crashed && nearest.distance < ROAD_HALF && car.speed > 2.2) {
       if (car.stage === 0 && nearest.index > 55 && nearest.index < 85) car.stage = 1;
       else if (car.stage === 1 && nearest.index > 115 && nearest.index < 145) car.stage = 2;
       else if (car.stage === 2 && nearest.index > 175 && nearest.index < 205) car.stage = 3;
@@ -439,7 +492,7 @@
     if (car.started) ui.time.textContent = formatTime(now - car.lapStart);
     ui.speed.textContent = String(Math.round(car.speed * 3.6));
     ui.lateralG.textContent = `${Math.abs(car.lateralG).toFixed(1)} G`;
-    ui.grip.textContent = car.offroad ? t("RADAN ULKOPUOLELLA") : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? t("PITO RAJALLA") : t("PITO OK");
+    ui.grip.textContent = car.damage>0 ? `${t("VAURIO")} ${Math.round(car.damage*100)} %` : car.offroad ? t("RADAN ULKOPUOLELLA") : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? t("PITO RAJALLA") : t("PITO OK");
     ui.tc.textContent = car.tcActive ? t("TC RAJOITTAA TEHOA") : t("TC P\u00c4\u00c4LL\u00c4");
     updateSaunaUI();
   }
@@ -501,6 +554,7 @@
     steeringPad.setAttribute('aria-valuenow', String(Math.round(touchSteer * 100)));
   }
   function clearInput() {
+    if (document.pointerLockElement === canvas) document.exitPointerLock?.();
     stopLooking();
     saunaHoverPosition=null;
     saunaSteamSelected=false;
@@ -513,8 +567,12 @@
   }
   window.addEventListener('keydown', event => {
     if (!ui.dialog.open && !event.repeat && !['BUTTON','INPUT','SELECT','TEXTAREA'].includes(event.target.tagName)) {
-      if (event.code === 'KeyR') { event.preventDefault(); toggleSale(); return; }
-      if (event.code === 'KeyE') { event.preventDefault(); toggleSauna(); return; }
+      if (event.code === 'KeyE') {
+        event.preventDefault();
+        if (car.sale || (!car.sauna && nearSale())) toggleSale();
+        else toggleSauna();
+        return;
+      }
       if (event.code === 'KeyF' && car.sauna) { event.preventDefault(); switchSaunaSeat(); return; }
       if (event.code === 'Space' && car.sauna) { event.preventDefault(); throwSteam(); return; }
     }

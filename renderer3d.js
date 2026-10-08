@@ -25,6 +25,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const vertexSource = `
       attribute vec3 aPosition;
       attribute vec3 aColor;
+      attribute vec2 aUV;
       uniform vec3 uCamera;
       uniform vec3 uForward;
       uniform vec3 uRight;
@@ -33,6 +34,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
       uniform float uFocal;
       varying vec3 vColor;
       varying float vDepth;
+      varying vec2 vUV;
       void main() {
         vec3 relative = aPosition - uCamera;
         float depth = dot(relative, uForward);
@@ -41,16 +43,26 @@ window.LPRRenderer3D = class LPRRenderer3D {
                            dot(relative, uUp) * uFocal, clipZ, depth);
         vColor = aColor;
         vDepth = depth;
+        vUV = aUV;
       }
     `;
     const fragmentSource = `
       precision mediump float;
       varying vec3 vColor;
       varying float vDepth;
+      varying vec2 vUV;
+      uniform sampler2D uTexture;
+      uniform bool uTextured;
       void main() {
+        vec3 color = vColor;
+        if (uTextured) {
+          vec4 artwork = texture2D(uTexture, vUV);
+          if (artwork.a < 0.1 || min(min(artwork.r, artwork.g), artwork.b) > 0.96) discard;
+          color = artwork.rgb;
+        }
         vec3 sky = vec3(0.59, 0.76, 0.74);
         float fog = clamp((vDepth - 320.0) / 1000.0, 0.0, 0.83);
-        gl_FragColor = vec4(mix(vColor, sky, fog), 1.0);
+        gl_FragColor = vec4(mix(color, sky, fog), 1.0);
       }
     `;
     const compile = (type, source) => {
@@ -70,6 +82,9 @@ window.LPRRenderer3D = class LPRRenderer3D {
     this.locations = {
       position: gl.getAttribLocation(program, 'aPosition'),
       color: gl.getAttribLocation(program, 'aColor'),
+      uv: gl.getAttribLocation(program, 'aUV'),
+      textured: gl.getUniformLocation(program, 'uTextured'),
+      texture: gl.getUniformLocation(program, 'uTexture'),
       camera: gl.getUniformLocation(program, 'uCamera'),
       forward: gl.getUniformLocation(program, 'uForward'),
       right: gl.getUniformLocation(program, 'uRight'),
@@ -146,12 +161,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     if(window.LPRSale) {
       window.LPRSale.buildExterior({box,quad});
       const interiorStart=data.length;
-      window.LPRSale.buildInterior({box});
+      const productFaces = {};
+      window.LPRSale.buildInterior({box,quad,productFace:(id,points)=>{
+        const vertices=productFaces[id] ||= [];
+        const uv=[[0,1],[1,1],[1,0],[0,0]];
+        for(const i of [0,1,2,0,2,3]) vertices.push(...points[i],1,1,1,...uv[i]);
+      }});
       const interior=new Float32Array(data.splice(interiorStart));
       this.saleVertexCount=interior.length/6;
       this.saleBuffer=gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER,this.saleBuffer);
       gl.bufferData(gl.ARRAY_BUFFER,interior,gl.STATIC_DRAW);
+      this.makeSaleProducts(productFaces);
     }
     // The shoulder is a continuous strip beneath the asphalt.
     strip(-35,35,.01,() => [.16,.18,.17]);
@@ -690,6 +711,125 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.enableVertexAttribArray(this.locations.color);
     gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 24, 0);
     gl.vertexAttribPointer(this.locations.color, 3, gl.FLOAT, false, 24, 12);
+    gl.disableVertexAttribArray(this.locations.uv);
+    gl.vertexAttrib2f(this.locations.uv,0,0);
+    gl.uniform1i(this.locations.textured,0);
+  }
+
+  makeSaleProducts(faces) {
+    this.saleProducts=[];
+    if(typeof document==='undefined' || typeof Image==='undefined') return;
+    const gl=this.gl;
+    for(const product of window.LPRSale.products) {
+      const vertices=faces[product.id];
+      if(!vertices?.length) continue;
+      const mesh={buffer:gl.createBuffer(),texture:gl.createTexture(),count:vertices.length/8,ready:false};
+      gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);
+      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+      this.saleProducts.push(mesh);
+      const image=product.candyLabel || product.packageLabel ? document.createElement('canvas') : new Image();
+      if(product.packageLabel) {
+        image.width=256;image.height=320;
+        const ctx=image.getContext('2d');
+        const base=product.color.map(c=>Math.round(c*255));
+        const gradient=ctx.createLinearGradient(0,0,256,0);
+        gradient.addColorStop(0,`rgb(${base.map(c=>Math.round(c*.7)).join(',')})`);
+        gradient.addColorStop(.4,`rgb(${base.join(',')})`);
+        gradient.addColorStop(1,`rgb(${base.map(c=>Math.round(c*.8)).join(',')})`);
+        ctx.fillStyle=gradient;ctx.fillRect(0,0,256,320);
+        ctx.fillStyle='#f8f1de';ctx.fillRect(12,48,232,76);
+        ctx.textAlign='center';ctx.fillStyle='#21352c';
+        ctx.font='bold 28px Arial';ctx.fillText(product.packageLabel.toLocaleUpperCase('fi'),128,94,218);
+        ctx.strokeStyle='#ffffff70';ctx.lineWidth=2;
+        for(let i=0;i<5;i++) {
+          ctx.beginPath();ctx.moveTo(28+i*43,155);ctx.lineTo(45+i*43,245);ctx.stroke();
+        }
+        ctx.fillStyle='#f8f1de';ctx.fillRect(70,259,116,32);
+        ctx.fillStyle='#27372a';ctx.font='16px Arial';ctx.fillText(product.id==='maito' ? '1 L' : product.id==='astianpesuaine' ? '500 ml' : product.id==='talouspaperi' ? '2 rullaa' : '500 g',128,281,108);
+      }
+      if(product.candyLabel) {
+        // Original, unbranded wrappers give the peg display varied colours.
+        image.width=256;image.height=384;
+        const ctx=image.getContext('2d');
+        const base=product.color.map(c=>Math.round(c*255));
+        const gradient=ctx.createLinearGradient(0,0,256,0);
+        gradient.addColorStop(0,`rgb(${base.map(c=>Math.round(c*.55)).join(',')})`);
+        gradient.addColorStop(.35,`rgb(${base.join(',')})`);
+        gradient.addColorStop(.7,`rgb(${base.map(c=>Math.min(255,c+38)).join(',')})`);
+        gradient.addColorStop(1,`rgb(${base.map(c=>Math.round(c*.65)).join(',')})`);
+        ctx.fillStyle=gradient;ctx.fillRect(0,0,256,384);
+        for(let i=0;i<12;i++) {
+          ctx.fillStyle=i%2 ? '#ffffff18' : '#00000015';
+          ctx.beginPath();ctx.moveTo(i*24,0);ctx.lineTo(i*24+8,180);
+          ctx.lineTo(i*24-5,384);ctx.lineTo(i*24-10,180);ctx.fill();
+        }
+        ctx.fillStyle='#ffffffdf';ctx.beginPath();ctx.ellipse(128,118,118,55,-.12,0,Math.PI*2);ctx.fill();
+        ctx.textAlign='center';ctx.fillStyle='#171925';
+        ctx.font=`900 ${product.candyLabel.length>7 ? 30 : 40}px Arial`;
+        ctx.fillText(product.candyLabel,128,122,236);
+        ctx.font='italic 900 64px Arial';ctx.lineWidth=5;ctx.strokeStyle='#161927';
+        ctx.strokeText('Mix',128,193);ctx.fillStyle='#fff';ctx.fillText('Mix',128,193);
+        const palette=product.id==='salmiakki-mix' || product.id==='lakritsi-mix' ?
+          ['#161317','#34303b','#645163'] : ['#ffca27','#ef4c38','#69b733','#fa85b2','#ffa026'];
+        for(let row=0;row<4;row++) for(let column=0;column<5;column++) {
+          const x=23+column*51+(row%2)*9,y=222+row*34;
+          ctx.fillStyle=palette[(row+column*2)%palette.length];
+          ctx.beginPath();ctx.ellipse(x,y,18,12,(column-row)*.4,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#ffffff55';ctx.beginPath();ctx.ellipse(x-4,y-4,7,3,-.3,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle='#ffffffcf';ctx.font='bold 15px Arial';ctx.fillText('MAKEISSEKOITUS · 250 g',128,365);
+        for(let x=0;x<256;x+=6) {
+          ctx.fillStyle='#ffffff40';ctx.fillRect(x,0,2,12);ctx.fillRect(x,373,2,11);
+        }
+      }
+      image.onload=()=>{
+        // Trim the catalogue photo's white margins so the packaging fills its face.
+        const canvas=document.createElement('canvas');
+        canvas.width=image.width; canvas.height=image.height;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(image,0,0);
+        const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+        let left=image.width,top=image.height,right=0,bottom=0;
+        for(let y=0;y<image.height;y++) for(let x=0;x<image.width;x++) {
+          const i=(y*image.width+x)*4;
+          if(pixels[i+3]>100 && Math.min(pixels[i],pixels[i+1],pixels[i+2])<230) {
+            left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+          }
+        }
+        if(right<left || bottom<top) return;
+        canvas.width=256;canvas.height=256;
+        ctx.drawImage(image,left,top,right-left+1,bottom-top+1,0,0,256,256);
+        gl.bindTexture(gl.TEXTURE_2D,mesh.texture);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,canvas);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        mesh.ready=true;
+      };
+      image.onerror=()=>console.warn(`Product artwork could not be loaded: ${product.name}`);
+      if(product.candyLabel || product.packageLabel) image.onload();
+      else image.src=product.image || `assets/${product.id}.jpg`;
+    }
+  }
+
+  drawSaleProducts() {
+    const gl=this.gl;
+    gl.uniform1i(this.locations.textured,1);
+    gl.uniform1i(this.locations.texture,0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.enableVertexAttribArray(this.locations.uv);
+    for(const mesh of this.saleProducts || []) {
+      if(!mesh.ready) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);
+      gl.vertexAttribPointer(this.locations.position,3,gl.FLOAT,false,32,0);
+      gl.vertexAttribPointer(this.locations.color,3,gl.FLOAT,false,32,12);
+      gl.vertexAttribPointer(this.locations.uv,2,gl.FLOAT,false,32,24);
+      gl.bindTexture(gl.TEXTURE_2D,mesh.texture);
+      gl.drawArrays(gl.TRIANGLES,0,mesh.count);
+    }
+    this.bindMesh(this.saleBuffer);
   }
 
   drawWheels(car, now) {
@@ -721,11 +861,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
       quad(leftA,leftB,rightB,rightA,color);
       quad([leftA[0],leftA[1]+width,leftA[2]],[leftB[0],leftB[1]+width,leftB[2]],leftB,leftA,color.map(v=>v*.8));
     };
-    const bodyPoint=(forward,side,height)=>[
-      car.x+bodyForward[0]*forward+bodyRight[0]*side,
-      height,
-      car.y+bodyForward[1]*forward+bodyRight[1]*side
-    ];
+    const damage=car.damage || 0;
+    const bodyPoint=(forward,side,height)=> {
+      // Crumple the nose and bend the suspension toward the struck side.
+      const crush=Math.max(0,forward-2)*damage;
+      const damagedForward=forward-crush*.55;
+      const damagedSide=side+(car.impactSide || .3)*crush*.25;
+      return [
+        car.x+bodyForward[0]*damagedForward+bodyRight[0]*damagedSide,
+        Math.max(.25,height-crush*.12),
+        car.y+bodyForward[1]*damagedForward+bodyRight[1]*damagedSide
+      ];
+    };
 
     // Make the suspension pickup points visibly part of the open chassis.
     const chassisColor = [.055,.20,.25];
@@ -762,6 +909,9 @@ window.LPRRenderer3D = class LPRRenderer3D {
 
     for (const side of [-1,1]) {
       const center=bodyPoint(8.1,side*7.2,radius+.07);
+      const bentAngle=steeredAngle+side*damage*.65;
+      wheelForward[0]=Math.cos(bentAngle); wheelForward[1]=Math.sin(bentAngle);
+      axleDirection[0]=-wheelForward[1]; axleDirection[1]=wheelForward[0];
       const point=(axial,rad,theta)=>[
         center[0]+axleDirection[0]*axial+wheelForward[0]*rad*Math.cos(theta),
         center[1]+rad*Math.sin(theta),
@@ -808,6 +958,15 @@ window.LPRRenderer3D = class LPRRenderer3D {
       }
     }
 
+    if(car.crashed) {
+      // Broken aluminium and suspension pieces remain beside the wreck.
+      for(let i=0;i<7;i++) {
+        const side=(i%2?1:-1)*(4+i*.7);
+        const a=bodyPoint(5+i*.8,side,.3);
+        const b=bodyPoint(6+i*.9,side+1.5,.45);
+        rod(a,b,.25,i%2?blue:aluminium);
+      }
+    }
     this.bindMesh(this.wheelBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.DYNAMIC_DRAW);
     gl.drawArrays(gl.TRIANGLES,0,vertices.length/6);
@@ -835,7 +994,9 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const moving = Math.min(1, (car.speed || 0) / 5);
     const roughness = Math.max(car.offroad ? .017 : 0, (car.kerbFraction || 0) * .028);
     const bump = Math.sin(now * .06) * roughness * moving;
-    const pitch = .055 - (car.longitudinalG || 0) * .014 + bump;
+    const crashTime=car.crashed ? Math.max(0,(now-car.crashedAt)/1000) : 10;
+    const crashShake=Math.exp(-crashTime*5)*Math.sin(crashTime*55)*.08;
+    const pitch = .055 - (car.longitudinalG || 0) * .014 + bump + crashShake;
     const roll = Math.max(-.04, Math.min(.04, (car.lateralG || 0) * .015));
     const sideShift = Math.max(-.8, Math.min(.8, (car.lateralG || 0) * .5));
     const cameraX = car.x - cos * 8 - sin * sideShift;
@@ -1072,7 +1233,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const focal=1/Math.tan(76*Math.PI/360);
     const horizontal=(px*2-1)*(rect.width/rect.height)/focal, vertical=(1-py*2)/focal;
     const direction=[cy*cp-sy*horizontal-cy*sp*vertical,sp+cp*vertical,sy*cp+cy*horizontal-sy*sp*vertical];
-    const side=car.saunaSide || -1, origin=[1986,18,side*6];
+    const side=car.saunaSide || -1, origin=[car.saunaX ?? 1986,18,car.saunaZ ?? side*6];
     const hitBox=(min,max)=>{
       let near=1,far=Infinity;
       for(let axis=0;axis<3;axis++) {
@@ -1174,6 +1335,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.uniform1f(this.locations.aspect,this.width/this.height);
     gl.uniform1f(this.locations.focal,1/Math.tan(76*Math.PI/360));
     gl.drawArrays(gl.TRIANGLES,0,this.saleVertexCount);
+    this.drawSaleProducts();
     this.cockpit.clearRect(0,0,this.width,this.height);
   }
 
@@ -1182,7 +1344,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program);
     this.bindMesh(this.buffer);
-    gl.uniform3f(this.locations.camera,1986,18,(car.saunaSide || -1)*6);
+    gl.uniform3f(this.locations.camera,car.saunaX ?? 1986,18,car.saunaZ ?? (car.saunaSide || -1)*6);
     const yaw = car.saunaYaw || 0, pitch = car.saunaPitch ?? -.12;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     gl.uniform3f(this.locations.forward,cy*cp,sp,sy*cp);
