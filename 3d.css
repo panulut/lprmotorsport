@@ -1,4 +1,17 @@
 #track { background: #a7cfcb; }
+#track.sauna-view { cursor: grab; }
+#track.sauna-view.looking { cursor: grabbing; }
+#track.sauna-view.steam-target:not(.looking) { cursor: pointer; }
+/* Keep simultaneous steering and pedal touches from becoming browser gestures. */
+.app { touch-action: none; }
+body { overscroll-behavior: none; }
+dialog { touch-action: pan-y pinch-zoom; }
+.controls { position: relative; }
+.tilt-controls { position: absolute; z-index: 3; left: 8px; bottom: calc(100% + 10px); display: flex; gap: 6px; align-items: center; max-width: calc(100% - 16px); }
+.tilt-controls button { border: 1px solid #60dfab; border-radius: 8px; background: #0c211aee; color: #fff; min-height: 44px; padding: 6px 10px; font-size: 11px; font-weight: 700; touch-action: manipulation; }
+.tilt-controls button[aria-pressed="true"] { background: #237052; }
+#tilt-status { position: absolute; bottom: calc(100% + 4px); left: 0; width: min(300px, 75vw); font-size: 11px; color: #fff; background: #0c211aee; border-radius: 6px; padding: 5px; pointer-events: none; }
+#tilt-status:empty { display: none; }
 #cockpit { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .telemetry { position: absolute; z-index: 2; right: 16px; bottom: 46px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; color: #fff; text-shadow: 0 2px 6px #000; }
 .telemetry strong { font: 800 25px/1 'Barlow Condensed', Impact, sans-serif; }
@@ -9,3 +22,13 @@
   .telemetry strong { font-size: 20px; }
   .telemetry span { font-size: 8px; }
 }
+.sauna-actions { position:absolute; z-index:3; left:12px; bottom:46px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; max-width:65%; }
+.sauna-actions span { flex-basis:100%; font-size:12px; color:#fff; text-shadow:0 2px 4px #000; }
+.sauna-actions button { padding:10px 12px; border:1px solid #b89465; border-radius:8px; background:#382719ee; color:#fff; font-weight:700; }
+.sauna-actions button:disabled { opacity:.55; cursor:default; }
+.sauna-actions [hidden] { display:none; }
+.sauna-dialogue { position:absolute; z-index:3; top:76px; left:50%; transform:translateX(-50%); max-width:min(650px,85%); padding:10px 16px; border-radius:10px; background:#21180feb; color:#fff3df; font-size:14px; line-height:1.4; text-align:center; pointer-events:none; }
+.sauna-dialogue[hidden] { display:none; }
+.sauna-actions button[aria-pressed="true"] { background:#665032; }
+@media(max-width:650px) { .sauna-dialogue { top:58px; font-size:12px; padding:8px 12px; } }
+@media(max-width:650px) { .sauna-actions { bottom:34px; max-width:60%; gap:4px; } .sauna-actions span { font-size:10px; } .sauna-actions button { padding:8px; font-size:11px; } }

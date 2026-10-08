@@ -34,3 +34,5 @@
   .controls{flex-basis:76px}.steering-pad{max-width:240px}.steering-guide{top:5px}.steering-thumb{top:24px;width:42px;height:42px;left:calc(50% - 21px)}.help{display:none}
   .hud-item{padding:5px 10px}.hud-item strong{font-size:18px}.notice{top:52px}.telemetry strong{font-size:18px}.telemetry span{font-size:8px}
 }
+
+#language-select{flex-shrink:0;background:#10221d;color:#f7fbf9;border:1px solid #355347;border-radius:9px;padding:8px 4px;font:inherit;font-size:13px;cursor:pointer}#language-select:focus-visible{outline:3px solid #00d094;outline-offset:3px}.topbar{gap:clamp(6px,2vw,20px)}

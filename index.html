@@ -7,16 +7,20 @@
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>LPR Lap Challenge</title>
     <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
-    <link rel="stylesheet" href="3d.css?v=mobile-20261008" />
+    <link rel="stylesheet" href="3d.css?v=tilt-20261008" />
+    <script src="i18n.js?v=language-20261008" defer></script>
     <script src="renderer3d.js" defer></script>
     <script src="vehicle.js" defer></script>
-    <script src="game.js?v=mobile-20261008" defer></script>
+    <script src="tilt.js?v=tilt-20261008" defer></script>
+    <script src="sauna.js?v=ovi-20261008-2" defer></script>
+    <script src="game.js?v=tilt-20261008" defer></script>
   </head>
   <body>
     <main class="app">
       <header class="topbar">
         <img class="logo" src="assets/lpr-logo.jpg" alt="LPR Motorsport Formula Student" />
         <div class="topbar-title"><span>FORMULA STUDENT</span><strong>LAP CHALLENGE</strong></div>
+        <select id="language-select" aria-label="Kieli / Language"><option value="fi">FI</option><option value="en">EN</option></select>
         <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺</button>
         <button id="settings-button" class="icon-button" type="button" aria-label="Avaa ohjainasetukset">⚙ <span>Ohjain</span></button>
       </header>
@@ -30,12 +34,15 @@
         </div>
         <canvas id="track" aria-label="3D-näkymä kuljettajan paikalta"></canvas>
         <canvas id="cockpit" aria-hidden="true"></canvas>
+        <div class="sauna-actions"><span id="sauna-hint" role="status">Saunapaku on ensimmäisen mutkan ulkopuolella.</span><button id="sauna-enter" type="button" disabled>Mene saunaan (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
+        <div id="sauna-dialogue" class="sauna-dialogue" role="status" aria-live="polite" hidden></div>
         <div class="telemetry"><strong id="lateral-g">0.0 G</strong><span id="grip-state">PITO OK</span><span id="tc-status">TC PÄÄLLÄ</span></div>
         <div id="notice" class="notice" role="status">Paina kaasua ja lähde ajamaan!</div>
         <div class="game-footer"><span id="input-status">KOSKETUS / NÄPPÄIMISTÖ</span><span id="track-status">LPR HARJOITUSRATA · 220 M</span></div>
       </section>
 
       <section class="controls" aria-label="Kosketusohjaimet">
+        <div class="tilt-controls"><button id="tilt-toggle" type="button" aria-pressed="false">Kallistusohjaus</button><button id="tilt-center" type="button" hidden>Keskitä</button><span id="tilt-status" role="status"></span></div>
         <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="Ohjaus: liu’uta vasemmalle tai oikealle" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="steering-guide">← OHJAA →</span><span class="steering-thumb"></span></div>
         <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">↶</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">↷</button></div>
         <div class="pedals"><button class="control brake" data-control="brake">JARRU</button><button class="control gas" data-control="gas">KAASU</button></div>

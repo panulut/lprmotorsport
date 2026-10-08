@@ -14,11 +14,22 @@ Avaa tietokoneella `http://localhost:8000`. Puhelimella voit avata `http://TIETO
 
 ## Ohjaus
 
+Saunapakuun pääsee saunomaan ensimmäisen mutkan ulkopuolella. Aja pakun lähelle ja pysähdy (alle 2 km/h), sitten valitse **Mene saunaan** tai paina **E**. Saunassa ämpärin tai kauhan klikkaaminen, napauttaminen tai osoittaminen hiirellä tuo näkyviin **Heitä löylyä** -painikkeen. Painike tai välilyönti käynnistää löylynheiton. Painike pysyy näkyvissä, kunnes valitset muun kohdan tai vaihdat paikkaa. **Palaa autoon** tai **E** palauttaa samaan pysäköintipaikkaan. Kierrosaika on tauolla saunomisen ajan. Saunassa voi katsella vapaasti ympärille vetämällä näkymää hiirellä tai sormella. Nuolinäppäimet tai WASD kääntävät katsetta sivuille sekä ylös ja alas. **Vaihda vastakkaiselle lauteelle** tai **F** siirtää toiselle puolelle ja suuntaa katseen kiukaaseen. Painikkeet toimivat myös puhelimella.
+
+Puhelimella voit valita **Kallistusohjaus**-painikkeen. Pidä puhelin mukavassa ajoasennossa ja hyväksy iPhonen liikeanturilupa. Ensimmäinen anturilukema tallentaa keskiasennon; **Keskitä** tallentaa sen uudelleen. Kallista vasemmalle tai oikealle ja käytä kosketuspainikkeita kaasuun ja jarruun. Ohjaus toimii pysty- ja vaaka-asennossa. Näytön käännön tai taustalta palaamisen jälkeen keskiasento tallennetaan uudelleen. Samasta painikkeesta voi palata kosketusohjaukseen. Anturit tarvitsevat HTTPS-yhteyden: tavallinen puhelimella avattu lähiverkon HTTP-osoite ei riitä.
+
 - Puhelin: liu’uta vasenta peukaloa ohjausalueella. Keskellä ratti on suorassa, reunoja kohti ohjaus kasvaa. Oikealla pidä kaasua tai jarrua; ohjaus ja poljin toimivat samanaikaisesti. Molemmat peukaloalueet pysyvät näkyvissä pysty- ja vaaka-asennossa. Ohjaus palautuu keskelle, kun sormen nostaa. Sovelluksen vaihtaminen keskeyttää kierrosajan ja vapauttaa ohjaimet.
 - Näppäimistö: nuolinäppäimet tai A/D ohjaukseen, W/ylänuoli kaasuun ja S/alanuoli jarruun.
 - Ratti ja polkimet: liitä laitteet ja avaa **Ohjain**. Tallenna keskiasento, ratin ääriasennot, vapautetut polkimet ja kummankin polkimen pohja-asento. Asetukset tallentuvat selaimeen laitteen tunnisteen mukaan.
 
 Ratin tarkka toiminta riippuu laitteesta, ajurista ja selaimesta. Testaa tapahtumapisteen omalla laitteistolla ennen tapahtumaa. Tässä versiossa ei ole voimavastetta.
+
+## Saunan tapahtumat
+Saunojat hengittävät, kääntävät päätään ja elehtivät, hörppivät kupeistaan, juttelevat, kertovat juttuja ja osallistuvat saunalauluihin. Pelaajan vieressä istuva saunoja heittää välillä löylyä omalla kädellään ja kauhalla. Ensimmäinen saunoja lähtee vilvoittelemaan noin puolen minuutin jälkeen; tämän jälkeen porukkaa vaihtuu yksi kerrallaan. Hahmot kulkevat alalauteen ja portaiden kautta ovelle, joka avautuu heidän kulkiessaan. Uusilla saunojilla on eri nimet ja vaihtuva ulkonäkö. Pelaajan molemmat istumapaikat pysyvät vapaina. Tiheä löylynheitto kasvattaa kuumuutta: saunojat kommentoivat ensin kunnon löylyjä ja alkavat sitten valittaa kuumuutta. Kovimmissa löylyissä valittanut saunoja nousee, kulkee pihalle vilvoittelemaan ja palaa myöhemmin omalle paikalleen. Kuumuus laskee löylynheiton tauon aikana.
+
+Puheet ja omat lyhyet saunalaulut näkyvät tekstityksinä. **Saunan äänet** ottaa käyttöön selaimen puheäänen ja synteettisen, hyräilyä muistuttavan kolmiäänisen laulumelodian. Suomenkielisen puheäänen saatavuus riippuu selaimesta ja käyttöjärjestelmästä. Ääni on aluksi pois päältä. Saunatapahtumat pysähtyvät ohjainasetuksissa ja taustalla; äänet loppuvat saunasta poistuttaessa.
+
+Saunan toiminnalliset tarkistukset: `node tests/sauna.test.cjs`.
 
 ## Ajomalli ja sen rajat
 
@@ -30,3 +41,8 @@ Harjoitusrata on noin 220 metriä pitkä ja 5,4 metriä leveä. Radan ensimmäis
 
 Parametrit (massa, akseliväli, teho, rengaspito, vetotapa) ovat alustavia. Käytettävissä on auton valokuva mutta ei mittaus- tai testidataa, joten peli ei kuvaa juuri LPR Motorsportin auton mitattua suorituskykyä. Kuvan perusteella ohjaamon ulkoasu on muutettu avoimeksi ja siniputkiseksi. Eturenkaat, vanteet ja ripustuksen osat piirretään nyt 3D-muotoina, ja renkaat kääntyvät sekä pyörivät ajossa. Yksityiskohdat ovat edelleen tulkintaa. Todellinen autokohtainen malli edellyttää vähintään massa- ja akselivälitietoja sekä kiihdytys-, jarrutus- ja mutkatestien dataa.
 
+# Kielen vaihtaminen
+
+Yläpalkin FI/EN-valinnalla voi vaihtaa suomen ja englannin välillä myös kesken kierroksen. Vaihto säilyttää pelitilanteen ja tallentuu selaimeen seuraavaa pelikertaa varten. Käyttöliittymä, ohjeet, kalibrointi ja saunan keskustelut seuraavat valittua kieltä. Saunan puhe käyttää valitun kielen ääntä, jos selain tarjoaa sen.
+
+Käännökset ja muotoiltavat tilaviestit ovat tiedostossa `i18n.js`. Kielenvaihdon testit voi ajaa komennolla `node tests/i18n.test.cjs`.

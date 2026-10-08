@@ -7,6 +7,7 @@ window.VehicleDynamics = class VehicleDynamics {
       wheelbase: 1.63,           // m
       frontAxle: 0.81,           // centre of mass to front axle, m
       rearAxle: 0.82,            // centre of mass to rear axle, m
+      trackWidth: 1.2,           // m, provisional tire contact spacing
       yawInertia: 120,           // kg m²
       centreOfMassHeight: 0.29,  // m
       frontCorneringStiffness: 13000, // N/rad, combined front axle
@@ -38,7 +39,7 @@ window.VehicleDynamics = class VehicleDynamics {
     state.speed = 0;
   }
 
-  step(state, input, seconds, offroad) {
+  step(state, input, seconds, grassContact) {
     const p = this.parameters;
     const dt = Math.min(seconds, 1 / 90);
     const gravity = 9.81;
@@ -46,7 +47,8 @@ window.VehicleDynamics = class VehicleDynamics {
     const brake = Math.max(0, Math.min(1, input.brake));
     const desiredSteer = Math.max(-1, Math.min(1, input.steer));
     const analog = !!input.analog;
-    const mu = offroad ? p.grassGrip : p.roadGrip;
+    const grassFraction = Math.max(0, Math.min(1, Number(grassContact) || 0));
+    const mu = p.roadGrip + (p.grassGrip - p.roadGrip) * grassFraction;
 
     // Digital buttons need a progressive steering rack; wheel input stays direct.
     const response = analog ? 8 : 2.4;
@@ -70,7 +72,7 @@ window.VehicleDynamics = class VehicleDynamics {
 
     const speed = Math.max(0, state.vx);
     const drag = 0.5 * 1.225 * p.dragArea * speed * speed;
-    const rolling = p.rollingResistance * (offroad ? 3 : 1);
+    const rolling = p.rollingResistance * (1 + 2 * grassFraction);
     const rawDriveRequest = throttle * Math.min(p.peakDriveForce, p.peakPower / Math.max(speed, 2));
     const brakeRequest = brake * p.peakBrakeForce;
     const wheelbase = p.wheelbase;
@@ -97,9 +99,15 @@ window.VehicleDynamics = class VehicleDynamics {
     const frontLimit = mu * frontLoad;
     const rearLimit = mu * rearLoad;
 
-    // Braking uses both axles. Power is provisionally sent to the rear axle.
-    const frontFx = Math.max(-frontLimit, -brakeRequest * 0.58);
-    const rearFx = Math.max(-rearLimit, Math.min(rearLimit, driveRequest - brakeRequest * 0.42));
+    // Move brake bias forward as braking unloads the rear axle. Reserve rear
+    // lateral grip in corners so braking does not remove the stabilizing force.
+    const frontBrakeBias = Math.max(.65, Math.min(.90, frontLoad / (frontLoad + rearLoad) + .10));
+    const rearBrakeReserve = Math.min(rearLimit * .95, lateralDemand);
+    const rearBrakeCapacity = Math.sqrt(Math.max(0, rearLimit ** 2 - rearBrakeReserve ** 2));
+    const frontFx = Math.max(-frontLimit, -brakeRequest * frontBrakeBias);
+    const rearBrakeForce = Math.min(brakeRequest * (1 - frontBrakeBias), rearBrakeCapacity);
+    // Power is provisionally sent to the rear axle.
+    const rearFx = Math.max(-rearLimit, Math.min(rearLimit, driveRequest - rearBrakeForce));
     const frontLateralCapacity = Math.sqrt(Math.max(0, frontLimit * frontLimit - frontFx * frontFx));
     const rearLateralCapacity = Math.sqrt(Math.max(0, rearLimit * rearLimit - rearFx * rearFx));
 

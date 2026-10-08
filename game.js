@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  const t = (text, values) => window.LPRI18n?.t(text, values) ?? text;
 
   const canvas = document.querySelector('#track');
   const ui = {
@@ -18,6 +19,8 @@
   };
   const WORLD = { width: 1200, height: 800 };
   const ROAD_HALF = 27;
+  const KERB_OUTER = 33;
+  const SHOULDER_OUTER = 35;
   const POINTS = 240;
   const track = Array.from({ length: POINTS }, (_, i) => {
     const t = i * Math.PI * 2 / POINTS;
@@ -31,6 +34,15 @@
   const keyboard = new Set();
   const touchPointers = new Map();
   const steeringPad = document.querySelector("#steering-pad");
+  const tiltToggle = document.querySelector('#tilt-toggle');
+  const tiltCenter = document.querySelector('#tilt-center');
+  const tiltStatus = document.querySelector('#tilt-status');
+  const tilt = new LPRTiltSteering(message => {
+    tiltStatus.textContent = message;
+    tiltToggle.setAttribute('aria-pressed', String(tilt.enabled));
+    tiltCenter.hidden = !tilt.enabled;
+  });
+  let tiltSteer = 0;
   let steeringPointer = null;
   let touchSteer = 0;
   let suspendedAt = null;
@@ -41,18 +53,152 @@
   let lastFrame = performance.now();
   let lastDeviceUpdate = 0;
   let noticeTimeout = 0;
+  const saunaEnter = document.querySelector('#sauna-enter');
+  const saunaSteam = document.querySelector('#sauna-steam');
+  const saunaSeat = document.querySelector('#sauna-seat');
+  const saunaHint = document.querySelector('#sauna-hint');
+  const saunaSound = document.querySelector('#sauna-sound');
+  const saunaDialogue = document.querySelector('#sauna-dialogue');
+  const saunaLife = new LPRSaunaLife(text => {
+    saunaDialogue.textContent = t(text);
+    saunaDialogue.hidden = !text;
+  });
+  let saunaLookPointer = null;
+  let saunaHoverPosition = null;
+  let saunaSteamSelected = false;
+  function updateSteamTarget() {
+    const hovered=car.sauna && !ui.dialog.open && !saunaLookPointer && saunaHoverPosition &&
+      renderer.saunaSteamTarget(car,saunaHoverPosition.x,saunaHoverPosition.y,performance.now());
+    // Keep the revealed action available while moving from the prop to its button.
+    if (hovered) saunaSteamSelected=true;
+    saunaSteam.hidden = !car.sauna || ui.dialog.open || !(hovered || saunaSteamSelected);
+    canvas.classList.toggle('steam-target', !!hovered);
+  }
+
+  function lookAround(yaw, pitch) {
+    car.saunaYaw = Math.atan2(Math.sin((car.saunaYaw || 0) + yaw), Math.cos((car.saunaYaw || 0) + yaw));
+    car.saunaPitch = Math.max(-1.15, Math.min(1.15, (car.saunaPitch ?? -.12) + pitch));
+  }
+
+  canvas.addEventListener('pointerdown', event => {
+    if (!car.sauna || ui.dialog.open || saunaLookPointer || event.button !== 0) return;
+    event.preventDefault();
+    saunaLookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startX:event.clientX, startY:event.clientY, dragged:false };
+    canvas.setPointerCapture(event.pointerId);
+    canvas.classList.add('looking');
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (!saunaLookPointer) {
+      saunaHoverPosition = event.pointerType === 'touch' ? null : {x:event.clientX,y:event.clientY};
+      updateSteamTarget();
+      return;
+    }
+    if (!saunaLookPointer || event.pointerId !== saunaLookPointer.id || !car.sauna || ui.dialog.open) return;
+    event.preventDefault();
+    const sensitivity = Math.PI / Math.max(240, canvas.clientWidth);
+    if(Math.hypot(event.clientX-saunaLookPointer.startX,event.clientY-saunaLookPointer.startY)>6) saunaLookPointer.dragged=true;
+    if (!saunaLookPointer.dragged) return;
+    lookAround(-(event.clientX - saunaLookPointer.x) * sensitivity, (event.clientY - saunaLookPointer.y) * sensitivity);
+    saunaLookPointer.x = event.clientX;
+    saunaLookPointer.y = event.clientY;
+  });
+  function stopLooking() {
+    const pointer = saunaLookPointer;
+    saunaLookPointer = null;
+    canvas.classList.remove('looking');
+    if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
+  }
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    canvas.addEventListener(type, event => {
+      if (event.pointerId !== saunaLookPointer?.id) return;
+      if(type==='pointerup' && !saunaLookPointer.dragged && car.sauna && !ui.dialog.open) {
+        saunaSteamSelected=renderer.saunaSteamTarget(car,event.clientX,event.clientY,performance.now());
+        if(saunaSteamSelected) saunaHint.textContent=t("Heit\u00e4 l\u00f6yly\u00e4 kauhalla: valitse painike tai paina v\u00e4lily\u00f6nti\u00e4.");
+      }
+      stopLooking();
+      updateSteamTarget();
+    });
+  }
+  canvas.addEventListener('pointerleave', event => {
+    if(event.relatedTarget===saunaSteam) return;
+    saunaHoverPosition=null;
+    updateSteamTarget();
+  });
+
+  function nearSauna() {
+    return Math.hypot(car.x-renderer.saunaStop.x,car.y-renderer.saunaStop.y) < 65;
+  }
+
+  function updateSaunaUI() {
+    saunaEnter.disabled = !car.sauna && (!nearSauna() || Math.abs(car.speed) > .5);
+    saunaEnter.textContent = car.sauna ? t("Palaa autoon (E)") : t("Mene saunaan (E)");
+    updateSteamTarget();
+    saunaSeat.hidden = !car.sauna;
+    saunaSound.hidden = !car.sauna;
+    saunaHint.textContent = car.sauna ? t("Katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku on ensimm\u00e4isen mutkan ulkopuolella.");
+    canvas.classList.toggle('sauna-view', !!car.sauna);
+    document.querySelector('#track').setAttribute('aria-label', car.sauna ? t("Saunapakun lauteet ja kiuas") : t("3D-n\u00e4kym\u00e4 kuljettajan paikalta"));
+  }
+
+  function toggleSauna() {
+    if (ui.dialog.open || (!car.sauna && (!nearSauna() || Math.abs(car.speed) > .5))) return;
+    clearInput();
+    car.sauna = !car.sauna;
+    if (car.sauna) {
+      dynamics.reset(car);
+      car.steamAt = -10000;
+      car.saunaYaw = 0;
+      car.saunaPitch = -.12;
+      car.saunaSide = -1;
+      car.steamActor = 'player';
+      car.saunaLife = saunaLife;
+      saunaLife.enter();
+      ui.speed.textContent = '0';
+      ui.lateralG.textContent = '0.0 G';
+      ui.grip.textContent = t("SAUNATAUKO");
+      ui.tc.textContent = t("AUTO PARKISSA");
+    } else saunaLife.leave();
+    ui.notice.classList.add('hidden');
+    updateSaunaUI();
+  }
+
+  function switchSaunaSeat() {
+    if (!car.sauna || ui.dialog.open) return;
+    clearInput();
+    car.saunaSide = -(car.saunaSide || -1);
+    // Finish any ladle movement before moving its bucket to the opposite seat.
+    car.steamAt = -10000;
+    car.steamActor = 'player';
+    // Turn towards the stove from the new seat, then allow free looking again.
+    const stoveDistanceZ = -8 - car.saunaSide*6;
+    car.saunaYaw = Math.atan2(stoveDistanceZ,30);
+    car.saunaPitch = Math.atan2(-8,Math.hypot(30,stoveDistanceZ));
+    showNotice(t("Siirryit vastakkaiselle lauteelle."), 1800);
+  }
+
+  function throwSteam() {
+    if (!car.sauna || ui.dialog.open) return;
+    const now = performance.now();
+    if (now - car.steamAt < 900) return;
+    car.steamAt = now;
+    car.steamActor = 'player';
+    saunaLife.registerSteam();
+    showNotice(t("Tsssss\u2026 Hyv\u00e4t l\u00f6ylyt!"), 2000);
+  }
 
   function reset() {
     clearInput();
+    saunaLife.leave();
     car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false };
     dynamics.reset(car);
+    updateSaunaUI();
     ui.lap.textContent = '1';
     ui.time.textContent = '00:00.000';
     ui.speed.textContent = '0';
     ui.lateralG.textContent = '0.0 G';
-    ui.grip.textContent = 'PITO OK';
-    ui.tc.textContent = 'TC PÄÄLLÄ';
-    showNotice('Paina kaasua ja lähde ajamaan!', 0);
+    ui.grip.textContent = t("PITO OK");
+    ui.tc.textContent = t("TC P\u00c4\u00c4LL\u00c4");
+    showNotice(t("Paina kaasua ja l\u00e4hde ajamaan!"), 0);
   }
 
   function formatTime(ms) {
@@ -107,7 +253,7 @@
     const gas = strongestChange(captures.released, captures.gas);
     const brake = strongestChange(captures.released, captures.brake);
     if (!wheel || !gas || !brake) {
-      ui.calibration.textContent = 'Liike ei erottunut. Tarkista laite ja tallenna asennot uudelleen.';
+      ui.calibration.textContent = t("Liike ei erottunut. Tarkista laite ja tallenna asennot uudelleen.");
       return;
     }
     const wheelKey = wheel.type;
@@ -118,8 +264,8 @@
       brake: { type: brake.type, index: brake.index, released: captures.released[brake.type][brake.index], pressed: captures.brake[brake.type][brake.index] }
     };
     localStorage.setItem(`lpr-controller-${activePad.id}`, JSON.stringify(calibration));
-    ui.calibration.textContent = 'Kalibrointi valmis. Voit sulkea ikkunan ja ajaa.';
-    ui.input.textContent = 'RATTI JA POLKIMET';
+    ui.calibration.textContent = t("Kalibrointi valmis. Voit sulkea ikkunan ja ajaa.");
+    ui.input.textContent = t("RATTI JA POLKIMET");
   }
 
   function readPedal(pad, mapping) {
@@ -158,8 +304,8 @@
       calibration = null;
     }
     const device = padInput(pad);
-    const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0;
-    const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : touchSteer;
+    const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0 || tilt.enabled;
+    const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : steeringPointer !== null || touchSteer !== 0 ? touchSteer : tiltSteer;
     return local ? { steer, gas: held.gas ? 1 : 0, brake: held.brake ? 1 : 0, analog: false, wheel: false } : { ...device, analog: !!pad, wheel: !!calibration };
   }
 
@@ -178,15 +324,43 @@
     return { index, distance: Math.sqrt(bestDist) };
   }
 
+  function grassContact(state) {
+    const p = dynamics.parameters;
+    const scale = 1 / p.metresPerWorldUnit;
+    const forwardX = Math.cos(state.angle), forwardY = Math.sin(state.angle);
+    let total = 0;
+    let kerbTires = 0;
+    // Sample each tire rather than switching the whole car to grass at its centre.
+    for (const axle of [p.frontAxle, -p.rearAxle]) {
+      for (const side of [-p.trackWidth / 2, p.trackWidth / 2]) {
+        const x = state.x + (axle * forwardX - side * forwardY) * scale;
+        const y = state.y + (axle * forwardY + side * forwardX) * scale;
+        const distance = nearestTrack(x, y).distance;
+        if (distance >= ROAD_HALF && distance <= KERB_OUTER) kerbTires++;
+        const blend = Math.max(0, Math.min(1, (distance - KERB_OUTER) / (SHOULDER_OUTER - KERB_OUTER)));
+        total += blend * blend * (3 - 2 * blend);
+      }
+    }
+    state.kerbFraction = kerbTires / 4;
+    return total / 4;
+  }
+
   function update(dt, now) {
+    tiltSteer = tilt.read(dt);
     const input = readInput();
     if (now - lastDeviceUpdate > 1000) {
-      ui.device.textContent = activePad ? `Yhdistetty: ${activePad.id} · ${activePad.axes.length} akselia, ${activePad.buttons.length} painiketta` : 'Odotetaan ohjainta… Käännä rattia tai paina sen painiketta.';
-      ui.input.textContent = activePad ? calibration ? 'RATTI JA POLKIMET' : activePad.mapping === 'standard' ? 'PELIOHJAIN' : 'OHJAIN · KALIBROI' : 'KOSKETUS / NÄPPÄIMISTÖ';
+      ui.device.textContent = activePad ? t("deviceDetails", { device: activePad.id, axes: activePad.axes.length, buttons: activePad.buttons.length }) : t("Odotetaan ohjainta\u2026 K\u00e4\u00e4nn\u00e4 rattia tai paina sen painiketta.");
+      ui.input.textContent = activePad ? calibration ? t("RATTI JA POLKIMET") : activePad.mapping === 'standard' ? t("PELIOHJAIN") : t("OHJAIN \u00b7 KALIBROI") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6");
       lastDeviceUpdate = now;
+      if (tilt.enabled) ui.input.textContent = t("KALLISTUSOHJAUS");
     }
-    if (ui.dialog.open) {
+    if (ui.dialog.open || car.sauna) {
       if (car.started) car.lapStart += dt * 1000;
+      if (car.sauna && !ui.dialog.open) {
+        saunaLife.update(dt,car,now);
+        lookAround(((held.right ? 1 : 0) - (held.left ? 1 : 0)) * dt * 1.6,
+          ((held.gas ? 1 : 0) - (held.brake ? 1 : 0)) * dt * 1.2);
+      }
       return;
     }
     input.steer = Math.abs(input.steer) < .04 ? 0 : input.steer;
@@ -195,10 +369,11 @@
       car.lapStart = now;
       ui.notice.classList.add('hidden');
     }
-    const proximity = nearestTrack(car.x, car.y);
-    car.offroad = proximity.distance > ROAD_HALF - 7;
     const steps = Math.max(1, Math.ceil(dt * 90));
-    for (let i = 0; i < steps; i++) dynamics.step(car, input, dt / steps, car.offroad);
+    for (let i = 0; i < steps; i++) {
+      car.grassFraction = grassContact(car);
+      dynamics.step(car, input, dt / steps, car.grassFraction);
+    }
     const boundedX = Math.max(12, Math.min(WORLD.width - 12, car.x));
     const boundedY = Math.max(12, Math.min(WORLD.height - 12, car.y));
     if (boundedX !== car.x || boundedY !== car.y) { car.vx = 0; car.vy = 0; }
@@ -206,7 +381,8 @@
     car.y = boundedY;
 
     const nearest = nearestTrack(car.x, car.y);
-    car.offroad = nearest.distance > ROAD_HALF - 7;
+    car.grassFraction = grassContact(car);
+    car.offroad = car.grassFraction > .5;
     if (nearest.distance < ROAD_HALF && car.speed > 2.2) {
       if (car.stage === 0 && nearest.index > 55 && nearest.index < 85) car.stage = 1;
       else if (car.stage === 1 && nearest.index > 115 && nearest.index < 145) car.stage = 2;
@@ -218,8 +394,8 @@
             best = lapTime;
             localStorage.setItem('lpr-best-time-v4', String(best));
             ui.best.textContent = formatTime(best);
-            showNotice(`UUSI ENNÄTYS · ${formatTime(lapTime)}`, 3500);
-          } else showNotice(`KIERROS · ${formatTime(lapTime)}`, 2500);
+            showNotice(t("record", { time: formatTime(lapTime) }), 3500);
+          } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
           car.lap++;
           car.lapStart = now;
           car.stage = 0;
@@ -230,19 +406,56 @@
     if (car.started) ui.time.textContent = formatTime(now - car.lapStart);
     ui.speed.textContent = String(Math.round(car.speed * 3.6));
     ui.lateralG.textContent = `${Math.abs(car.lateralG).toFixed(1)} G`;
-    ui.grip.textContent = car.offroad ? 'RADAN ULKOPUOLELLA' : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? 'PITO RAJALLA' : 'PITO OK';
-    ui.tc.textContent = car.tcActive ? 'TC RAJOITTAA TEHOA' : 'TC PÄÄLLÄ';
+    ui.grip.textContent = car.offroad ? t("RADAN ULKOPUOLELLA") : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? t("PITO RAJALLA") : t("PITO OK");
+    ui.tc.textContent = car.tcActive ? t("TC RAJOITTAA TEHOA") : t("TC P\u00c4\u00c4LL\u00c4");
+    updateSaunaUI();
   }
 
   function frame(now) {
     const dt = Math.min((now - lastFrame) / 1000, .05);
     lastFrame = now;
     if (!document.hidden) update(dt, now);
+    if (!document.hidden) updateSteamTarget();
     renderer.render(car, now);
     requestAnimationFrame(frame);
   }
 
   const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
+  tiltToggle.addEventListener('click', async () => {
+    if (tilt.enabled) {
+      tilt.disable();
+      tiltToggle.setAttribute('aria-pressed', 'false');
+      tiltCenter.hidden = true;
+      tiltStatus.textContent = t("Kosketusohjaus k\u00e4yt\u00f6ss\u00e4.");
+      return;
+    }
+    tiltToggle.disabled = true;
+    tiltStatus.textContent = t("Pid\u00e4 puhelin ajoasennossa ja salli liikeanturit.");
+    try {
+      await tilt.enable();
+      clearInput();
+      tiltToggle.setAttribute('aria-pressed', 'true');
+      tiltCenter.hidden = false;
+    } catch (error) {
+      tiltStatus.textContent = error.message;
+    } finally {
+      tiltToggle.disabled = false;
+    }
+  });
+  tiltCenter.addEventListener('click', () => {
+    tilt.recenter();
+    tiltStatus.textContent = t("Pid\u00e4 puhelin haluamassasi keskiasennossa.");
+  });
+  const recenterTilt = () => {
+    if (tilt.enabled) {
+      clearInput();
+      tilt.recenter();
+      tiltStatus.textContent = t("Pid\u00e4 puhelin ajoasennossa. Ohjaus keskitet\u00e4\u00e4n.");
+    }
+  };
+  window.addEventListener('orientationchange', recenterTilt);
+  window.screen.orientation?.addEventListener('change', recenterTilt);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) recenterTilt(); });
   function syncHeld() {
     for (const name of Object.keys(held)) {
       held[name] = [...keyboard].some(code => keyMap[code] === name) || [...touchPointers.values()].includes(name);
@@ -255,6 +468,9 @@
     steeringPad.setAttribute('aria-valuenow', String(Math.round(touchSteer * 100)));
   }
   function clearInput() {
+    stopLooking();
+    saunaHoverPosition=null;
+    saunaSteamSelected=false;
     keyboard.clear();
     touchPointers.clear();
     steeringPointer = null;
@@ -263,6 +479,11 @@
     syncHeld();
   }
   window.addEventListener('keydown', event => {
+    if (!ui.dialog.open && !event.repeat && !['BUTTON','INPUT','SELECT','TEXTAREA'].includes(event.target.tagName)) {
+      if (event.code === 'KeyE') { event.preventDefault(); toggleSauna(); return; }
+      if (event.code === 'KeyF' && car.sauna) { event.preventDefault(); switchSaunaSeat(); return; }
+      if (event.code === 'Space' && car.sauna) { event.preventDefault(); throwSteam(); return; }
+    }
     if (!keyMap[event.code] || ui.dialog.open || event.target === steeringPad) return;
     event.preventDefault(); keyboard.add(event.code); syncHeld();
   });
@@ -271,6 +492,21 @@
     event.preventDefault(); keyboard.delete(event.code); syncHeld();
   });
   window.addEventListener('blur', clearInput);
+  // Older iOS Safari versions also emit proprietary pinch gesture events.
+  // Restrict the fallback to gameplay so settings retain normal touch behavior.
+  const gameSurface = document.querySelector('.app');
+  const preventGameZoom = event => {
+    if (!ui.dialog.open && event.cancelable) event.preventDefault();
+  };
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    gameSurface.addEventListener(type, preventGameZoom, { passive: false });
+  }
+  for (const type of ['touchstart', 'touchmove']) {
+    gameSurface.addEventListener(type, event => {
+      if (event.touches.length > 1) preventGameZoom(event);
+    }, { passive: false });
+  }
+
   document.querySelectorAll('[data-control]').forEach(button => {
     button.addEventListener('pointerdown', event => {
       if (ui.dialog.open) return;
@@ -309,6 +545,7 @@
   steeringPad.addEventListener('blur', () => { if (steeringPointer === null) setSteer(0); });
   document.addEventListener('visibilitychange', () => {
     clearInput();
+    if(document.hidden) saunaLife.stopSound();
     if (document.hidden) suspendedAt = performance.now();
     else if (suspendedAt !== null) {
       const now = performance.now();
@@ -318,16 +555,24 @@
   });
   window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);
-  document.querySelector('#settings-button').addEventListener('click', () => { clearInput(); ui.dialog.showModal(); });
+  saunaEnter.addEventListener('click', toggleSauna);
+  saunaSteam.addEventListener('click', throwSteam);
+  saunaSeat.addEventListener('click', switchSaunaSeat);
+  saunaSound.addEventListener('click', () => {
+    saunaLife.setSound(!saunaLife.sound);
+    saunaSound.setAttribute('aria-pressed', String(saunaLife.sound));
+    saunaSound.textContent = saunaLife.sound ? t("Saunan \u00e4\u00e4net: p\u00e4\u00e4ll\u00e4") : t("Saunan \u00e4\u00e4net: pois");
+  });
+  document.querySelector('#settings-button').addEventListener('click', () => { clearInput(); saunaLife.stopSound(); ui.dialog.showModal(); });
   document.querySelector('#close-settings').addEventListener('click', () => ui.dialog.close());
   document.querySelectorAll('[data-capture]').forEach(button => button.addEventListener('click', () => {
     const pad = currentPad();
-    if (!pad) { ui.calibration.textContent = 'Ohjainta ei näy. Paina ratin painiketta ja yritä uudelleen.'; return; }
+    if (!pad) { ui.calibration.textContent = t("Ohjainta ei n\u00e4y. Paina ratin painiketta ja yrit\u00e4 uudelleen."); return; }
     if (activePad?.id !== pad.id) activePad = pad;
     captures[button.dataset.capture] = snapshot(pad);
     button.classList.add('saved');
-    button.textContent = 'Tallennettu ✓';
-    ui.calibration.textContent = `Tallennettu: ${button.parentElement.querySelector('strong').textContent.toLowerCase()}.`;
+    button.textContent = t("Tallennettu \u2713");
+    ui.calibration.textContent = t("savedPosition", { position: button.parentElement.querySelector("strong").textContent.toLowerCase() });
     saveCalibration();
   }));
   window.addEventListener('resize', resize);
@@ -335,7 +580,7 @@
   window.addEventListener('gamepadconnected', event => {
     activePad = event.gamepad;
     try { calibration = JSON.parse(localStorage.getItem(`lpr-controller-${activePad.id}`)); } catch { calibration = null; }
-    ui.device.textContent = `Yhdistetty: ${event.gamepad.id}`;
+    ui.device.textContent = t("connected", { device: event.gamepad.id });
   });
   window.addEventListener('gamepaddisconnected', () => { activePad = null; calibration = null; });
 
