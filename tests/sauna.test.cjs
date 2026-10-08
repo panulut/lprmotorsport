@@ -131,12 +131,16 @@ const gl = new Proxy({}, {
       assert([...data].filter((_, index) => index % 6 >= 3).every(value => value >= 0 && value <= 1));
     } : () => 0
 });
+vm.runInContext(source('campus.js'), context);
+vm.runInContext(source('sale.js'), context);
 vm.runInContext(source('renderer3d.js'), context);
-const points = Array.from({ length: 240 }, (_, i) => ({
-  x: 600 + 355 * Math.cos(i * Math.PI / 120), y: 402 + 345 * Math.sin(i * Math.PI / 120)
-}));
+const points = context.window.LPRCampus.track;
 const renderer = new context.window.LPRRenderer3D({ getContext: () => gl }, { getContext: () => ({}) }, points);
 assert.equal(renderer.saunaGuestMeshes.length, 8);
+assert(renderer.saleVertexCount>0);
+assert.equal(context.window.LPRSale.canWalk(35,130),true);
+assert.equal(context.window.LPRSale.canWalk(-3,40),false);
+assert.equal(context.window.LPRSale.canWalk(85,130),false);
 for (const time of [0, 4, 18, 32.5, 34, 36, 38, 39.5, 41, 43, 47.5, 49, 162, 194]) {
   life.time = time;
   renderer.drawSaunaGuests(car, time * 1000);
@@ -164,6 +168,8 @@ const gameContext = {
 vm.createContext(gameContext);
 vm.runInContext(source('sauna.js'), gameContext);
 vm.runInContext(source('vehicle.js'), gameContext);
+vm.runInContext(source('campus.js'), gameContext);
+gameContext.LPRCampus = gameContext.window.LPRCampus;
 gameContext.LPRSaunaLife = gameContext.window.LPRSaunaLife;
 gameContext.VehicleDynamics = gameContext.window.VehicleDynamics;
 vm.runInContext(source('game.js').replace(/  reset\(\);\s+resize\(\);/,

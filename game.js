@@ -17,15 +17,12 @@
     calibration: document.querySelector('#calibration-status'),
     dialog: document.querySelector('#settings-dialog')
   };
-  const WORLD = { width: 1200, height: 800 };
+  const WORLD = LPRCampus.bounds;
   const ROAD_HALF = 27;
   const KERB_OUTER = 33;
   const SHOULDER_OUTER = 35;
-  const POINTS = 240;
-  const track = Array.from({ length: POINTS }, (_, i) => {
-    const t = i * Math.PI * 2 / POINTS;
-    return { x: 600 + 355 * Math.cos(t) + Math.cos(3 * t + .4), y: 402 + 345 * Math.sin(t) };
-  });
+  const track = LPRCampus.track;
+  const POINTS = track.length;
   const renderer = new LPRRenderer3D(canvas, document.querySelector('#cockpit'), track);
   const dynamics = new VehicleDynamics();
   const startAngle = Math.atan2(track[1].y - track[0].y, track[1].x - track[0].x);
@@ -48,11 +45,12 @@
   let suspendedAt = null;
   let activePad = null;
   let calibration = null;
-  let best = Number(localStorage.getItem('lpr-best-time-v4')) || 0;
+  let best = Number(localStorage.getItem('lpr-best-time-lut-v1')) || 0;
   let car;
   let lastFrame = performance.now();
   let lastDeviceUpdate = 0;
   let noticeTimeout = 0;
+  const saleEnter = document.querySelector('#sale-enter');
   const saunaEnter = document.querySelector('#sauna-enter');
   const saunaSteam = document.querySelector('#sauna-steam');
   const saunaSeat = document.querySelector('#sauna-seat');
@@ -81,7 +79,7 @@
   }
 
   canvas.addEventListener('pointerdown', event => {
-    if (!car.sauna || ui.dialog.open || saunaLookPointer || event.button !== 0) return;
+    if (!(car.sauna || car.sale) || ui.dialog.open || saunaLookPointer || event.button !== 0) return;
     event.preventDefault();
     saunaLookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startX:event.clientX, startY:event.clientY, dragged:false };
     canvas.setPointerCapture(event.pointerId);
@@ -93,7 +91,7 @@
       updateSteamTarget();
       return;
     }
-    if (!saunaLookPointer || event.pointerId !== saunaLookPointer.id || !car.sauna || ui.dialog.open) return;
+    if (!saunaLookPointer || event.pointerId !== saunaLookPointer.id || !(car.sauna || car.sale) || ui.dialog.open) return;
     event.preventDefault();
     const sensitivity = Math.PI / Math.max(240, canvas.clientWidth);
     if(Math.hypot(event.clientX-saunaLookPointer.startX,event.clientY-saunaLookPointer.startY)>6) saunaLookPointer.dragged=true;
@@ -125,23 +123,50 @@
     updateSteamTarget();
   });
 
+  function nearSale() {
+    const entrance=window.LPRSale?.entrance;
+    return !!entrance && Math.hypot(car.x-entrance.x,car.y-entrance.y)<90;
+  }
+
+  function toggleSale() {
+    if(ui.dialog.open || car.sauna || (!car.sale && (!nearSale() || Math.abs(car.speed)>.5))) return;
+    clearInput();
+    stopLooking();
+    car.sale=!car.sale;
+    if(car.sale) {
+      dynamics.reset(car);
+      car.saleX=35; car.saleZ=130;
+      car.saunaYaw=-Math.PI/2; car.saunaPitch=0;
+      ui.speed.textContent='0';
+      ui.lateralG.textContent='0.0 G';
+      ui.grip.textContent=t('KAUPPATAUKO');
+      ui.tc.textContent=t('AUTO PARKISSA');
+    }
+    ui.notice.classList.add('hidden');
+    updateSaunaUI();
+  }
+
   function nearSauna() {
     return Math.hypot(car.x-renderer.saunaStop.x,car.y-renderer.saunaStop.y) < 65;
   }
 
   function updateSaunaUI() {
-    saunaEnter.disabled = !car.sauna && (!nearSauna() || Math.abs(car.speed) > .5);
+    saleEnter.disabled = car.sauna || (!car.sale && (!nearSale() || Math.abs(car.speed)>.5));
+    saleEnter.textContent = car.sale ? t('Palaa autoon (R)') : t('Mene Saleen (R)');
+    saunaEnter.disabled = car.sale || !car.sauna && (!nearSauna() || Math.abs(car.speed) > .5);
     saunaEnter.textContent = car.sauna ? t("Palaa autoon (E)") : t("Mene saunaan (E)");
     updateSteamTarget();
     saunaSeat.hidden = !car.sauna;
     saunaSound.hidden = !car.sauna;
-    saunaHint.textContent = car.sauna ? t("Katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku on ensimm\u00e4isen mutkan ulkopuolella.");
-    canvas.classList.toggle('sauna-view', !!car.sauna);
-    document.querySelector('#track').setAttribute('aria-label', car.sauna ? t("Saunapakun lauteet ja kiuas") : t("3D-n\u00e4kym\u00e4 kuljettajan paikalta"));
+    saunaHint.textContent = car.sauna ? t("Katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku ja palju ovat Tervahaudanpuistossa.");
+    if(car.sale) saunaHint.textContent=t('Salessa: katsele vet?m?ll?. W/S tai kaasu/jarru liikuttaa, A/D k??nt??. Palaa autoon: R.');
+    else if(nearSale()) saunaHint.textContent=t('Pys?hdy Salen ovelle ja mene sis??n painikkeella tai R-n?pp?imell?.');
+    canvas.classList.toggle('sauna-view', !!(car.sauna || car.sale));
+    document.querySelector('#track').setAttribute('aria-label', car.sale ? t("Sale Skinnarilan sis?tila") : car.sauna ? t("Saunapakun lauteet ja kiuas") : t("3D-n\u00e4kym\u00e4 kuljettajan paikalta"));
   }
 
   function toggleSauna() {
-    if (ui.dialog.open || (!car.sauna && (!nearSauna() || Math.abs(car.speed) > .5))) return;
+    if (car.sale || ui.dialog.open || (!car.sauna && (!nearSauna() || Math.abs(car.speed) > .5))) return;
     clearInput();
     car.sauna = !car.sauna;
     if (car.sauna) {
@@ -354,12 +379,20 @@
       lastDeviceUpdate = now;
       if (tilt.enabled) ui.input.textContent = t("KALLISTUSOHJAUS");
     }
-    if (ui.dialog.open || car.sauna) {
+    if (ui.dialog.open || car.sauna || car.sale) {
       if (car.started) car.lapStart += dt * 1000;
       if (car.sauna && !ui.dialog.open) {
         saunaLife.update(dt,car,now);
         lookAround(((held.right ? 1 : 0) - (held.left ? 1 : 0)) * dt * 1.6,
           ((held.gas ? 1 : 0) - (held.brake ? 1 : 0)) * dt * 1.2);
+      }
+      if(car.sale && !ui.dialog.open) {
+        lookAround(((held.right?1:0)-(held.left?1:0))*dt*1.6,0);
+        const movement=((held.gas?1:0)-(held.brake?1:0))*dt*22;
+        const nextX=car.saleX+Math.cos(car.saunaYaw)*movement;
+        const nextZ=car.saleZ+Math.sin(car.saunaYaw)*movement;
+        if(window.LPRSale.canWalk(nextX,car.saleZ)) car.saleX=nextX;
+        if(window.LPRSale.canWalk(car.saleX,nextZ)) car.saleZ=nextZ;
       }
       return;
     }
@@ -392,7 +425,7 @@
         if (lapTime > 5000) {
           if (!best || lapTime < best) {
             best = lapTime;
-            localStorage.setItem('lpr-best-time-v4', String(best));
+            localStorage.setItem('lpr-best-time-lut-v1', String(best));
             ui.best.textContent = formatTime(best);
             showNotice(t("record", { time: formatTime(lapTime) }), 3500);
           } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
@@ -480,6 +513,7 @@
   }
   window.addEventListener('keydown', event => {
     if (!ui.dialog.open && !event.repeat && !['BUTTON','INPUT','SELECT','TEXTAREA'].includes(event.target.tagName)) {
+      if (event.code === 'KeyR') { event.preventDefault(); toggleSale(); return; }
       if (event.code === 'KeyE') { event.preventDefault(); toggleSauna(); return; }
       if (event.code === 'KeyF' && car.sauna) { event.preventDefault(); switchSaunaSeat(); return; }
       if (event.code === 'Space' && car.sauna) { event.preventDefault(); throwSteam(); return; }
@@ -555,6 +589,7 @@
   });
   window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);
+  saleEnter.addEventListener('click', toggleSale);
   saunaEnter.addEventListener('click', toggleSauna);
   saunaSteam.addEventListener('click', throwSteam);
   saunaSeat.addEventListener('click', switchSaunaSeat);

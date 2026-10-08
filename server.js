@@ -11,6 +11,8 @@ const files = {
   '/vehicle.js': ['vehicle.js', 'text/javascript; charset=utf-8'],
   '/game.js': ['game.js', 'text/javascript; charset=utf-8'],
   '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'],
+  '/campus.js': ['campus.js', 'text/javascript; charset=utf-8'],
+  '/sale.js': ['sale.js', 'text/javascript; charset=utf-8'],
   '/tilt.js': ['tilt.js', 'text/javascript; charset=utf-8'],
   '/sauna.js': ['sauna.js', 'text/javascript; charset=utf-8'],
   '/assets/lpr-logo.jpg': ['assets/lpr-logo.jpg', 'image/jpeg']

@@ -141,7 +141,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     };
 
     // Wide flat terrain and distinct bands make the approaching road readable at speed.
-    quad([-2200,-.4,-2200],[2200,-.4,-2200],[2200,-.4,2200],[-2200,-.4,2200],[.095,.235,.155]);
+    quad([-2200,-.4,-2200],[6500,-.4,-2200],[6500,-.4,6500],[-2200,-.4,6500],[.095,.235,.155]);
+    window.LPRCampus.build({ box, quad });
+    if(window.LPRSale) {
+      window.LPRSale.buildExterior({box,quad});
+      const interiorStart=data.length;
+      window.LPRSale.buildInterior({box});
+      const interior=new Float32Array(data.splice(interiorStart));
+      this.saleVertexCount=interior.length/6;
+      this.saleBuffer=gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER,this.saleBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER,interior,gl.STATIC_DRAW);
+    }
     // The shoulder is a continuous strip beneath the asphalt.
     strip(-35,35,.01,() => [.16,.18,.17]);
     strip(-27,27,.05,() => [.19,.22,.225]);
@@ -174,6 +185,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
         const distance = 75 + random() * 100;
         const x = points[i].x + normals[i].x * distance * side;
         const z = points[i].y + normals[i].z * distance * side;
+        if (window.LPRCampus.occupied(x,z) || (x > 2850 && z < 1200)) continue;
         const height = 28 + random() * 20;
         box(x,0,z,3,height*.35,3,[.24,.17,.11]);
         cone(x,z,height,9+random()*6,random()>.5 ? [.08,.29,.19] : [.055,.23,.16],4);
@@ -198,14 +210,11 @@ window.LPRRenderer3D = class LPRRenderer3D {
       box(x,26,z,4,5,4,i % 8 === 0 ? [.03,.68,.43] : [.03,.16,.13]);
     }
 
-    // Park the sauna truck outside the first bend. Dimensions are in world units
-    // (10 units ≈ 1 metre); its nearest bodywork stays clear of the shoulder.
-    const stopIndex = Math.min(30, count - 1);
-    const stop = at(stopIndex, -74, 0);
+    // Tervahaudanpuisto: the truck, tub and their crowd share this world frame.
+    const site = window.LPRCampus.saunaSite;
+    const stop = [site.x,0,site.y];
     this.saunaStop = { x: stop[0], y: stop[2] };
-    const beforeStop = points[(stopIndex - 1 + count) % count];
-    const afterStop = points[(stopIndex + 1) % count];
-    const travelAngle = Math.atan2(afterStop.y - beforeStop.y, afterStop.x - beforeStop.x);
+    const travelAngle = Math.PI / 4;
     const forwardX = -Math.cos(travelAngle), forwardZ = -Math.sin(travelAngle);
     const rightX = -forwardZ, rightZ = forwardX;
     const vanPoint = (forward, side, height) => [
@@ -490,7 +499,16 @@ window.LPRRenderer3D = class LPRRenderer3D {
     this.spectatorMeshes = [];
     const crowdPositions = [[-48,-30],[-27,-35],[-16,-29],[4,-35],[18,-30],[39,-23],
       [-46,15],[-23,23],[-7,26],[10,20],[-49,-16],[-42,29]];
-    this.spectatorCount = 12;
+    // Reuse the animated student meshes for a second group at Wappunotski.
+    const fire = window.LPRCampus.bonfireSite;
+    const fireDX=fire.x-stop[0], fireDZ=fire.y-stop[2];
+    const fireForward=fireDX*forwardX+fireDZ*forwardZ;
+    const fireSide=fireDX*rightX+fireDZ*rightZ;
+    for(let i=0;i<10;i++) {
+      const angle=i*Math.PI*2/10;
+      crowdPositions.push([fireForward+Math.cos(angle)*32,fireSide+Math.sin(angle)*32]);
+    }
+    this.spectatorCount = crowdPositions.length;
     for (let index = 0; index < this.spectatorCount; index++) {
       const meshStart = data.length;
       const armRanges = [];
@@ -809,6 +827,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
   }
 
   render(car, now = 0) {
+    if (car.sale) { this.renderSale(car); return; }
     if (car.sauna) { this.renderSauna(car, now); return; }
     const gl = this.gl;
     const angle = car.angle;
@@ -946,16 +965,36 @@ window.LPRRenderer3D = class LPRRenderer3D {
       for(let i=0;i<data.length;i+=6) {
         if(pose.standing>0 && mesh.legRanges.some(([a,b])=>i>=a && i<b)) continue;
         let x=data[i]-mesh.x,y=data[i+1],z=(data[i+2]-mesh.z)*mesh.side;
+        if(i>=mesh.mouthStart && i<mesh.mouthEnd) {
+          const opening=pose.speaking || pose.singing ? Math.abs(Math.sin(life.time*9+index)) : 0;
+          const headY=14.5+(index%3)*.25+1.7;
+          y+=(data[i+1]-(headY-.75))*opening*2.5-opening*.16;
+          // Fit the lips to the actual six-ring, ten-sided head surface.
+          // Recalculate depth after opening, before rotating the whole head.
+          const height=(y-headY)/1.45;
+          let radius=0;
+          for(let ring=0;ring<6;ring++) {
+            const a=-Math.PI/2+ring*Math.PI/6,b=a+Math.PI/6;
+            if(height>=Math.sin(a) && height<=Math.sin(b)) {
+              const t=(height-Math.sin(a))/(Math.sin(b)-Math.sin(a));
+              radius=Math.cos(a)*(1-t)+Math.cos(b)*t;
+              break;
+            }
+          }
+          for(let segment=5;segment<10;segment++) {
+            const a=segment*Math.PI/5,b=a+Math.PI/5;
+            const left=1.15*radius*Math.cos(a),right=1.15*radius*Math.cos(b);
+            if(x>=left && x<=right) {
+              const t=(x-left)/(right-left);
+              z=radius*(Math.sin(a)*(1-t)+Math.sin(b)*t)-.012;
+              break;
+            }
+          }
+        }
         if(i>=mesh.headStart) {
           const turn=pose.headTurn+pose.gesture*.08,c=Math.cos(turn),s=Math.sin(turn);
           const originalX=x;x=x*c-z*s;z=originalX*s+z*c;
           y+=pose.gesture*.08;
-        }
-        if(i>=mesh.mouthStart && i<mesh.mouthEnd && (pose.speaking || pose.singing)) {
-          // Rounded lips open toward the chin; keep the upper edge below the nose.
-          const opening=Math.abs(Math.sin(life.time*9+index));
-          const mouthY=14.5+(index%3)*.25+.95;
-          y+=(data[i+1]-mouthY)*opening*2.5-opening*.16;
         }
         if(y>10) {y+=pose.breath;x+=Math.sin(life.time*.8+index)*.045*(y-10)/10;}
         const p=world([x,y,z]);
@@ -1120,6 +1159,22 @@ window.LPRRenderer3D = class LPRRenderer3D {
     this.bindMesh(this.saunaPropBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.DYNAMIC_DRAW);
     gl.drawArrays(gl.TRIANGLES,0,vertices.length/6);
+  }
+
+  renderSale(car) {
+    const gl=this.gl, yaw=car.saunaYaw||0,pitch=car.saunaPitch||0;
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+    gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(this.program);
+    this.bindMesh(this.saleBuffer);
+    gl.uniform3f(this.locations.camera,-6000+car.saleX,17,car.saleZ);
+    gl.uniform3f(this.locations.forward,cy*cp,sp,sy*cp);
+    gl.uniform3f(this.locations.right,-sy,0,cy);
+    gl.uniform3f(this.locations.up,-cy*sp,cp,-sy*sp);
+    gl.uniform1f(this.locations.aspect,this.width/this.height);
+    gl.uniform1f(this.locations.focal,1/Math.tan(76*Math.PI/360));
+    gl.drawArrays(gl.TRIANGLES,0,this.saleVertexCount);
+    this.cockpit.clearRect(0,0,this.width,this.height);
   }
 
   renderSauna(car, now) {

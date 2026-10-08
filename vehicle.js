@@ -63,7 +63,10 @@ window.VehicleDynamics = class VehicleDynamics {
     } else {
       const speed = Math.max(state.vx, 1.5);
       const yawLimit = mu * gravity * .75 / speed;
-      const targetYawRate = state.steer * Math.min(speed / 20, yawLimit);
+      // Use the full rack at low speed (about a 4.3 m radius), then reduce
+      // steering demand as speed rises to stay within the lateral grip budget.
+      const fullLockYawRate = speed * Math.tan(p.maxRoadWheelAngle) / p.wheelbase;
+      const targetYawRate = state.steer * Math.min(fullLockYawRate, yawLimit);
       const feedForward = Math.atan(p.wheelbase * targetYawRate / speed);
       targetAngle = feedForward + .10 * (targetYawRate - state.yawRate) - .10 * state.bodySlip;
       targetAngle = Math.max(-p.maxRoadWheelAngle, Math.min(p.maxRoadWheelAngle, targetAngle));

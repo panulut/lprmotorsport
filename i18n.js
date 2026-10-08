@@ -2,6 +2,12 @@
 (() => {
   'use strict';
   const english = {
+  "Mene Saleen (R)": "Enter Sale (R)",
+  "Palaa autoon (R)": "Return to car (R)",
+  "KAUPPATAUKO": "SHOP BREAK",
+  "Sale Skinnarilan sis?tila": "Sale Skinnarila interior",
+  "Salessa: katsele vet?m?ll?. W/S tai kaasu/jarru liikuttaa, A/D k??nt??. Palaa autoon: R.": "Inside Sale: drag to look. W/S or gas/brake to walk, A/D to turn. Return to car: R.",
+  "Pys?hdy Salen ovelle ja mene sis??n painikkeella tai R-n?pp?imell?.": "Stop at Sale's entrance and enter using the button or R.",
   "Aloita uudelleen": "Restart",
   "Avaa ohjainasetukset": "Open controller settings",
   "Ohjain": "Controller",
@@ -11,6 +17,7 @@
   "PARAS": "BEST",
   "NOPEUS": "SPEED",
   "3D-n\u00e4kym\u00e4 kuljettajan paikalta": "3D view from the driver's seat",
+  "Saunapaku ja palju ovat Tervahaudanpuistossa.": "The sauna van and hot tub are in Tervahaudanpuisto.",
   "Saunapaku on ensimm\u00e4isen mutkan ulkopuolella.": "The sauna van is outside the first corner.",
   "Mene saunaan (E)": "Enter sauna (E)",
   "Vaihda vastakkaiselle lauteelle (F)": "Switch to the opposite bench (F)",
@@ -21,6 +28,7 @@
   "TC P\u00c4\u00c4LL\u00c4": "TC ON",
   "Paina kaasua ja l\u00e4hde ajamaan!": "Press the accelerator and start driving!",
   "KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6": "TOUCH / KEYBOARD",
+  "LUT KAMPUSRATA": "LUT CAMPUS CIRCUIT",
   "LPR HARJOITUSRATA \u00b7 220 M": "LPR PRACTICE TRACK \u00b7 220 M",
   "Kosketusohjaimet": "Touch controls",
   "Kallistusohjaus": "Tilt steering",
