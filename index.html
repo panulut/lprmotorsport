@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07110f" />
+    <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
+    <title>LPR Lap Challenge</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="3d.css" />
+    <script src="renderer3d.js" defer></script>
+    <script src="vehicle.js" defer></script>
+    <script src="game.js" defer></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <img class="logo" src="assets/lpr-logo.jpg" alt="LPR Motorsport Formula Student" />
+        <div class="topbar-title"><span>FORMULA STUDENT</span><strong>LAP CHALLENGE</strong></div>
+        <button id="settings-button" class="icon-button" type="button" aria-label="Avaa ohjainasetukset">⚙ <span>Ohjain</span></button>
+      </header>
+
+      <section class="game-shell" aria-label="Ajopeli">
+        <div class="hud">
+          <div class="hud-item"><span>KIERROS</span><strong id="lap-count">1</strong></div>
+          <div class="hud-item wide"><span>AIKA</span><strong id="lap-time">00:00.000</strong></div>
+          <div class="hud-item wide"><span>PARAS</span><strong id="best-time">--:--.---</strong></div>
+          <div class="hud-item speed"><span>NOPEUS</span><strong><span id="speed">0</span> <small>km/h</small></strong></div>
+        </div>
+        <canvas id="track" aria-label="3D-näkymä kuljettajan paikalta"></canvas>
+        <canvas id="cockpit" aria-hidden="true"></canvas>
+        <div class="telemetry"><strong id="lateral-g">0.0 G</strong><span id="grip-state">PITO OK</span><span id="tc-status">TC PÄÄLLÄ</span></div>
+        <div id="notice" class="notice" role="status">Paina kaasua ja lähde ajamaan!</div>
+        <div class="game-footer"><span id="input-status">KOSKETUS / NÄPPÄIMISTÖ</span><span id="track-status">LPR HARJOITUSRATA · 220 M</span></div>
+      </section>
+
+      <section class="controls" aria-label="Kosketusohjaimet">
+        <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">↶</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">↷</button></div>
+        <div class="pedals"><button class="control brake" data-control="brake">JARRU</button><button class="control gas" data-control="gas">KAASU</button></div>
+      </section>
+      <p class="help">Puhelimella: kosketa ohjausta ja polkimia. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S. Ratti ja polkimet: avaa Ohjain.</p>
+      <button id="restart-button" class="text-button" type="button">Aloita uudelleen</button>
+    </main>
+
+    <dialog id="settings-dialog">
+      <div class="dialog-head"><div><span class="eyebrow">TAPAHTUMAPISTE</span><h2>Ratti ja polkimet</h2></div><button id="close-settings" class="icon-button close" aria-label="Sulje asetukset">×</button></div>
+      <p>Liitä USB-ratti ja polkimet tietokoneeseen. Käännä rattia tai paina poljinta, jotta selain tunnistaa ohjaimen. Kalibroi sen jälkeen jokainen asento.</p>
+      <div id="device-status" class="device-status">Odotetaan ohjainta…</div>
+      <div class="calibration">
+        <div class="calibration-step"><span>1</span><div><strong>Ratti keskelle</strong><small>Pidä ratti suorassa ja tallenna.</small></div><button data-capture="center">Tallenna</button></div>
+        <div class="calibration-step"><span>2</span><div><strong>Ratti vasemmalle</strong><small>Käännä ääriasentoon.</small></div><button data-capture="left">Tallenna</button></div>
+        <div class="calibration-step"><span>3</span><div><strong>Ratti oikealle</strong><small>Käännä ääriasentoon.</small></div><button data-capture="right">Tallenna</button></div>
+        <div class="calibration-step"><span>4</span><div><strong>Polkimet ylhäällä</strong><small>Vapauta molemmat polkimet.</small></div><button data-capture="released">Tallenna</button></div>
+        <div class="calibration-step"><span>5</span><div><strong>Kaasu pohjaan</strong><small>Paina vain kaasua.</small></div><button data-capture="gas">Tallenna</button></div>
+        <div class="calibration-step"><span>6</span><div><strong>Jarru pohjaan</strong><small>Paina vain jarrua.</small></div><button data-capture="brake">Tallenna</button></div>
+      </div>
+      <p id="calibration-status" class="calibration-status" role="status">Kalibrointi odottaa ohjainta.</p>
+      <p class="hint">Ohjainyhteensopivuus riippuu ratin ajurista ja selaimesta. Näppäimistö toimii aina varalla. Ratista ei tule voimavastetta tässä versiossa.</p>
+    </dialog>
+  </body>
+</html>
