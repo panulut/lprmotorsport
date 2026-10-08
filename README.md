@@ -14,7 +14,7 @@ Avaa tietokoneella `http://localhost:8000`. Puhelimella voit avata `http://TIETO
 
 ## Ohjaus
 
-- Puhelin: ruudun vasemmalla puolella ohjaus, oikealla kaasu ja jarru.
+- Puhelin: liu’uta vasenta peukaloa ohjausalueella. Keskellä ratti on suorassa, reunoja kohti ohjaus kasvaa. Oikealla pidä kaasua tai jarrua; ohjaus ja poljin toimivat samanaikaisesti. Molemmat peukaloalueet pysyvät näkyvissä pysty- ja vaaka-asennossa. Ohjaus palautuu keskelle, kun sormen nostaa. Sovelluksen vaihtaminen keskeyttää kierrosajan ja vapauttaa ohjaimet.
 - Näppäimistö: nuolinäppäimet tai A/D ohjaukseen, W/ylänuoli kaasuun ja S/alanuoli jarruun.
 - Ratti ja polkimet: liitä laitteet ja avaa **Ohjain**. Tallenna keskiasento, ratin ääriasennot, vapautetut polkimet ja kummankin polkimen pohja-asento. Asetukset tallentuvat selaimeen laitteen tunnisteen mukaan.
 
@@ -29,3 +29,4 @@ Luistonesto on oletuksena päällä: se leikkaa vetovoimaa, kun takarenkaalle ar
 Harjoitusrata on noin 220 metriä pitkä ja 5,4 metriä leveä. Radan ensimmäisessä versiossa oli noin 4 metrin säteinen mutka, joka vaati jo 30 km/h nopeudessa yli 1,6 g sivuttaiskiihtyvyyden. Nykyisen radan tiukin kaarresäde on noin 33 metriä. Puhelimen ja näppäimistön painikkeet pyytävät kääntymisnopeutta ja ohjausapu säätää etupyörän kulmaa auton vasteen mukaan; ratin ohjaus pysyy analogisena.
 
 Parametrit (massa, akseliväli, teho, rengaspito, vetotapa) ovat alustavia. Käytettävissä on auton valokuva mutta ei mittaus- tai testidataa, joten peli ei kuvaa juuri LPR Motorsportin auton mitattua suorituskykyä. Kuvan perusteella ohjaamon ulkoasu on muutettu avoimeksi ja siniputkiseksi. Eturenkaat, vanteet ja ripustuksen osat piirretään nyt 3D-muotoina, ja renkaat kääntyvät sekä pyörivät ajossa. Yksityiskohdat ovat edelleen tulkintaa. Todellinen autokohtainen malli edellyttää vähintään massa- ja akselivälitietoja sekä kiihdytys-, jarrutus- ja mutkatestien dataa.
+

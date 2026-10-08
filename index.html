@@ -6,17 +6,18 @@
     <meta name="theme-color" content="#07110f" />
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>LPR Lap Challenge</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="3d.css" />
+    <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
+    <link rel="stylesheet" href="3d.css?v=mobile-20261008" />
     <script src="renderer3d.js" defer></script>
     <script src="vehicle.js" defer></script>
-    <script src="game.js" defer></script>
+    <script src="game.js?v=mobile-20261008" defer></script>
   </head>
   <body>
     <main class="app">
       <header class="topbar">
         <img class="logo" src="assets/lpr-logo.jpg" alt="LPR Motorsport Formula Student" />
         <div class="topbar-title"><span>FORMULA STUDENT</span><strong>LAP CHALLENGE</strong></div>
+        <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺</button>
         <button id="settings-button" class="icon-button" type="button" aria-label="Avaa ohjainasetukset">⚙ <span>Ohjain</span></button>
       </header>
 
@@ -35,11 +36,11 @@
       </section>
 
       <section class="controls" aria-label="Kosketusohjaimet">
+        <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="Ohjaus: liu’uta vasemmalle tai oikealle" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="steering-guide">← OHJAA →</span><span class="steering-thumb"></span></div>
         <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">↶</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">↷</button></div>
         <div class="pedals"><button class="control brake" data-control="brake">JARRU</button><button class="control gas" data-control="gas">KAASU</button></div>
       </section>
-      <p class="help">Puhelimella: kosketa ohjausta ja polkimia. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S. Ratti ja polkimet: avaa Ohjain.</p>
-      <button id="restart-button" class="text-button" type="button">Aloita uudelleen</button>
+      <p class="help">Puhelimella: liu’uta vasenta peukaloa ohjausalueella, pidä oikealla kaasua tai jarrua. Voit ajaa myös vaakasuunnassa. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S. Ratti ja polkimet: avaa Ohjain.</p>
     </main>
 
     <dialog id="settings-dialog">
@@ -59,3 +60,4 @@
     </dialog>
   </body>
 </html>
+

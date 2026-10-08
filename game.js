@@ -28,6 +28,12 @@
   const startAngle = Math.atan2(track[1].y - track[0].y, track[1].x - track[0].x);
   const held = { left: false, right: false, gas: false, brake: false };
   const captures = {};
+  const keyboard = new Set();
+  const touchPointers = new Map();
+  const steeringPad = document.querySelector("#steering-pad");
+  let steeringPointer = null;
+  let touchSteer = 0;
+  let suspendedAt = null;
   let activePad = null;
   let calibration = null;
   let best = Number(localStorage.getItem('lpr-best-time-v4')) || 0;
@@ -37,6 +43,7 @@
   let noticeTimeout = 0;
 
   function reset() {
+    clearInput();
     car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false };
     dynamics.reset(car);
     ui.lap.textContent = '1';
@@ -151,8 +158,8 @@
       calibration = null;
     }
     const device = padInput(pad);
-    const local = held.left || held.right || held.gas || held.brake;
-    const steer = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+    const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0;
+    const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : touchSteer;
     return local ? { steer, gas: held.gas ? 1 : 0, brake: held.brake ? 1 : 0, analog: false, wheel: false } : { ...device, analog: !!pad, wheel: !!calibration };
   }
 
@@ -230,25 +237,88 @@
   function frame(now) {
     const dt = Math.min((now - lastFrame) / 1000, .05);
     lastFrame = now;
-    update(dt, now);
+    if (!document.hidden) update(dt, now);
     renderer.render(car, now);
     requestAnimationFrame(frame);
   }
 
   const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
-  window.addEventListener('keydown', event => { const control = keyMap[event.code]; if (control) { event.preventDefault(); held[control] = true; } });
-  window.addEventListener('keyup', event => { const control = keyMap[event.code]; if (control) { event.preventDefault(); held[control] = false; } });
-  window.addEventListener('blur', () => Object.keys(held).forEach(key => held[key] = false));
-  document.querySelectorAll('[data-control]').forEach(button => {
-    const name = button.dataset.control;
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); held[name] = true; button.classList.add('active'); });
-    const release = () => { held[name] = false; button.classList.remove('active'); };
-    button.addEventListener('pointerup', release);
-    button.addEventListener('pointercancel', release);
-    button.addEventListener('lostpointercapture', release);
+  function syncHeld() {
+    for (const name of Object.keys(held)) {
+      held[name] = [...keyboard].some(code => keyMap[code] === name) || [...touchPointers.values()].includes(name);
+      document.querySelector(`[data-control="${name}"]`).classList.toggle('active', held[name]);
+    }
+  }
+  function setSteer(value) {
+    touchSteer = Math.max(-1, Math.min(1, value));
+    steeringPad.style.setProperty('--steer-offset', `${touchSteer * Math.max(0, steeringPad.clientWidth / 2 - 30)}px`);
+    steeringPad.setAttribute('aria-valuenow', String(Math.round(touchSteer * 100)));
+  }
+  function clearInput() {
+    keyboard.clear();
+    touchPointers.clear();
+    steeringPointer = null;
+    setSteer(0);
+    steeringPad.classList.remove('active');
+    syncHeld();
+  }
+  window.addEventListener('keydown', event => {
+    if (!keyMap[event.code] || ui.dialog.open || event.target === steeringPad) return;
+    event.preventDefault(); keyboard.add(event.code); syncHeld();
   });
+  window.addEventListener('keyup', event => {
+    if (!keyMap[event.code]) return;
+    event.preventDefault(); keyboard.delete(event.code); syncHeld();
+  });
+  window.addEventListener('blur', clearInput);
+  document.querySelectorAll('[data-control]').forEach(button => {
+    button.addEventListener('pointerdown', event => {
+      if (ui.dialog.open) return;
+      event.preventDefault(); button.setPointerCapture(event.pointerId);
+      touchPointers.set(event.pointerId, button.dataset.control); syncHeld();
+    });
+    const release = event => { touchPointers.delete(event.pointerId); syncHeld(); };
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, release);
+    button.addEventListener('contextmenu', event => event.preventDefault());
+  });
+  function moveSteering(event) {
+    const bounds = steeringPad.getBoundingClientRect();
+    const value = (event.clientX - bounds.left - bounds.width / 2) / Math.max(1, bounds.width / 2 - 30);
+    setSteer(Math.abs(value) < .06 ? 0 : value);
+  }
+  steeringPad.addEventListener('pointerdown', event => {
+    if (steeringPointer !== null || ui.dialog.open) return;
+    event.preventDefault(); steeringPointer = event.pointerId;
+    steeringPad.setPointerCapture(event.pointerId); steeringPad.classList.add('active'); moveSteering(event);
+  });
+  steeringPad.addEventListener('pointermove', event => {
+    if (event.pointerId === steeringPointer) { event.preventDefault(); moveSteering(event); }
+  });
+  const releaseSteering = event => {
+    if (event.pointerId !== steeringPointer) return;
+    steeringPointer = null; setSteer(0); steeringPad.classList.remove('active');
+  };
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) steeringPad.addEventListener(type, releaseSteering);
+  steeringPad.addEventListener('contextmenu', event => event.preventDefault());
+  steeringPad.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.code)) return;
+    event.preventDefault();
+    setSteer(event.code === 'Home' ? 0 : event.code === 'End' ? 1 : touchSteer + (event.code === 'ArrowLeft' ? -.1 : .1));
+  });
+  steeringPad.addEventListener('keyup', () => setSteer(0));
+  steeringPad.addEventListener('blur', () => { if (steeringPointer === null) setSteer(0); });
+  document.addEventListener('visibilitychange', () => {
+    clearInput();
+    if (document.hidden) suspendedAt = performance.now();
+    else if (suspendedAt !== null) {
+      const now = performance.now();
+      if (car.started) car.lapStart += now - suspendedAt;
+      lastFrame = now; suspendedAt = null;
+    }
+  });
+  window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);
-  document.querySelector('#settings-button').addEventListener('click', () => ui.dialog.showModal());
+  document.querySelector('#settings-button').addEventListener('click', () => { clearInput(); ui.dialog.showModal(); });
   document.querySelector('#close-settings').addEventListener('click', () => ui.dialog.close());
   document.querySelectorAll('[data-capture]').forEach(button => button.addEventListener('click', () => {
     const pad = currentPad();
@@ -261,6 +331,7 @@
     saveCalibration();
   }));
   window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(document.querySelector('.game-shell'));
   window.addEventListener('gamepadconnected', event => {
     activePad = event.gamepad;
     try { calibration = JSON.parse(localStorage.getItem(`lpr-controller-${activePad.id}`)); } catch { calibration = null; }
@@ -273,3 +344,4 @@
   resize();
   requestAnimationFrame(frame);
 })();
+
