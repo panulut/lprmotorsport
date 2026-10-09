@@ -13,8 +13,6 @@
     tc: document.querySelector('#tc-status'),
     notice: document.querySelector('#notice'),
     input: document.querySelector('#input-status'),
-    device: document.querySelector('#device-status'),
-    calibration: document.querySelector('#calibration-status'),
     dialog: document.querySelector('#settings-dialog')
   };
   const WORLD = LPRCampus.bounds;
@@ -27,7 +25,6 @@
   const dynamics = new VehicleDynamics();
   const startAngle = Math.atan2(track[1].y - track[0].y, track[1].x - track[0].x);
   const held = { left: false, right: false, gas: false, brake: false };
-  const captures = {};
   const keyboard = new Set();
   const touchPointers = new Map();
   const steeringPad = document.querySelector("#steering-pad");
@@ -35,7 +32,6 @@
   let touchSteer = 0;
   let suspendedAt = null;
   let activePad = null;
-  let calibration = null;
   let best = Number(localStorage.getItem('lpr-best-time-lut-v1')) || 0;
   let storedSectors = null;
   try { storedSectors = JSON.parse(localStorage.getItem('lpr-best-sectors-lut-v1')); } catch {}
@@ -304,71 +300,8 @@
     return Array.from(pads).find(Boolean) || null;
   }
 
-  function snapshot(pad) {
-    return { axes: Array.from(pad.axes), buttons: Array.from(pad.buttons, b => b.value) };
-  }
-
-  function strongestChange(from, to) {
-    let result = null;
-    for (const type of ['axes', 'buttons']) {
-      const length = Math.min(from[type].length, to[type].length);
-      for (let index = 0; index < length; index++) {
-        const change = Math.abs(to[type][index] - from[type][index]);
-        if (!result || change > result.change) result = { type, index, change };
-      }
-    }
-    return result && result.change > .12 ? result : null;
-  }
-
-  function valueOf(pad, mapping) {
-    if (!mapping) return 0;
-    if (mapping.type === 'axes') return pad.axes[mapping.index] ?? 0;
-    return pad.buttons[mapping.index]?.value ?? 0;
-  }
-
-  function saveCalibration() {
-    if (!['center', 'left', 'right', 'released', 'gas', 'brake'].every(name => captures[name])) return;
-    const wheel = strongestChange(captures.left, captures.right);
-    const gas = strongestChange(captures.released, captures.gas);
-    const brake = strongestChange(captures.released, captures.brake);
-    if (!wheel || !gas || !brake) {
-      ui.calibration.textContent = t("Liike ei erottunut. Tarkista laite ja tallenna asennot uudelleen.");
-      return;
-    }
-    const wheelKey = wheel.type;
-    calibration = {
-      id: activePad.id,
-      wheel: { type: wheelKey, index: wheel.index, center: captures.center[wheelKey][wheel.index], left: captures.left[wheelKey][wheel.index], right: captures.right[wheelKey][wheel.index] },
-      gas: { type: gas.type, index: gas.index, released: captures.released[gas.type][gas.index], pressed: captures.gas[gas.type][gas.index] },
-      brake: { type: brake.type, index: brake.index, released: captures.released[brake.type][brake.index], pressed: captures.brake[brake.type][brake.index] }
-    };
-    localStorage.setItem(`lpr-controller-${activePad.id}`, JSON.stringify(calibration));
-    ui.calibration.textContent = t("Kalibrointi valmis. Voit sulkea ikkunan ja ajaa.");
-    ui.input.textContent = t("RATTI JA POLKIMET");
-  }
-
-  function readPedal(pad, mapping) {
-    const range = mapping.pressed - mapping.released;
-    if (Math.abs(range) < .1) return 0;
-    return Math.max(0, Math.min(1, (valueOf(pad, mapping) - mapping.released) / range));
-  }
-
   function padInput(pad) {
     if (!pad) return { steer: 0, gas: 0, brake: 0 };
-    if (calibration && calibration.id === pad.id) {
-      const w = calibration.wheel;
-      const raw = valueOf(pad, w);
-      const extent = raw < w.center ? w.left - w.center : w.right - w.center;
-      // Either side may have the opposite numeric direction on a particular wheel.
-      let steer;
-      if ((w.left < w.center && raw < w.center) || (w.left > w.center && raw > w.center)) {
-        steer = -(raw - w.center) / (w.left - w.center);
-      } else {
-        steer = (raw - w.center) / (w.right - w.center);
-      }
-      if (!Number.isFinite(steer) || !Number.isFinite(extent)) steer = 0;
-      return { steer: Math.max(-1, Math.min(1, steer)), gas: readPedal(pad, calibration.gas), brake: readPedal(pad, calibration.brake) };
-    }
     if (pad.mapping === 'standard') return { steer: pad.axes[0] || 0, gas: pad.buttons[7]?.value || 0, brake: pad.buttons[6]?.value || 0 };
     return { steer: 0, gas: 0, brake: 0 };
   }
@@ -377,15 +310,13 @@
     const pad = currentPad();
     if (pad && (!activePad || activePad.id !== pad.id)) {
       activePad = pad;
-      try { calibration = JSON.parse(localStorage.getItem(`lpr-controller-${pad.id}`)); } catch { calibration = null; }
     } else if (!pad) {
       activePad = null;
-      calibration = null;
     }
     const device = padInput(pad);
     const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0;
     const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : steeringPointer !== null || touchSteer !== 0 ? touchSteer : 0;
-    return local ? { steer, gas: held.gas ? 1 : 0, brake: held.brake ? 1 : 0, analog: false, wheel: false } : { ...device, analog: !!pad, wheel: !!calibration };
+    return local ? { steer, gas: held.gas ? 1 : 0, brake: held.brake ? 1 : 0, analog: false, wheel: false } : { ...device, analog: !!pad, wheel: false };
   }
 
   function nearestTrack(x, y) {
@@ -433,8 +364,7 @@
       return;
     }
     if (now - lastDeviceUpdate > 1000) {
-      ui.device.textContent = activePad ? t("deviceDetails", { device: activePad.id, axes: activePad.axes.length, buttons: activePad.buttons.length }) : t("Odotetaan ohjainta\u2026 K\u00e4\u00e4nn\u00e4 rattia tai paina sen painiketta.");
-      ui.input.textContent = activePad ? calibration ? t("RATTI JA POLKIMET") : activePad.mapping === 'standard' ? t("PELIOHJAIN") : t("OHJAIN \u00b7 KALIBROI") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6");
+      ui.input.textContent = activePad ? activePad.mapping === 'standard' ? t("PELIOHJAIN") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6");
       lastDeviceUpdate = now;
     }
     if (ui.dialog.open || car.sauna || car.sale) {
@@ -691,27 +621,16 @@
     saunaSound.setAttribute('aria-pressed', String(saunaLife.sound));
     saunaSound.textContent = saunaLife.sound ? t("Saunan \u00e4\u00e4net: p\u00e4\u00e4ll\u00e4") : t("Saunan \u00e4\u00e4net: pois");
   });
-  function openSettings() {
+  function openLeaderboard() {
     if (car.started) car.onlineInvalid = true;
     clearInput(); saunaLife.stopSound(); ui.dialog.showModal();
   }
-  document.querySelector('#settings-button').addEventListener('click', openSettings);
   document.querySelector('#leaderboard-button').addEventListener('click', () => {
-    openSettings();
-    document.querySelector('#leaderboard-panel').scrollIntoView?.({ block: 'start' });
+    openLeaderboard();
+    ui.dialog.scrollTop = 0;
     window.LPRLeaderboard?.refresh();
   });
   document.querySelector('#close-settings').addEventListener('click', () => ui.dialog.close());
-  document.querySelectorAll('[data-capture]').forEach(button => button.addEventListener('click', () => {
-    const pad = currentPad();
-    if (!pad) { ui.calibration.textContent = t("Ohjainta ei n\u00e4y. Paina ratin painiketta ja yrit\u00e4 uudelleen."); return; }
-    if (activePad?.id !== pad.id) activePad = pad;
-    captures[button.dataset.capture] = snapshot(pad);
-    button.classList.add('saved');
-    button.textContent = t("Tallennettu \u2713");
-    ui.calibration.textContent = t("savedPosition", { position: button.parentElement.querySelector("strong").textContent.toLowerCase() });
-    saveCalibration();
-  }));
   window.addEventListener('resize', resize);
   const landscapeDriving = window.matchMedia('(pointer:coarse) and (orientation:landscape), (max-width:900px) and (max-height:500px) and (orientation:landscape)');
   landscapeDriving.addEventListener('change', event => {
@@ -720,10 +639,8 @@
   new ResizeObserver(resize).observe(document.querySelector('.game-shell'));
   window.addEventListener('gamepadconnected', event => {
     activePad = event.gamepad;
-    try { calibration = JSON.parse(localStorage.getItem(`lpr-controller-${activePad.id}`)); } catch { calibration = null; }
-    ui.device.textContent = t("connected", { device: event.gamepad.id });
   });
-  window.addEventListener('gamepaddisconnected', () => { activePad = null; calibration = null; });
+  window.addEventListener('gamepaddisconnected', () => { activePad = null; });
 
   ui.best.textContent = best ? formatTime(best) : '--:--.---';
   reset();

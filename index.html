@@ -7,8 +7,8 @@
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>LPR Lap Challenge</title>
     <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
-    <link rel="stylesheet" href="3d.css?v=online-20261009" />
-    <script src="i18n.js?v=online-20261009" defer></script>
+    <link rel="stylesheet" href="3d.css?v=leaderboard-only-20261009" />
+    <script src="i18n.js?v=leaderboard-only-20261009" defer></script>
     <script src="campus.js?v=student-cars-20261009" defer></script>
     <script src="sale.js?v=assortment-14" defer></script>
     <script src="renderer3d.js?v=mobile-resolution-20261009" defer></script>
@@ -16,7 +16,7 @@
     <script src="sauna.js?v=ovi-20261008-2" defer></script>
     <script src="timing.js?v=sectors-20261009" defer></script>
     <script src="leaderboard.js?v=online-20261009" defer></script>
-    <script src="game.js?v=online-20261009" defer></script>
+    <script src="game.js?v=leaderboard-only-20261009" defer></script>
   </head>
   <body>
     <main class="app">
@@ -26,7 +26,6 @@
         <select id="language-select" aria-label="Kieli / Language"><option value="fi">FI</option><option value="en">EN</option></select>
         <button id="leaderboard-button" class="icon-button" type="button" aria-label="Tuloslista">🏆</button>
         <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺ <span>Aloita uudelleen</span></button>
-        <button id="settings-button" class="icon-button" type="button" aria-label="Avaa ohjainasetukset">⚙ <span>Ohjain</span></button>
       </header>
 
       <section class="game-shell" aria-label="Ajopeli">
@@ -56,25 +55,12 @@
         <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">↶</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">↷</button></div>
         <div class="pedals"><button class="control brake" data-control="brake">JARRU</button><button class="control gas" data-control="gas">KAASU</button></div>
       </section>
-      <p class="help">Puhelimella: liu’uta vasenta peukaloa ohjausalueella, pidä oikealla kaasua tai jarrua. Voit ajaa myös vaakasuunnassa. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S. Ratti ja polkimet: avaa Ohjain.</p>
+      <p class="help">Puhelimella: liu’uta vasenta peukaloa ohjausalueella, pidä oikealla kaasua tai jarrua. Voit ajaa myös vaakasuunnassa. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S.</p>
     </main>
 
     <dialog id="settings-dialog">
-      <div class="dialog-head"><div><span class="eyebrow">TAPAHTUMAPISTE</span><h2>Ratti ja polkimet</h2></div><button id="close-settings" class="icon-button close" aria-label="Sulje asetukset">×</button></div>
-      <p>Liitä USB-ratti ja polkimet tietokoneeseen. Käännä rattia tai paina poljinta, jotta selain tunnistaa ohjaimen. Kalibroi sen jälkeen jokainen asento.</p>
-      <div id="device-status" class="device-status">Odotetaan ohjainta…</div>
-      <div class="calibration">
-        <div class="calibration-step"><span>1</span><div><strong>Ratti keskelle</strong><small>Pidä ratti suorassa ja tallenna.</small></div><button data-capture="center">Tallenna</button></div>
-        <div class="calibration-step"><span>2</span><div><strong>Ratti vasemmalle</strong><small>Käännä ääriasentoon.</small></div><button data-capture="left">Tallenna</button></div>
-        <div class="calibration-step"><span>3</span><div><strong>Ratti oikealle</strong><small>Käännä ääriasentoon.</small></div><button data-capture="right">Tallenna</button></div>
-        <div class="calibration-step"><span>4</span><div><strong>Polkimet ylhäällä</strong><small>Vapauta molemmat polkimet.</small></div><button data-capture="released">Tallenna</button></div>
-        <div class="calibration-step"><span>5</span><div><strong>Kaasu pohjaan</strong><small>Paina vain kaasua.</small></div><button data-capture="gas">Tallenna</button></div>
-        <div class="calibration-step"><span>6</span><div><strong>Jarru pohjaan</strong><small>Paina vain jarrua.</small></div><button data-capture="brake">Tallenna</button></div>
-      </div>
-      <p id="calibration-status" class="calibration-status" role="status">Kalibrointi odottaa ohjainta.</p>
-      <p class="hint">Ohjainyhteensopivuus riippuu ratin ajurista ja selaimesta. Näppäimistö toimii aina varalla. Ratista ei tule voimavastetta tässä versiossa.</p>
+      <div class="dialog-head"><h2>Tuloslista</h2><button id="close-settings" class="icon-button close" aria-label="Sulje tuloslista">?</button></div>
       <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Tuloslista">
-        <h2>Tuloslista</h2>
         <label for="leaderboard-name">Nimimerkki (julkinen)</label>
         <input id="leaderboard-name" maxlength="24" autocomplete="nickname" placeholder="Nimimerkki" />
         <p>Kirjaimet, numerot, välilyönti, piste, viiva ja alaviiva. Tulokset tallentuvat automaattisesti. Tauko tai vierailu mitätöi verkkokierroksen.</p>

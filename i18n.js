@@ -3,6 +3,8 @@
   'use strict';
   const english = {
   "Tuloslista": "Leaderboard",
+  "Sulje tuloslista": "Close leaderboard",
+  "Puhelimella: liu’uta vasenta peukaloa ohjausalueella, pidä oikealla kaasua tai jarrua. Voit ajaa myös vaakasuunnassa. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S.": "Phone: slide your left thumb across the steering area and hold the accelerator or brake with your right thumb. You can also play in landscape. Computer: steer with ← → or A D, accelerate with ↑ / W, brake with ↓ / S.",
   "Nimimerkki (julkinen)": "Nickname (public)",
   "Kirjaimet, numerot, välilyönti, piste, viiva ja alaviiva. Tulokset tallentuvat automaattisesti. Tauko tai vierailu mitätöi verkkokierroksen.": "Letters, numbers, spaces, dots, hyphens and underscores. Results are saved automatically. Pausing or visiting a location invalidates the online lap.",
   "Päivitä tuloslista": "Refresh leaderboard",

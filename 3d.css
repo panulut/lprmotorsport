@@ -19,7 +19,7 @@ dialog { touch-action: pan-y pinch-zoom; }
 .sector-time.slower { color:#ffb3a8; }
 #restart-button { flex-shrink: 0; min-width: 44px; min-height: 44px; touch-action: manipulation; }
 #leaderboard-button { flex-shrink:0; min-width:44px; min-height:44px; margin-left:0; }
-.leaderboard-panel { margin-top:24px; border-top:1px solid #355347; padding-top:16px; }
+.leaderboard-panel { margin-top:16px; }
 .leaderboard-panel h2 { margin-top:0; }
 .leaderboard-panel input { display:block; width:100%; margin:8px 0; padding:10px; border:1px solid #355347; border-radius:8px; background:#10221d; color:#fff; font:inherit; }
 .leaderboard-panel p { font-size:12px; line-height:1.5; }

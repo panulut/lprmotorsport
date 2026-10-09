@@ -21,9 +21,7 @@ Saunapakuun pääsee saunomaan ensimmäisen mutkan ulkopuolella. Aja pakun lähe
 
 - Puhelin: liu’uta vasenta peukaloa ohjausalueella. Keskellä ratti on suorassa, reunoja kohti ohjaus kasvaa. Oikealla pidä kaasua tai jarrua; ohjaus ja poljin toimivat samanaikaisesti. Molemmat peukaloalueet pysyvät näkyvissä pysty- ja vaaka-asennossa. Ohjaus palautuu keskelle, kun sormen nostaa. Sovelluksen vaihtaminen keskeyttää kierrosajan ja vapauttaa ohjaimet.
 - Näppäimistö: nuolinäppäimet tai A/D ohjaukseen, W/ylänuoli kaasuun ja S/alanuoli jarruun.
-- Ratti ja polkimet: liitä laitteet ja avaa **Ohjain**. Tallenna keskiasento, ratin ääriasennot, vapautetut polkimet ja kummankin polkimen pohja-asento. Asetukset tallentuvat selaimeen laitteen tunnisteen mukaan.
 
-Ratin tarkka toiminta riippuu laitteesta, ajurista ja selaimesta. Testaa tapahtumapisteen omalla laitteistolla ennen tapahtumaa. Tässä versiossa ei ole voimavastetta.
 
 ## Saunan tapahtumat
 Saunojat hengittävät, kääntävät päätään ja elehtivät, hörppivät kupeistaan, juttelevat, kertovat juttuja ja osallistuvat saunalauluihin. Pelaajan vieressä istuva saunoja heittää välillä löylyä omalla kädellään ja kauhalla. Ensimmäinen saunoja lähtee vilvoittelemaan noin puolen minuutin jälkeen; tämän jälkeen porukkaa vaihtuu yksi kerrallaan. Hahmot kulkevat alalauteen ja portaiden kautta ovelle, joka avautuu heidän kulkiessaan. Uusilla saunojilla on eri nimet ja vaihtuva ulkonäkö. Pelaajan molemmat istumapaikat pysyvät vapaina. Tiheä löylynheitto kasvattaa kuumuutta: saunojat kommentoivat ensin kunnon löylyjä ja alkavat sitten valittaa kuumuutta. Kovimmissa löylyissä valittanut saunoja nousee, kulkee pihalle vilvoittelemaan ja palaa myöhemmin omalle paikalleen. Kuumuus laskee löylynheiton tauon aikana.
@@ -34,7 +32,7 @@ Saunan toiminnalliset tarkistukset: `node tests/sauna.test.cjs`.
 
 ## Ajomalli ja sen rajat
 
-Kaasun nostaminen hidastaa autoa nyt my?s pelillisell? moottorijarrutusavustuksella. Hidastus kasvaa kaasupolkimen vapautuessa ja pehmenee k?velyvauhdissa. Jarruvoima jaetaan akseleille renkaiden pidon mukaan, jotta takarenkaille j?? sivuttaispitoa mutkassa. Avustettu ohjaus rauhoittaa sivuluisua ja kiertymist? voimakkaammin kaasun ollessa vapautettuna; kalibroidun ratin ja analogisen peliohjaimen vakautus perustuu edelleen rengasvoimiin. Varsinainen jarrupoljin hidastaa selv?sti voimakkaammin.
+Kaasun nostaminen hidastaa autoa nyt my?s pelillisell? moottorijarrutusavustuksella. Hidastus kasvaa kaasupolkimen vapautuessa ja pehmenee k?velyvauhdissa. Jarruvoima jaetaan akseleille renkaiden pidon mukaan, jotta takarenkaille j?? sivuttaispitoa mutkassa. Avustettu ohjaus rauhoittaa sivuluisua ja kiertymist? voimakkaammin kaasun ollessa vapautettuna; analogisen peliohjaimen vakautus perustuu edelleen rengasvoimiin. Varsinainen jarrupoljin hidastaa selv?sti voimakkaammin.
 
 Puiden runkoihin voi törmätä. Näkyvät puut ja niiden törmäysrajat käyttävät samoja sijainti- ja runkomittatietoja. Törmäys tarkistetaan auton koko liikkeen matkalta myös kovassa vauhdissa; puuosumat käyttävät samaa vauriomallia kuin rakennusosumat. Latvus ei ole törmäyseste.
 
@@ -44,7 +42,7 @@ Avustetun ohjauksen täysi kääntö käyttää nyt 90 % pinnan arvioidusta sivu
 
 Näppäimistöohjaus kääntyy pienessä nopeudessa ripeämmin ja suuressa nopeudessa asteittaisemmin. Näppäimen vapauttaminen palauttaa ohjauspyynnön keskelle enintään noin 0,17 sekunnissa. Vastakkaisen suunnan painaminen purkaa ensin aiemman ohjauksen ja alkaa sitten kääntää toiseen suuntaan. Auton kääntymisliike rauhoittuu rengasvoimien kautta; näppäimen vapautus ei pyydä automaattista vastakkaista ohjausta. Samat muutokset koskevat kosketusohjauksen käyttämää avustettua ohjausta. Kalibroidun ratin ohjaus säilyy ennallaan. Ajomallin tarkistukset: `node tests/vehicle.test.cjs`.
 
-`vehicle.js` käyttää dynaamista polkupyörämallia: auton sivuttaisnopeus ja kiertymisnopeus syntyvät renkaiden voimista, ja kaasun tai jarrun käyttö vähentää samanaikaisesti käytettävissä olevaa sivuttaispitoa. Mukana on yksinkertaistettu pitkittäinen painonsiirto, ilmanvastus sekä pienempi pito radan ulkopuolella. Digitaalinen ohjaus pehmenee vauhdin kasvaessa, kun taas kalibroitu ratti antaa analogisen ohjauskulman. Kuljettajan kamera pysyy kiinteästi auton rungossa, jotta keula ja ohjaamo eivät liu’u suhteessa toisiinsa ohjattaessa.
+`vehicle.js` käyttää dynaamista polkupyörämallia: auton sivuttaisnopeus ja kiertymisnopeus syntyvät renkaiden voimista, ja kaasun tai jarrun käyttö vähentää samanaikaisesti käytettävissä olevaa sivuttaispitoa. Mukana on yksinkertaistettu pitkittäinen painonsiirto, ilmanvastus sekä pienempi pito radan ulkopuolella. Digitaalinen ohjaus pehmenee vauhdin kasvaessa, kun taas tavallinen peliohjain antaa analogisen ohjauskulman. Kuljettajan kamera pysyy kiinteästi auton rungossa, jotta keula ja ohjaamo eivät liu’u suhteessa toisiinsa ohjattaessa.
 
 Luistonesto on oletuksena päällä: se leikkaa vetovoimaa, kun takarenkaalle arvioitu sivuttais- ja vetovoiman yhteistarve lähestyy pidon rajaa. Näytön `TC RAJOITTAA TEHOA` kertoo, milloin se puuttuu ajoon. Koska mallissa ei ole pyöränopeusantureita eikä tarkkaa rengasdataa, tämä on arvioitu momentinrajoitin, ei oikean auton luistosuhteeseen perustuvan säätimen kopio. Luistonesto ei voi korjata mutkaan liian suurella nopeudella ajamista.
 
@@ -126,3 +124,7 @@ Keulan kiinnityksen ja ohjauksen regressiotarkistus: `node tests/bodywork.test.c
 Testi varmistaa, että ohjaus muuttaa eturenkaiden geometriaa mutta ei koria, että
 keula ja ohjaamon sivut jakavat kiinnitysreunan ja että korin projektio pysyy
 kuljettajan näkymässä paikallaan auton suunnan ja G-voimien muuttuessa.
+
+## Verkkotuloslista
+
+Yl?palkin ?? avaa suoraan tuloslistan ja nimimerkin valinnan. Ratin ja polkimien kalibrointi on poistettu. K?ytt??notto: [cloudflare/README.md](cloudflare/README.md).

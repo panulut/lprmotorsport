@@ -38,7 +38,7 @@ const nodes=new Map(), events=new Map();
 const element=id=>{
   if(!nodes.has(id)) nodes.set(id,{tagName:'DIV',classList:{add(){},remove(){},toggle(){}},
     style:{setProperty(){}},attributes:{},setAttribute(k,v){this.attributes[k]=v;},
-    addEventListener(type,handler){this[type]=handler;},clientWidth:800});
+    addEventListener(type,handler){this[type]=handler;},showModal(){this.open=true;},close(){this.open=false;},clientWidth:800});
   return nodes.get(id);
 };
 const gameContext={
@@ -70,4 +70,10 @@ assert.equal(game.car.lapElapsedMs,0);
 game.update(.05,1100);assert.equal(game.car.lapElapsedMs,50);
 game.car.crashed=true;game.update(.05,1150);assert.equal(game.car.throttleInput,0);
 assert.equal(game.car.lapElapsedMs,50,'Crash freezes lap display');
+game.reset();
+element('#leaderboard-button').click();
+assert.equal(element('#settings-dialog').open,true,'Trophy opens leaderboard dialog');
+assert.equal(element('#settings-dialog').scrollTop,0,'Leaderboard opens at the top');
+element('#close-settings').click();
+assert.equal(element('#settings-dialog').open,false);
 console.log('PASS: wheel telemetry, responsive full-lock bounds, rotated hit targets, controls, TC, keyboard, reset and crash');
