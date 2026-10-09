@@ -7,14 +7,16 @@
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>LPR Lap Challenge</title>
     <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
-    <link rel="stylesheet" href="3d.css?v=mobile-restart-20261009" />
-    <script src="i18n.js?v=production-20261008" defer></script>
+    <link rel="stylesheet" href="3d.css?v=online-20261009" />
+    <script src="i18n.js?v=online-20261009" defer></script>
     <script src="campus.js?v=student-cars-20261009" defer></script>
     <script src="sale.js?v=assortment-14" defer></script>
     <script src="renderer3d.js?v=mobile-resolution-20261009" defer></script>
     <script src="vehicle.js?v=steering-20261009-2" defer></script>
     <script src="sauna.js?v=ovi-20261008-2" defer></script>
-    <script src="game.js?v=landscape-actions-20261009" defer></script>
+    <script src="timing.js?v=sectors-20261009" defer></script>
+    <script src="leaderboard.js?v=online-20261009" defer></script>
+    <script src="game.js?v=online-20261009" defer></script>
   </head>
   <body>
     <main class="app">
@@ -22,6 +24,7 @@
         <img class="logo" src="assets/lpr-logo.jpg" alt="LPR Motorsport Formula Student" />
         <div class="topbar-title"><span>FORMULA STUDENT</span><strong>LAP CHALLENGE</strong></div>
         <select id="language-select" aria-label="Kieli / Language"><option value="fi">FI</option><option value="en">EN</option></select>
+        <button id="leaderboard-button" class="icon-button" type="button" aria-label="Tuloslista">🏆</button>
         <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺ <span>Aloita uudelleen</span></button>
         <button id="settings-button" class="icon-button" type="button" aria-label="Avaa ohjainasetukset">⚙ <span>Ohjain</span></button>
       </header>
@@ -34,6 +37,7 @@
           <div class="hud-item speed"><span>NOPEUS</span><strong><span id="speed">0</span> <small>km/h</small></strong></div>
         </div>
         <canvas id="track" aria-label="3D-näkymä kuljettajan paikalta"></canvas>
+        <div id="sector-time" class="sector-time" role="status" hidden></div>
         <canvas id="cockpit" aria-hidden="true"></canvas>
         <div class="sauna-actions"><span id="sauna-hint" role="status">Saunapaku on ensimmäisen mutkan ulkopuolella.</span><button id="sale-enter" type="button" hidden disabled>Mene Saleen (E)</button><button id="sauna-enter" type="button" hidden disabled>Mene saunaan (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
         <div id="sauna-dialogue" class="sauna-dialogue" role="status" aria-live="polite" hidden></div>
@@ -69,6 +73,15 @@
       </div>
       <p id="calibration-status" class="calibration-status" role="status">Kalibrointi odottaa ohjainta.</p>
       <p class="hint">Ohjainyhteensopivuus riippuu ratin ajurista ja selaimesta. Näppäimistö toimii aina varalla. Ratista ei tule voimavastetta tässä versiossa.</p>
+      <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Tuloslista">
+        <h2>Tuloslista</h2>
+        <label for="leaderboard-name">Nimimerkki (julkinen)</label>
+        <input id="leaderboard-name" maxlength="24" autocomplete="nickname" placeholder="Nimimerkki" />
+        <p>Kirjaimet, numerot, välilyönti, piste, viiva ja alaviiva. Tulokset tallentuvat automaattisesti. Tauko tai vierailu mitätöi verkkokierroksen.</p>
+        <button id="leaderboard-refresh" type="button">Päivitä tuloslista</button>
+        <p id="leaderboard-status" role="status"></p>
+        <ol id="leaderboard-list"></ol>
+      </section>
     </dialog>
   </body>
 </html>

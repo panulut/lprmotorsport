@@ -37,6 +37,20 @@
   let activePad = null;
   let calibration = null;
   let best = Number(localStorage.getItem('lpr-best-time-lut-v1')) || 0;
+  let storedSectors = null;
+  try { storedSectors = JSON.parse(localStorage.getItem('lpr-best-sectors-lut-v1')); } catch {}
+  const timing = new LPRLapTiming(storedSectors?.lapTime === best ? storedSectors.sectors : null);
+  const sectorUI = document.querySelector('#sector-time');
+
+  function showSector(elapsed) {
+    const result = timing.split(elapsed);
+    if (!result) return;
+    const difference = result.delta === null ? '' : ` (${result.delta > 0 ? '+' : result.delta < 0 ? '-' : ''}${(Math.abs(result.delta) / 1000).toFixed(3)} s)`;
+    sectorUI.textContent = `S${result.sector} · ${formatTime(result.time)}${difference}`;
+    sectorUI.hidden = false;
+    sectorUI.classList.toggle('faster', result.delta !== null && result.delta < 0);
+    sectorUI.classList.toggle('slower', result.delta !== null && result.delta > 0);
+  }
   let car;
   let lastFrame = performance.now();
   let lastDeviceUpdate = 0;
@@ -157,6 +171,7 @@
     stopLooking();
     car.sale=!car.sale;
     if(car.sale) {
+      car.onlineInvalid = true;
       dynamics.reset(car);
       car.saleX=35; car.saleZ=130;
       car.saunaYaw=-Math.PI/2; car.saunaPitch=0;
@@ -196,6 +211,7 @@
     clearInput();
     car.sauna = !car.sauna;
     if (car.sauna) {
+      car.onlineInvalid = true;
       dynamics.reset(car);
       car.steamAt = -10000;
       car.saunaYaw = 0;
@@ -240,6 +256,8 @@
   }
 
   function reset() {
+    timing.reset();
+    sectorUI.hidden = true;
     clearInput();
     saunaLife.leave();
     car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false, damage:0, crashed:false };
@@ -473,21 +491,33 @@
     car.grassFraction = grassContact(car);
     car.offroad = car.grassFraction > .5;
     if (!car.crashed && nearest.distance < ROAD_HALF && car.speed > 2.2) {
-      if (car.stage === 0 && nearest.index > 55 && nearest.index < 85) car.stage = 1;
-      else if (car.stage === 1 && nearest.index > 115 && nearest.index < 145) car.stage = 2;
+      if (car.stage === 0 && nearest.index > 55 && nearest.index < 85) {
+        car.stage = 1;
+        showSector(now - car.lapStart);
+      }
+      else if (car.stage === 1 && nearest.index > 115 && nearest.index < 145) {
+        car.stage = 2;
+        showSector(now - car.lapStart);
+      }
       else if (car.stage === 2 && nearest.index > 175 && nearest.index < 205) car.stage = 3;
       else if (car.stage === 3 && (nearest.index < 5 || nearest.index > 235)) {
         const lapTime = now - car.lapStart;
         if (lapTime > 5000) {
+          showSector(lapTime);
+          if (!car.onlineInvalid && timing.sectors.length === 3) window.LPRLeaderboard?.submit(lapTime, timing.sectors.slice());
           if (!best || lapTime < best) {
             best = lapTime;
             localStorage.setItem('lpr-best-time-lut-v1', String(best));
+            timing.best = timing.sectors.slice();
+            localStorage.setItem('lpr-best-sectors-lut-v1', JSON.stringify({ lapTime: best, sectors: timing.best }));
             ui.best.textContent = formatTime(best);
             showNotice(t("record", { time: formatTime(lapTime) }), 3500);
           } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
           car.lap++;
           car.lapStart = now;
           car.stage = 0;
+          timing.reset();
+          car.onlineInvalid = false;
           ui.lap.textContent = String(car.lap);
         }
       }
@@ -640,6 +670,7 @@
   steeringPad.addEventListener('keyup', () => setSteer(0));
   steeringPad.addEventListener('blur', () => { if (steeringPointer === null) setSteer(0); });
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden && car.started) car.onlineInvalid = true;
     clearInput();
     if(document.hidden) saunaLife.stopSound();
     if (document.hidden) suspendedAt = performance.now();
@@ -660,7 +691,16 @@
     saunaSound.setAttribute('aria-pressed', String(saunaLife.sound));
     saunaSound.textContent = saunaLife.sound ? t("Saunan \u00e4\u00e4net: p\u00e4\u00e4ll\u00e4") : t("Saunan \u00e4\u00e4net: pois");
   });
-  document.querySelector('#settings-button').addEventListener('click', () => { clearInput(); saunaLife.stopSound(); ui.dialog.showModal(); });
+  function openSettings() {
+    if (car.started) car.onlineInvalid = true;
+    clearInput(); saunaLife.stopSound(); ui.dialog.showModal();
+  }
+  document.querySelector('#settings-button').addEventListener('click', openSettings);
+  document.querySelector('#leaderboard-button').addEventListener('click', () => {
+    openSettings();
+    document.querySelector('#leaderboard-panel').scrollIntoView?.({ block: 'start' });
+    window.LPRLeaderboard?.refresh();
+  });
   document.querySelector('#close-settings').addEventListener('click', () => ui.dialog.close());
   document.querySelectorAll('[data-capture]').forEach(button => button.addEventListener('click', () => {
     const pad = currentPad();

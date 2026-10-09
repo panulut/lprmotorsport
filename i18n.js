@@ -2,6 +2,18 @@
 (() => {
   'use strict';
   const english = {
+  "Tuloslista": "Leaderboard",
+  "Nimimerkki (julkinen)": "Nickname (public)",
+  "Kirjaimet, numerot, välilyönti, piste, viiva ja alaviiva. Tulokset tallentuvat automaattisesti. Tauko tai vierailu mitätöi verkkokierroksen.": "Letters, numbers, spaces, dots, hyphens and underscores. Results are saved automatically. Pausing or visiting a location invalidates the online lap.",
+  "Päivitä tuloslista": "Refresh leaderboard",
+  "Ei vielä tuloksia.": "No results yet.",
+  "Tuloslista ei ole juuri nyt saatavilla.": "Leaderboard is currently unavailable.",
+  "Verkkotulokset tarvitsevat selaimen tallennustilan.": "Online results require browser storage.",
+  "Valitse nimimerkki tuloslistasta ennen seuraavaa kierrosta.": "Choose a nickname in the leaderboard before your next lap.",
+  "Lähetetään kierrosaikaa…": "Submitting lap time…",
+  "Oma sijoitus": "Your rank",
+  "Paras": "Best",
+  "Tuloksen lähetys epäonnistui. Oma aika säilyy selaimessa.": "Submission failed. Your personal time stays in this browser.",
   "Salessa: klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. W/S: eteen/taakse, A/D: sivuille. Palaa autoon: E.": "In Sale: click the view to look with the mouse (Esc releases). On touchscreens, drag to look. W/S: forward/back, A/D: sideways. Return to car: E.",
   "W/S: eteen/taakse, A/D: sivuille. Klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.": "W/S: forward/back, A/D: sideways. Click the view to look with the mouse (Esc releases). On touchscreens, drag to look. Select the bucket or ladle to throw steam.",
   "Auto hajosi! Aloita uudelleen.": "Car wrecked! Restart to drive again.",

@@ -50,8 +50,8 @@ const gameContext={
   LPRTiltSteering:class{read(){return 0;}}
 };
 vm.createContext(gameContext);
-for(const file of ['sauna.js','vehicle.js','campus.js','sale.js']) vm.runInContext(source(file),gameContext);
-for(const name of ['LPRCampus','LPRSaunaLife','VehicleDynamics']) gameContext[name]=gameContext.window[name];
+for(const file of ['sauna.js','vehicle.js','campus.js','sale.js','timing.js']) vm.runInContext(source(file),gameContext);
+for(const name of ['LPRCampus','LPRSaunaLife','VehicleDynamics','LPRLapTiming']) gameContext[name]=gameContext.window[name];
 vm.runInContext(source('game.js').replace(/  reset\(\);\s+resize\(\);/,
   'reset(); globalThis.test={get car(){return car},operateWheel,dynamics,update,reset,held}; resize();'),gameContext);
 const game=gameContext.test;

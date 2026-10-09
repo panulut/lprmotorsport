@@ -183,6 +183,8 @@ vm.runInContext(source('sauna.js'), gameContext);
 vm.runInContext(source('vehicle.js'), gameContext);
 vm.runInContext(source('campus.js'), gameContext);
 vm.runInContext(source('sale.js'), gameContext);
+vm.runInContext(source('timing.js'), gameContext);
+gameContext.LPRLapTiming = gameContext.window.LPRLapTiming;
 gameContext.LPRCampus = gameContext.window.LPRCampus;
 gameContext.LPRSaunaLife = gameContext.window.LPRSaunaLife;
 gameContext.VehicleDynamics = gameContext.window.VehicleDynamics;
