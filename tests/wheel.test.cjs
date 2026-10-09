@@ -42,7 +42,7 @@ const element=id=>{
   return nodes.get(id);
 };
 const gameContext={
-  window:{addEventListener(type,handler){if(!events.has(type)) events.set(type,[]);events.get(type).push(handler);},screen:{}},
+  window:{matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(type,handler){if(!events.has(type)) events.set(type,[]);events.get(type).push(handler);},screen:{}},
   performance:{now:()=>1000},document:{querySelector:element,querySelectorAll:()=>[],addEventListener(){}},
   navigator:{},localStorage:{getItem:()=>null},setTimeout(){},clearTimeout(){},requestAnimationFrame(){},
   ResizeObserver:class{observe(){}},

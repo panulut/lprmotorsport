@@ -1168,9 +1168,17 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const rect = this.canvas.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
-    const ratio = Math.min(window.devicePixelRatio || 1, this.width < 650 ? 1.5 : 2);
-    this.canvas.width = Math.round(this.width * ratio);
-    this.canvas.height = Math.round(this.height * ratio);
+    const mobile = window.matchMedia('(pointer:coarse)').matches;
+    // Large desktop / HiDPI canvases otherwise shade millions of pixels per frame.
+    // Keep CSS coordinates unchanged for the camera and wheel hit targets.
+    const pixelBudget = mobile ? 1000000 : 1200000;
+    const ratio = Math.min(window.devicePixelRatio || 1, 1.25,
+      Math.sqrt(pixelBudget / Math.max(1, this.width * this.height)));
+    const pixelWidth = Math.round(this.width * ratio);
+    const pixelHeight = Math.round(this.height * ratio);
+    if (this.canvas.width === pixelWidth && this.canvas.height === pixelHeight) return;
+    this.canvas.width = pixelWidth;
+    this.canvas.height = pixelHeight;
     this.cockpitCanvas.width = this.canvas.width;
     this.cockpitCanvas.height = this.canvas.height;
     this.cockpit.setTransform(ratio,0,0,ratio,0,0);

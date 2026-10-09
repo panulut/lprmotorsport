@@ -171,7 +171,7 @@ const element = id => {
   return nodes.get(id);
 };
 const gameContext = {
-  window: { addEventListener() {}, screen: {} }, performance: { now: () => 1000 },
+  window: { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {}, screen: {} }, performance: { now: () => 1000 },
   document: { querySelector: element, querySelectorAll: () => [], addEventListener(type, handler) { documentEvents[type] = handler; }, exitPointerLock() { this.pointerLockElement = null; } },
   navigator: {}, localStorage: { getItem: () => null }, setTimeout() {}, clearTimeout() {},
   requestAnimationFrame() {}, ResizeObserver: class { observe() {} },

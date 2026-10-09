@@ -31,15 +31,6 @@
   const keyboard = new Set();
   const touchPointers = new Map();
   const steeringPad = document.querySelector("#steering-pad");
-  const tiltToggle = document.querySelector('#tilt-toggle');
-  const tiltCenter = document.querySelector('#tilt-center');
-  const tiltStatus = document.querySelector('#tilt-status');
-  const tilt = new LPRTiltSteering(message => {
-    tiltStatus.textContent = message;
-    tiltToggle.setAttribute('aria-pressed', String(tilt.enabled));
-    tiltCenter.hidden = !tilt.enabled;
-  });
-  let tiltSteer = 0;
   let steeringPointer = null;
   let touchSteer = 0;
   let suspendedAt = null;
@@ -73,7 +64,7 @@
       renderer.saunaSteamTarget(car,saunaHoverPosition.x,saunaHoverPosition.y,performance.now());
     // Keep the revealed action available while moving from the prop to its button.
     if (hovered) saunaSteamSelected=true;
-    saunaSteam.hidden = !car.sauna || ui.dialog.open || !(hovered || saunaSteamSelected);
+    saunaSteam.hidden = !car.sauna || ui.dialog.open;
     canvas.classList.toggle('steam-target', !!hovered);
   }
 
@@ -374,8 +365,8 @@
       calibration = null;
     }
     const device = padInput(pad);
-    const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0 || tilt.enabled;
-    const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : steeringPointer !== null || touchSteer !== 0 ? touchSteer : tiltSteer;
+    const local = held.left || held.right || held.gas || held.brake || steeringPointer !== null || touchSteer !== 0;
+    const steer = held.left || held.right ? (held.right ? 1 : 0) - (held.left ? 1 : 0) : steeringPointer !== null || touchSteer !== 0 ? touchSteer : 0;
     return local ? { steer, gas: held.gas ? 1 : 0, brake: held.brake ? 1 : 0, analog: false, wheel: false } : { ...device, analog: !!pad, wheel: !!calibration };
   }
 
@@ -416,7 +407,6 @@
   }
 
   function update(dt, now) {
-    tiltSteer = tilt.read(dt);
     const input = readInput();
     if(car.crashed) {
       car.throttleInput=0;
@@ -428,7 +418,6 @@
       ui.device.textContent = activePad ? t("deviceDetails", { device: activePad.id, axes: activePad.axes.length, buttons: activePad.buttons.length }) : t("Odotetaan ohjainta\u2026 K\u00e4\u00e4nn\u00e4 rattia tai paina sen painiketta.");
       ui.input.textContent = activePad ? calibration ? t("RATTI JA POLKIMET") : activePad.mapping === 'standard' ? t("PELIOHJAIN") : t("OHJAIN \u00b7 KALIBROI") : t("KOSKETUS / N\u00c4PP\u00c4IMIST\u00d6");
       lastDeviceUpdate = now;
-      if (tilt.enabled) ui.input.textContent = t("KALLISTUSOHJAUS");
     }
     if (ui.dialog.open || car.sauna || car.sale) {
       if (car.started) car.lapStart += dt * 1000;
@@ -514,13 +503,20 @@
     updateSaunaUI();
   }
 
+  let lastPresentation = null;
   function frame(now) {
+    requestAnimationFrame(frame);
+    if (document.hidden) { lastPresentation = null; return; }
+    // High-refresh desktop displays should not rebuild all geometry at 144–240 Hz.
+    const interval = 1000 / 60;
+    const elapsed = lastPresentation === null ? interval : now - lastPresentation;
+    if (elapsed < interval - .01) return;
+    lastPresentation = now - (elapsed >= interval ? elapsed % interval : 0);
     const dt = Math.min((now - lastFrame) / 1000, .05);
     lastFrame = now;
     if (!document.hidden) update(dt, now);
     if (!document.hidden) updateSteamTarget();
     renderer.render(car, now);
-    requestAnimationFrame(frame);
   }
 
   const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
@@ -550,41 +546,6 @@
     if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(event.target?.tagName) || event.target?.isContentEditable) return;
     event.preventDefault();operateWheel(action);
   });
-  tiltToggle.addEventListener('click', async () => {
-    if (tilt.enabled) {
-      tilt.disable();
-      tiltToggle.setAttribute('aria-pressed', 'false');
-      tiltCenter.hidden = true;
-      tiltStatus.textContent = t("Kosketusohjaus k\u00e4yt\u00f6ss\u00e4.");
-      return;
-    }
-    tiltToggle.disabled = true;
-    tiltStatus.textContent = t("Pid\u00e4 puhelin ajoasennossa ja salli liikeanturit.");
-    try {
-      await tilt.enable();
-      clearInput();
-      tiltToggle.setAttribute('aria-pressed', 'true');
-      tiltCenter.hidden = false;
-    } catch (error) {
-      tiltStatus.textContent = error.message;
-    } finally {
-      tiltToggle.disabled = false;
-    }
-  });
-  tiltCenter.addEventListener('click', () => {
-    tilt.recenter();
-    tiltStatus.textContent = t("Pid\u00e4 puhelin haluamassasi keskiasennossa.");
-  });
-  const recenterTilt = () => {
-    if (tilt.enabled) {
-      clearInput();
-      tilt.recenter();
-      tiltStatus.textContent = t("Pid\u00e4 puhelin ajoasennossa. Ohjaus keskitet\u00e4\u00e4n.");
-    }
-  };
-  window.addEventListener('orientationchange', recenterTilt);
-  window.screen.orientation?.addEventListener('change', recenterTilt);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) recenterTilt(); });
   function syncHeld() {
     for (const name of Object.keys(held)) {
       held[name] = [...keyboard].some(code => keyMap[code] === name) || [...touchPointers.values()].includes(name);
