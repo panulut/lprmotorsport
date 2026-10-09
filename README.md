@@ -35,7 +35,17 @@ Saunan toiminnalliset tarkistukset: `node tests/sauna.test.cjs`.
 
 ## Ajomalli ja sen rajat
 
-`vehicle.js` käyttää dynaamista polkupyörämallia: auton sivuttaisnopeus ja kiertymisnopeus syntyvät renkaiden voimista, ja kaasun tai jarrun käyttö vähentää samanaikaisesti käytettävissä olevaa sivuttaispitoa. Mukana on yksinkertaistettu pitkittäinen painonsiirto, ilmanvastus sekä pienempi pito radan ulkopuolella. Digitaalinen ohjaus pehmenee vauhdin kasvaessa, kun taas kalibroitu ratti antaa analogisen ohjauskulman. Ohjaamossa näkyvä liike reagoi hidastuvuuteen, sivuttaiskiihtyvyyteen ja radan ulkopuolella ajamiseen.
+Kaasun nostaminen hidastaa autoa nyt my?s pelillisell? moottorijarrutusavustuksella. Hidastus kasvaa kaasupolkimen vapautuessa ja pehmenee k?velyvauhdissa. Jarruvoima jaetaan akseleille renkaiden pidon mukaan, jotta takarenkaille j?? sivuttaispitoa mutkassa. Avustettu ohjaus rauhoittaa sivuluisua ja kiertymist? voimakkaammin kaasun ollessa vapautettuna; kalibroidun ratin ja analogisen peliohjaimen vakautus perustuu edelleen rengasvoimiin. Varsinainen jarrupoljin hidastaa selv?sti voimakkaammin.
+
+Puiden runkoihin voi törmätä. Näkyvät puut ja niiden törmäysrajat käyttävät samoja sijainti- ja runkomittatietoja. Törmäys tarkistetaan auton koko liikkeen matkalta myös kovassa vauhdissa; puuosumat käyttävät samaa vauriomallia kuin rakennusosumat. Latvus ei ole törmäyseste.
+
+Myös kampuksen ja järvenrannan pysäköidyt autot, saunapaku ja traktori ovat törmäysesteitä. Vinossa olevien ajoneuvojen törmäysrajat seuraavat niiden suuntaa. Ajoneuvo-osumat käyttävät samaa vauriomallia kuin puu- ja rakennusosumat; pysäköidyt ajoneuvot pysyvät paikallaan.
+
+Avustetun ohjauksen täysi kääntö käyttää nyt 90 % pinnan arvioidusta sivuttaispidosta aiemman 75 % sijaan. Ohjauskulmassa huomioidaan myös etu- ja takarenkaiden jäykkyysero. Pelillinen ajonvakautus hillitsee kiertymisnopeuden karkaamista ja suurta sivuluisua näppäimistö-, kosketus- ja kallistusohjauksella; analoginen peliohjain ja kalibroitu ratti käyttävät edelleen rengasvoimiin perustuvaa mallia ilman tätä vakautusta. Liian suurella nopeudella ajettu mutka voi edelleen viedä radan ulkopuolelle.
+
+Näppäimistöohjaus kääntyy pienessä nopeudessa ripeämmin ja suuressa nopeudessa asteittaisemmin. Näppäimen vapauttaminen palauttaa ohjauspyynnön keskelle enintään noin 0,17 sekunnissa. Vastakkaisen suunnan painaminen purkaa ensin aiemman ohjauksen ja alkaa sitten kääntää toiseen suuntaan. Auton kääntymisliike rauhoittuu rengasvoimien kautta; näppäimen vapautus ei pyydä automaattista vastakkaista ohjausta. Samat muutokset koskevat kosketus- ja kallistusohjauksen käyttämää avustettua ohjausta. Kalibroidun ratin ohjaus säilyy ennallaan. Ajomallin tarkistukset: `node tests/vehicle.test.cjs`.
+
+`vehicle.js` käyttää dynaamista polkupyörämallia: auton sivuttaisnopeus ja kiertymisnopeus syntyvät renkaiden voimista, ja kaasun tai jarrun käyttö vähentää samanaikaisesti käytettävissä olevaa sivuttaispitoa. Mukana on yksinkertaistettu pitkittäinen painonsiirto, ilmanvastus sekä pienempi pito radan ulkopuolella. Digitaalinen ohjaus pehmenee vauhdin kasvaessa, kun taas kalibroitu ratti antaa analogisen ohjauskulman. Kuljettajan kamera pysyy kiinteästi auton rungossa, jotta keula ja ohjaamo eivät liu’u suhteessa toisiinsa ohjattaessa.
 
 Luistonesto on oletuksena päällä: se leikkaa vetovoimaa, kun takarenkaalle arvioitu sivuttais- ja vetovoiman yhteistarve lähestyy pidon rajaa. Näytön `TC RAJOITTAA TEHOA` kertoo, milloin se puuttuu ajoon. Koska mallissa ei ole pyöränopeusantureita eikä tarkkaa rengasdataa, tämä on arvioitu momentinrajoitin, ei oikean auton luistosuhteeseen perustuvan säätimen kopio. Luistonesto ei voi korjata mutkaan liian suurella nopeudella ajamista.
 
@@ -43,10 +53,77 @@ Rata kiert?? LUT:n kampusta k?ytt?j?n toimittaman karttakuvan reitti? mukaillen.
 
 Kampus ja reitti ovat tiedostossa `campus.js`. Kaikki paikat k?ytt?v?t samaa karttakoordinaattien muunnosta. Ajomalli k?ytt?? edelleen 10 maailmanyksikk?? metri? kohti, ja rata on 5,4 metri? leve?.
 
-Parametrit (massa, akseliväli, teho, rengaspito, vetotapa) ovat alustavia. Käytettävissä on auton valokuva mutta ei mittaus- tai testidataa, joten peli ei kuvaa juuri LPR Motorsportin auton mitattua suorituskykyä. Kuvan perusteella ohjaamon ulkoasu on muutettu avoimeksi ja siniputkiseksi. Eturenkaat, vanteet ja ripustuksen osat piirretään nyt 3D-muotoina, ja renkaat kääntyvät sekä pyörivät ajossa. Yksityiskohdat ovat edelleen tulkintaa. Todellinen autokohtainen malli edellyttää vähintään massa- ja akselivälitietoja sekä kiihdytys-, jarrutus- ja mutkatestien dataa.
+Parametrit (massa, akseliväli, teho, rengaspito, vetotapa) ovat alustavia. Käytettävissä on auton valokuva mutta ei mittaus- tai testidataa, joten peli ei kuvaa juuri LPR Motorsportin auton mitattua suorituskykyä. Kuvan perusteella ohjaamon ulkoasu on muutettu avoimeksi; nykyinen muotoilukonsepti on musta-vihreä. Eturenkaat, vanteet ja ripustuksen osat piirretään nyt 3D-muotoina, ja renkaat kääntyvät sekä pyörivät ajossa. Yksityiskohdat ovat edelleen tulkintaa. Todellinen autokohtainen malli edellyttää vähintään massa- ja akselivälitietoja sekä kiihdytys-, jarrutus- ja mutkatestien dataa.
 
 # Kielen vaihtaminen
 
 Yläpalkin FI/EN-valinnalla voi vaihtaa suomen ja englannin välillä myös kesken kierroksen. Vaihto säilyttää pelitilanteen ja tallentuu selaimeen seuraavaa pelikertaa varten. Käyttöliittymä, ohjeet, kalibrointi ja saunan keskustelut seuraavat valittua kieltä. Saunan puhe käyttää valitun kielen ääntä, jos selain tarjoaa sen.
 
 Käännökset ja muotoiltavat tilaviestit ovat tiedostossa `i18n.js`. Kielenvaihdon testit voi ajaa komennolla `node tests/i18n.test.cjs`.
+
+
+## Auton muotoilukonsepti
+
+Ajettavan auton ilme yhdistää muotoillun mustan keulan, vihreät tehosteraidat,
+tummat hiilikuitua muistuttavat sivukatteet ja ohjaamopinnat sekä LUT / LPR Motorsport
+-tekstin. Putkirunko ja turvakaari ovat vihreät. Keula ja ohjaamon sivuseinät liittyvät samaan 3D-korirakenteeseen.
+Keulan muodot, sivukatteet ja raidat ovat 3D-geometriaa; ohjaamon pintakuvio ja tunnukset
+piirretään paikallisesti ilman ulkoisia kuvatiedostoja. Tämä on opiskelijatiimin
+mahdollista viimeisteltyä autoa kuvaava pelikonsepti, ei tiimin hyväksytty väritys.
+
+Muotoilun lähteenä on käyttäjän toimittama **FS_Rules_2027_v1.0.pdf**,
+Formula Student Rules 2027 v1.0 (115 sivua). Tarkistetut kohdat: T2.1–T2.2
+(s. 20–21), T4.1–T4.3 (s. 35–36), T8.2 (s. 44–45) ja T12 (s. 52).
+Uudet katteet ovat eturenkaiden sisäpuolella, niiden alin pinta on 80 mm
+korkeudella pelin mittakaavassa, ja keula ulottuu noin 200 mm eturenkaan etureunan
+etupuolelle. Keula on alle 350 mm korkea. Sen sivuille jää tilaa T2.1.4:n
+kahdelle 75 × 250 mm tarkastusalueelle esimerkiksi vaakasuorassa asennossa,
+sivuttaisväleillä −650…−400 mm ja 400…650 mm, korkeudella 0…75 mm.
+Ohjaamon aukkoa ei kateta. Muutos ei lisää siipiä tai muuta ajomallin aerodynamiikkaa.
+
+Sivuilla on vaalea LUT UNIVERSITY -teksti mustalla pohjalla pääkaaren edessä.
+Kirjainten korkeus on 56 mm; yläreuna on enintään 5 mm sivukatteen yläreunan
+alapuolella (T12.3). Kilpailunumeroa ei ole annettu: T12.1:n mukaiset etu- ja
+sivunumerot pitää sovittaa tapahtuman antaman numeron mukaan.
+
+Graafinen malli ei varmista todellisen auton sääntökelpoisuutta: muun muassa
+kuljettajan ulospääsy, ohjaamomitat, turvakaarien suoja, reunasäteet, rakenteiden
+lujuus, takarenkaiden uudet vapaat alueet ja kilpailukohtaiset tunnukset vaativat
+erillisen teknisen tarkastuksen. Uusien katteiden mitat koskevat ehjää autoa;
+pelin vauriotila ei edusta kilpailuun hyväksyttävää rakennetta.
+
+## Formula Student -ratti
+
+Ratissa on suljettu soikea ulkokehä, ommellut kahvapinnat, hiilikuitua muistuttava
+keskilevy, pikairrotuskauluksen havainne ja integroitu näyttö. Näyttö ja säätimet
+kääntyvät ratin mukana. Ulkokehän muoto perustuu vuoden 2027 sääntökirjan kohtaan
+T2.8.7 (s. 23): kehän pitää olla yhtenäinen ja lähes pyöreä tai soikea ilman
+koveria osuuksia. Säätimet pysyvät kehän sisällä.
+
+- **DISP / P** vaihtaa nopeus- ja pitonäkymää. Nopeus on km/h; pitonäkymässä
+  näkyvät sivuttaiskiihtyvyys G-yksiköissä ja mallinnettu renkaiden pidon käyttö.
+- **DIM / B** vaihtaa näytön normaalin ja himmeän kirkkauden välillä.
+- **TC / T** kytkee ajomallin luistoneston päälle tai pois. Uudelleenaloitus palauttaa
+  luistoneston päälle. Näytön TC ACTIVE kertoo momentinrajoittimen toiminnasta.
+
+Säätimiä voi klikata tai napauttaa ratista; vastaavat saavutettavat painikkeet ovat
+ajonäkymän alla. Kierrosnumero, kierrosaika ja kaasun sekä jarrun ohjauspyynnöt
+näkyvät molemmilla näyttösivuilla. LED-palkki kertoo pidon käytöstä, ei kierrosluvusta.
+Vaurio, radan ulkopuolelle ajaminen ja auton hajoaminen näkyvät näytön tilarivillä.
+Kierrosaika pysähtyy tauoilla ja auton hajotessa. Mallissa ei ole vaihteistoa,
+moottorin kierroslukua, akkuvarausta tai lämpötila-antureita; niitä ei esitetä
+mitattuina arvoina. Ratin takana näkyvät lavat ovat vain ulkoasun yksityiskohta.
+
+Todellisen ratin toteutuksessa pitää lisäksi tarkistaa T2.8.2:n mekaaninen yhteys,
+T2.8.5:n käsineillä käytettävä pikairrotus, T2.8.6:n enintään 250 mm etäisyys
+etukaaresta ja T2.8.8:n korkeus suhteessa etukaareen kaikissa ohjausasennoissa.
+T4.9 edellyttää säätimien käyttöä ohjaamon sisältä, T4.10 riittävää näkyvyyttä ja
+T4.11 alle viiden sekunnin ulospääsyä. Pelin kaksiulotteinen ratti ei todenna
+näitä fyysisiä asennus- ja kuljettajavaatimuksia.
+
+Ratin mittarien ja säätimien tarkistukset: `node tests/wheel.test.cjs`.
+
+Keulan kiinnityksen ja ohjauksen regressiotarkistus: `node tests/bodywork.test.cjs`.
+Testi varmistaa, että ohjaus muuttaa eturenkaiden geometriaa mutta ei koria, että
+keula ja ohjaamon sivut jakavat kiinnitysreunan ja että korin projektio pysyy
+kuljettajan näkymässä paikallaan auton suunnan ja G-voimien muuttuessa.

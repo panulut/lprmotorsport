@@ -7,15 +7,15 @@
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>LPR Lap Challenge</title>
     <link rel="stylesheet" href="styles.css?v=mobile-20261008" />
-    <link rel="stylesheet" href="3d.css?v=tilt-20261008" />
+    <link rel="stylesheet" href="3d.css?v=landscape-20261009" />
     <script src="i18n.js?v=production-20261008" defer></script>
-    <script src="campus.js?v=lut-logo-6" defer></script>
+    <script src="campus.js?v=student-cars-20261009" defer></script>
     <script src="sale.js?v=assortment-14" defer></script>
-    <script src="renderer3d.js?v=assortment-4" defer></script>
-    <script src="vehicle.js" defer></script>
+    <script src="renderer3d.js?v=materials-20261009" defer></script>
+    <script src="vehicle.js?v=steering-20261009-2" defer></script>
     <script src="tilt.js?v=tilt-20261008" defer></script>
     <script src="sauna.js?v=ovi-20261008-2" defer></script>
-    <script src="game.js?v=production-20261008" defer></script>
+    <script src="game.js?v=landscape-20261009" defer></script>
   </head>
   <body>
     <main class="app">
@@ -44,6 +44,11 @@
       </section>
 
       <section class="controls" aria-label="Kosketusohjaimet">
+        <div class="wheel-controls" role="group" aria-label="Ratin säätimet">
+          <button id="wheel-page" type="button">Ratti: nopeus (P)</button>
+          <button id="wheel-dim" type="button" aria-pressed="false">Himmennys (B)</button>
+          <button id="wheel-tc" type="button" aria-pressed="true">Luistonesto (T)</button>
+        </div>
         <div class="tilt-controls"><button id="tilt-toggle" type="button" aria-pressed="false">Kallistusohjaus</button><button id="tilt-center" type="button" hidden>Keskitä</button><span id="tilt-status" role="status"></span></div>
         <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="Ohjaus: liu’uta vasemmalle tai oikealle" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="steering-guide">← OHJAA →</span><span class="steering-thumb"></span></div>
         <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">↶</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">↷</button></div>

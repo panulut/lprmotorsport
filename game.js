@@ -83,6 +83,10 @@
   }
 
   canvas.addEventListener('pointerdown', event => {
+    if(!ui.dialog.open && event.button===0 && !(car.sauna || car.sale)) {
+      const action=renderer.steeringWheelActionAt(car,event.clientX,event.clientY);
+      if(action) { event.preventDefault(); operateWheel(action); return; }
+    }
     if (!(car.sauna || car.sale) || ui.dialog.open || saunaLookPointer || event.button !== 0) return;
     event.preventDefault();
     if (event.pointerType === 'mouse' && canvas.requestPointerLock) {
@@ -249,6 +253,14 @@
     saunaLife.leave();
     car = { x: track[0].x, y: track[0].y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, stage: 0, started: false, offroad: false, damage:0, crashed:false };
     dynamics.reset(car);
+    dynamics.parameters.tractionControlEnabled=true;
+    car.tcEnabled=true;
+    car.wheelPage=0;
+    car.wheelDim=false;
+    car.lapElapsedMs=0;
+    car.throttleInput=0;
+    car.brakeInput=0;
+    updateWheelControls();
     updateSaunaUI();
     ui.lap.textContent = '1';
     ui.time.textContent = '00:00.000';
@@ -407,6 +419,8 @@
     tiltSteer = tilt.read(dt);
     const input = readInput();
     if(car.crashed) {
+      car.throttleInput=0;
+      car.brakeInput=0;
       showNotice(t("Auto hajosi! Aloita uudelleen."),0);
       return;
     }
@@ -449,7 +463,7 @@
       car.grassFraction = grassContact(car);
       const previous = { x:car.x, y:car.y };
       dynamics.step(car, input, dt / steps, car.grassFraction);
-      const collision=window.LPRCampus.resolveBuildingCollision(car, previous);
+      const collision=window.LPRCampus.resolveObstacleCollision(car, previous);
       if(collision) {
         const damage=dynamics.applyImpact(car,collision.normal);
         if(damage>0) showNotice(t("Auto vaurioitui."),2500);
@@ -490,10 +504,13 @@
       }
     }
     if (car.started) ui.time.textContent = formatTime(now - car.lapStart);
+    car.lapElapsedMs=car.started ? Math.max(0,now-car.lapStart) : 0;
+    car.throttleInput=input.gas;
+    car.brakeInput=input.brake;
     ui.speed.textContent = String(Math.round(car.speed * 3.6));
     ui.lateralG.textContent = `${Math.abs(car.lateralG).toFixed(1)} G`;
     ui.grip.textContent = car.damage>0 ? `${t("VAURIO")} ${Math.round(car.damage*100)} %` : car.offroad ? t("RADAN ULKOPUOLELLA") : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? t("PITO RAJALLA") : t("PITO OK");
-    ui.tc.textContent = car.tcActive ? t("TC RAJOITTAA TEHOA") : t("TC P\u00c4\u00c4LL\u00c4");
+    ui.tc.textContent = car.tcActive ? t("TC RAJOITTAA TEHOA") : t(car.tcEnabled ? "TC P\u00c4\u00c4LL\u00c4" : "TC POIS");
     updateSaunaUI();
   }
 
@@ -507,6 +524,32 @@
   }
 
   const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
+  function updateWheelControls() {
+    document.querySelector('#wheel-page').textContent=t(car.wheelPage===1 ? 'Ratti: pito (P)' : 'Ratti: nopeus (P)');
+    document.querySelector('#wheel-dim').setAttribute('aria-pressed',String(car.wheelDim));
+    document.querySelector('#wheel-tc').setAttribute('aria-pressed',String(car.tcEnabled));
+  }
+  function operateWheel(action) {
+    if(ui.dialog.open || car.sauna || car.sale || car.crashed) return;
+    if(action==='page') car.wheelPage=car.wheelPage===1 ? 0 : 1;
+    else if(action==='brightness') car.wheelDim=!car.wheelDim;
+    else if(action==='tc') {
+      car.tcEnabled=!car.tcEnabled;
+      dynamics.parameters.tractionControlEnabled=car.tcEnabled;
+      if(!car.tcEnabled) { car.tcActive=false; car.torqueScale=1; }
+      ui.tc.textContent=t(car.tcEnabled ? 'TC P\u00c4\u00c4LL\u00c4' : 'TC POIS');
+    }
+    updateWheelControls();
+  }
+  for(const [id,action] of [['#wheel-page','page'],['#wheel-dim','brightness'],['#wheel-tc','tc']]) {
+    document.querySelector(id).addEventListener('click',()=>operateWheel(action));
+  }
+  window.addEventListener('keydown',event=>{
+    const action={KeyP:'page',KeyB:'brightness',KeyT:'tc'}[event.code];
+    if(!action || event.repeat || event.ctrlKey || event.altKey || event.metaKey || ui.dialog.open || car.sauna || car.sale) return;
+    if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(event.target?.tagName) || event.target?.isContentEditable) return;
+    event.preventDefault();operateWheel(action);
+  });
   tiltToggle.addEventListener('click', async () => {
     if (tilt.enabled) {
       tilt.disable();
@@ -669,6 +712,10 @@
     saveCalibration();
   }));
   window.addEventListener('resize', resize);
+  const landscapeDriving = window.matchMedia('(pointer:coarse) and (orientation:landscape), (max-width:900px) and (max-height:500px) and (orientation:landscape)');
+  landscapeDriving.addEventListener('change', event => {
+    if (event.matches && ui.dialog.open) ui.dialog.close();
+  });
   new ResizeObserver(resize).observe(document.querySelector('.game-shell'));
   window.addEventListener('gamepadconnected', event => {
     activePad = event.gamepad;

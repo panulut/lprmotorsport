@@ -17,8 +17,10 @@ window.VehicleDynamics = class VehicleDynamics {
       peakDriveForce: 1850,     // N
       peakPower: 60000,         // W
       peakBrakeForce: 3550,     // N
+      coastBrakeForce: 420,     // N, game-tuned lift-off braking with stable axle distribution
       tractionControlEnabled: true,
       maxRoadWheelAngle: 0.36,  // rad
+      assistedSteeringGrip: 0.9, // fraction of available grip requested at full assisted steering
       dragArea: 0.75,           // CdA, m²
       rollingResistance: 45     // N
     };
@@ -70,41 +72,63 @@ window.VehicleDynamics = class VehicleDynamics {
     const p = this.parameters;
     const dt = Math.min(seconds, 1 / 90);
     const gravity = 9.81;
-    const throttle = Math.max(0, Math.min(1, input.gas))*(1-.65*(state.damage || 0));
+    const gas = Math.max(0, Math.min(1, input.gas));
+    const throttle = gas*(1-.65*(state.damage || 0));
     const brake = Math.max(0, Math.min(1, input.brake));
     const desiredSteer = Math.max(-1, Math.min(1, input.steer));
     const analog = !!input.analog;
     const grassFraction = Math.max(0, Math.min(1, Number(grassContact) || 0));
     const mu = p.roadGrip + (p.grassGrip - p.roadGrip) * grassFraction;
 
-    // Digital buttons need a progressive steering rack; wheel input stays direct.
-    const response = analog ? 8 : 2.4;
-    const steerError = desiredSteer - state.steer;
-    state.steer += Math.max(-response * dt, Math.min(response * dt, steerError));
+    // Build lock quickly in tight turns, more gently at speed. Releasing a key
+    // or correcting the other way should not leave the old turn held for .4 s.
+    const steeringSpeed = Math.max(0, state.vx);
+    const speedBlend = Math.min(1, steeringSpeed / 20);
+    const reversing = desiredSteer * state.steer < 0;
+    const centering = desiredSteer === 0 || reversing;
+    const response = analog ? 8 : centering ? 6 : 3.6 - 1.6 * speedBlend;
+    // First unwind to centre before building lock in the opposite direction.
+    const steerTarget = !analog && reversing ? 0 : desiredSteer;
+    const steerChange = steerTarget - state.steer;
+    state.steer += Math.max(-response * dt, Math.min(response * dt, steerChange));
     // Keyboard buttons request a turn rate. The steering rack adds a little angle
     // when the car responds less than requested, while keeping lateral demand sane.
     let targetAngle;
+    let assistedYawRate = 0;
     if (analog) {
       const mappedSteer = input.wheel ? state.steer : Math.sign(state.steer) * Math.abs(state.steer) ** 1.5;
       targetAngle = mappedSteer * p.maxRoadWheelAngle;
     } else {
       const speed = Math.max(state.vx, 1.5);
-      const yawLimit = mu * gravity * .75 / speed;
+      const yawLimit = mu * gravity * p.assistedSteeringGrip / speed;
       // Use the full rack at low speed (about a 4.3 m radius), then reduce
       // steering demand as speed rises to stay within the lateral grip budget.
       const fullLockYawRate = speed * Math.tan(p.maxRoadWheelAngle) / p.wheelbase;
       const targetYawRate = state.steer * Math.min(fullLockYawRate, yawLimit);
-      const feedForward = Math.atan(p.wheelbase * targetYawRate / speed);
-      targetAngle = feedForward + .10 * (targetYawRate - state.yawRate) - .10 * state.bodySlip;
+      assistedYawRate = targetYawRate;
+      // The geometric angle alone underestimates the lock needed when the
+      // front tires develop slip. Compensate the front/rear stiffness balance.
+      const understeer = p.mass / p.wheelbase *
+        (p.rearAxle / p.frontCorneringStiffness - p.frontAxle / p.rearCorneringStiffness);
+      const feedForward = Math.atan(p.wheelbase * targetYawRate / speed) + understeer * speed * targetYawRate;
+      // Fade the assistance with the requested turn so releasing the keys
+      // centres the rack rather than generating an automatic opposite turn.
+      const assistance = Math.abs(state.steer);
+      targetAngle = feedForward + assistance * .18 * (targetYawRate - state.yawRate);
       targetAngle = Math.max(-p.maxRoadWheelAngle, Math.min(p.maxRoadWheelAngle, targetAngle));
     }
-    state.steerAngle += Math.max(-2.8 * dt, Math.min(2.8 * dt, targetAngle - state.steerAngle));
+    const rackChange = (targetAngle - state.steerAngle) * (analog ? 1 : 1 - Math.exp(-18 * dt));
+    state.steerAngle += Math.max(-2.8 * dt, Math.min(2.8 * dt, rackChange));
 
     const speed = Math.max(0, state.vx);
     const drag = 0.5 * 1.225 * p.dragArea * speed * speed;
     const rolling = p.rollingResistance * (1 + 2 * grassFraction);
     const rawDriveRequest = throttle * Math.min(p.peakDriveForce, p.peakPower / Math.max(speed, 2));
-    const brakeRequest = brake * p.peakBrakeForce;
+    // Lift-off braking fades near rest and with pedal input. Use the same
+    // grip-aware axle distribution as the brakes rather than unloading and
+    // locking the driven rear axle in a corner. This is a gameplay assist.
+    const coastBrake = (1 - gas) * p.coastBrakeForce * Math.min(1, speed / 4);
+    const brakeRequest = brake * p.peakBrakeForce + (1 - brake) * coastBrake;
     const wheelbase = p.wheelbase;
     // With no wheel-speed measurements, this is a tire-capacity torque limiter rather
     // than a calibrated slip-ratio controller. It leaves lateral grip in reserve.
@@ -163,6 +187,19 @@ window.VehicleDynamics = class VehicleDynamics {
       state.lateralG = (frontFy + rearFy) / (p.mass * gravity);
       state.longitudinalG = (frontFx + rearFx - drag - rolling) / (p.mass * gravity);
       state.tireUse = Math.max(Math.hypot(frontFx, frontFy) / Math.max(frontLimit, 1), Math.hypot(rearFx, rearFy) / Math.max(rearLimit, 1));
+    }
+
+    // Assisted controls also stabilize the car near the tire limit. This game
+    // assist keeps the extra steering authority from becoming a spin; wheels
+    // retain the unassisted tire model. Yaw stays within the surface grip limit.
+    if (!analog && speed >= 1.5) {
+      const stability = 1 - Math.exp(-(5 + 3 * (1 - gas)) * dt);
+      state.yawRate += (assistedYawRate - state.yawRate) * stability;
+      const surfaceYawLimit = mu * gravity / Math.max(state.vx, 1.5);
+      state.yawRate = Math.max(-surfaceYawLimit, Math.min(surfaceYawLimit, state.yawRate));
+      const slipLimit = Math.max(1, state.vx) * (.08 + .04 * gas);
+      const limitedVy = Math.max(-slipLimit, Math.min(slipLimit, state.vy));
+      state.vy += (limitedVy - state.vy) * stability;
     }
 
     state.angle += state.yawRate * dt;

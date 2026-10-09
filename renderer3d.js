@@ -32,10 +32,22 @@ window.LPRRenderer3D = class LPRRenderer3D {
       uniform vec3 uUp;
       uniform float uAspect;
       uniform float uFocal;
+      uniform bool uSky;
       varying vec3 vColor;
       varying float vDepth;
       varying vec2 vUV;
+      varying vec3 vWorld;
+      varying vec3 vRay;
+      varying vec3 vView;
       void main() {
+        vWorld = aPosition;
+        vView = uCamera-aPosition;
+        vRay = uForward + uRight * aPosition.x * uAspect / uFocal + uUp * aPosition.y / uFocal;
+        if (uSky) {
+          gl_Position = vec4(aPosition.xy, 0.9999, 1.0);
+          vColor = aColor; vDepth = 0.0; vUV = aUV;
+          return;
+        }
         vec3 relative = aPosition - uCamera;
         float depth = dot(relative, uForward);
         float clipZ = depth * 1.0010005 - 2.0010005;
@@ -47,22 +59,72 @@ window.LPRRenderer3D = class LPRRenderer3D {
       }
     `;
     const fragmentSource = `
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+      #else
       precision mediump float;
+      #endif
       varying vec3 vColor;
       varying float vDepth;
       varying vec2 vUV;
+      varying vec3 vWorld;
+      varying vec3 vRay;
+      varying vec3 vView;
       uniform sampler2D uTexture;
       uniform bool uTextured;
+      uniform bool uSky;
+      uniform float uOpacity;
+      uniform bool uOutdoor;
+      uniform int uMaterial;
       void main() {
+        if (uSky) {
+          vec3 ray = normalize(vRay);
+          float elevation = max(ray.y, 0.0);
+          vec3 skyColor = mix(vec3(0.76, 0.84, 0.87), vec3(0.23, 0.48, 0.73), smoothstep(0.0, 0.8, elevation));
+          float sun = pow(max(dot(ray, normalize(vec3(-0.45, 0.8, -0.35))), 0.0), 180.0);
+          gl_FragColor = vec4(skyColor + vec3(0.26, 0.22, 0.14) * sun, 1.0);
+          return;
+        }
         vec3 color = vColor;
+        // World-scaled procedural textures need no downloads or large image assets.
+        float detail = 1.0 - smoothstep(180.0, 650.0, vDepth);
+        if (uMaterial == 1) {
+          vec2 brickUV = vUV / vec2(0.28, 0.085);
+          brickUV.x += mod(floor(brickUV.y), 2.0) * 0.5;
+          vec2 cell = fract(brickUV);
+          float mortar = max(1.0-smoothstep(0.03,0.10,cell.x),1.0-smoothstep(0.03,0.14,cell.y));
+          float variation = fract(sin(dot(floor(brickUV),vec2(7.13,3.71))) * 41.31);
+          color *= 0.91 + variation * 0.18 * detail;
+          color = mix(color, vec3(0.48,0.44,0.38),mortar * 0.6 * detail);
+        } else if (uMaterial == 2) {
+          vec2 panels = fract(vUV / vec2(3.0,1.7));
+          float seam = (1.0-smoothstep(0.002,0.012,min(panels.x,panels.y))) * detail;
+          float grain = fract(sin(dot(floor(vUV*35.0),vec2(7.13,3.71))) * 41.31);
+          color *= 1.0 + (grain-0.5)*0.10*detail - seam*0.22;
+        } else if (uMaterial == 3) {
+          float grain = sin(vUV.x*170.0 + sin(vUV.y*3.0)*2.0);
+          float joint = 1.0-smoothstep(0.01,0.06,fract(vUV.x/0.14));
+          color *= 1.0 + grain*0.06*detail - joint*0.22*detail;
+        } else if (uMaterial == 4) {
+          vec3 view = normalize(vView);
+          float reflection = 0.5 + 0.5*sin(view.x*2.0+view.z*2.4+vUV.y*1.8);
+          color = mix(color,vec3(0.49,0.66,0.75),0.22+reflection*0.24);
+          float edge = min(min(vUV.x,1.0-vUV.x),min(vUV.y,1.0-vUV.y));
+          color *= mix(0.65,1.0,smoothstep(0.0,0.09,edge));
+        }
+        // Limit grain to the road surface and fade it before it can shimmer in the distance.
+        if (uOutdoor && !uTextured && vWorld.y > 0.04 && vWorld.y < 0.06) {
+          float grain = fract(sin(dot(floor(vWorld.xz * 3.0), vec2(12.9898, 78.233))) * 437.5453);
+          color *= 1.0 + 0.12 * (grain - 0.5) * (1.0 - smoothstep(50.0, 260.0, vDepth));
+        }
         if (uTextured) {
           vec4 artwork = texture2D(uTexture, vUV);
           if (artwork.a < 0.1 || min(min(artwork.r, artwork.g), artwork.b) > 0.96) discard;
           color = artwork.rgb;
         }
-        vec3 sky = vec3(0.59, 0.76, 0.74);
+        vec3 sky = vec3(0.76, 0.84, 0.87);
         float fog = clamp((vDepth - 320.0) / 1000.0, 0.0, 0.83);
-        gl_FragColor = vec4(mix(color, sky, fog), 1.0);
+        gl_FragColor = vec4(mix(color, sky, fog), uOpacity);
       }
     `;
     const compile = (type, source) => {
@@ -85,6 +147,10 @@ window.LPRRenderer3D = class LPRRenderer3D {
       uv: gl.getAttribLocation(program, 'aUV'),
       textured: gl.getUniformLocation(program, 'uTextured'),
       texture: gl.getUniformLocation(program, 'uTexture'),
+      sky: gl.getUniformLocation(program, 'uSky'),
+      opacity: gl.getUniformLocation(program, 'uOpacity'),
+      outdoor: gl.getUniformLocation(program, 'uOutdoor'),
+      material: gl.getUniformLocation(program, 'uMaterial'),
       camera: gl.getUniformLocation(program, 'uCamera'),
       forward: gl.getUniformLocation(program, 'uForward'),
       right: gl.getUniformLocation(program, 'uRight'),
@@ -95,15 +161,47 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clearColor(.59, .76, .74, 1);
+    gl.uniform1f(this.locations.opacity, 1);
+    this.skyBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,0,1,1,1, 1,-1,0,1,1,1, 1,1,0,1,1,1, -1,-1,0,1,1,1, 1,1,0,1,1,1, -1,1,0,1,1,1]), gl.STATIC_DRAW);
   }
 
   makeWorld() {
     const gl = this.gl;
     const data = [];
+    const shadows = [];
+    const materialData = {brick:[],concrete:[],wood:[],glass:[]};
+    let outdoorLighting = true;
+    // Bake sunlight once, keeping the per-frame cost unchanged on mobile.
     const add = (point, color) => data.push(point[0], point[1], point[2], color[0], color[1], color[2]);
-    const tri = (a, b, c, color) => { add(a, color); add(b, color); add(c, color); };
+    const tri = (a, b, c, color) => {
+      if (outdoorLighting) {
+        const u=b.map((v,i)=>v-a[i]), v=c.map((value,i)=>value-a[i]);
+        let n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+        const length=Math.hypot(...n) || 1;
+        if(n[1]<0) n=n.map(value=>-value);
+        const light=Math.max(0,(-.45*n[0]+.8*n[1]-.35*n[2])/length/Math.hypot(.45,.8,.35));
+        color=color.map((value,i)=>Math.min(1,value*(.76+light*.30)*[1.03,1.01,.98][i]));
+      }
+      add(a, color); add(b, color); add(c, color);
+    };
+    const groundShadow = (x,z,sx,sz,height) => {
+      // Convex hull of the footprint and its sunlight projection.
+      const points=[];
+      for(const dx of [-sx/2,sx/2]) for(const dz of [-sz/2,sz/2]) {
+        points.push([x+dx,z+dz],[x+dx+height*.5625,z+dz+height*.4375]);
+      }
+      points.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
+      const cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+      const half=list=>{const hull=[];for(const p of list){while(hull.length>1 && cross(hull.at(-2),hull.at(-1),p)<=0) hull.pop();hull.push(p);}return hull;};
+      const lower=half(points),upper=half([...points].reverse());
+      const hull=[...lower.slice(0,-1),...upper.slice(0,-1)];
+      for(let i=1;i<hull.length-1;i++) for(const p of [hull[0],hull[i],hull[i+1]]) shadows.push(p[0],.14,p[1],.025,.045,.065);
+    };
     const quad = (a, b, c, d, color) => { tri(a, b, c, color); tri(a, c, d, color); };
     const box = (x, y, z, sx, sy, sz, color) => {
+      if(outdoorLighting && y<=0 && sy>15 && sx>20 && sz>20) groundShadow(x,z,sx,sz,sy);
       const x0 = x - sx / 2, x1 = x + sx / 2, y0 = y, y1 = y + sy, z0 = z - sz / 2, z1 = z + sz / 2;
       const shade = factor => color.map(value => value * factor);
       quad([x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],shade(.8));
@@ -111,6 +209,26 @@ window.LPRRenderer3D = class LPRRenderer3D {
       quad([x0,y0,z1],[x0,y0,z0],[x0,y1,z0],[x0,y1,z1],shade(.65));
       quad([x1,y0,z0],[x1,y0,z1],[x1,y1,z1],[x1,y1,z0],shade(.65));
       quad([x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1],color);
+    };
+    const materialBox = (x,y,z,sx,sy,sz,color,material) => {
+      if (!materialData[material]) { box(x,y,z,sx,sy,sz,color); return; }
+      const start=data.length;
+      box(x,y,z,sx,sy,sz,color);
+      const vertices=data.splice(start), target=materialData[material];
+      for(let i=0;i<vertices.length;i+=18) {
+        const a=vertices.slice(i,i+3),b=vertices.slice(i+6,i+9),c=vertices.slice(i+12,i+15);
+        const u=b.map((v,j)=>v-a[j]),v=c.map((value,j)=>value-a[j]);
+        const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]].map(Math.abs);
+        const horizontal=n[1]>n[0] && n[1]>n[2];
+        const axis=n[0]>n[2] ? 2 : 0;
+        for(let j=0;j<18;j+=6) {
+          const p=vertices.slice(i+j,i+j+3);
+          // Local coordinates preserve sub-brick detail on mediump mobile GPUs.
+          let uv=horizontal ? [(p[0]-x)/10,(p[2]-z)/10] : [(p[axis]-(axis===0?x:z))/10,(p[1]-y)/10];
+          if(material==='glass') uv=horizontal ? [(p[0]-x)/sx+.5,(p[2]-z)/sz+.5] : [(p[axis]-(axis===0?x:z))/(axis===0?sx:sz)+.5,(p[1]-y)/sy];
+          target.push(...vertices.slice(i+j,i+j+6),...uv);
+        }
+      }
     };
     const cone = (x, z, height, radius, color, baseHeight = 0) => {
       const apex = [x, height, z];
@@ -157,10 +275,17 @@ window.LPRRenderer3D = class LPRRenderer3D {
 
     // Wide flat terrain and distinct bands make the approaching road readable at speed.
     quad([-2200,-.4,-2200],[6500,-.4,-2200],[6500,-.4,6500],[-2200,-.4,6500],[.095,.235,.155]);
-    window.LPRCampus.build({ box, quad });
+    window.LPRCampus.build({ box, quad, materialBox });
+    this.materialMeshes=Object.entries(materialData).map(([name,vertices],index)=>{
+      const buffer=gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+      return {name,buffer,count:vertices.length/8,material:index+1};
+    });
     if(window.LPRSale) {
       window.LPRSale.buildExterior({box,quad});
       const interiorStart=data.length;
+      outdoorLighting=false;
       const productFaces = {};
       window.LPRSale.buildInterior({box,quad,productFace:(id,points)=>{
         const vertices=productFaces[id] ||= [];
@@ -173,6 +298,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
       gl.bindBuffer(gl.ARRAY_BUFFER,this.saleBuffer);
       gl.bufferData(gl.ARRAY_BUFFER,interior,gl.STATIC_DRAW);
       this.makeSaleProducts(productFaces);
+      outdoorLighting=true;
     }
     // The shoulder is a continuous strip beneath the asphalt.
     strip(-35,35,.01,() => [.16,.18,.17]);
@@ -197,20 +323,12 @@ window.LPRRenderer3D = class LPRRenderer3D {
     }
 
     // Simple 3D trees and cones add distance cues without external 3D assets.
-    let seed = 17;
+    let seed = window.LPRCampus.treeSeed;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    for (let i = 0; i < count; i += 6) {
-      for (const side of [-1,1]) {
-        // Keep the approach to the sauna truck open so it is visible from the road.
-        if (i >= 18 && i <= 42 && side === -1) continue;
-        const distance = 75 + random() * 100;
-        const x = points[i].x + normals[i].x * distance * side;
-        const z = points[i].y + normals[i].z * distance * side;
-        if (window.LPRCampus.occupied(x,z) || (x > 2850 && z < 1200)) continue;
-        const height = 28 + random() * 20;
-        box(x,0,z,3,height*.35,3,[.24,.17,.11]);
-        cone(x,z,height,9+random()*6,random()>.5 ? [.08,.29,.19] : [.055,.23,.16],4);
-      }
+    for (const tree of window.LPRCampus.trees) {
+      groundShadow(tree.x,tree.y,tree.canopyRadius*1.4,tree.canopyRadius*1.4,tree.height*.75);
+      box(tree.x,0,tree.y,tree.trunkWidth,tree.height*.35,tree.trunkWidth,[.24,.17,.11]);
+      cone(tree.x,tree.y,tree.height,tree.canopyRadius,tree.color,4);
     }
     for (let i = 15; i < count; i += 20) {
       for (const side of [-1,1]) {
@@ -405,6 +523,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     // Floor plan reference: rear benches on both sides of a central aisle;
     // a lower central walkway, steps to that level and rails at the front;
     // stove front-left, entrance front-right.
+    outdoorLighting=false;
     box(2000,0,0,44,1,28,[.42,.27,.14]);
     box(2000,26,0,44,1,28,[.35,.22,.12]);
     for (let height=1;height<26;height+=2) {
@@ -698,6 +817,10 @@ window.LPRRenderer3D = class LPRRenderer3D {
     box(2015.5,-3,19,8,2,3,railWood);
     box(1999,19,-13.3,5,4,.3,[1,.73,.32]);
     this.vertexCount = data.length / 6;
+    this.shadowCount = shadows.length / 6;
+    this.shadowBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.shadowBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shadows), gl.STATIC_DRAW);
     this.buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -714,6 +837,21 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.disableVertexAttribArray(this.locations.uv);
     gl.vertexAttrib2f(this.locations.uv,0,0);
     gl.uniform1i(this.locations.textured,0);
+    gl.uniform1i(this.locations.material,0);
+  }
+
+  drawCampusMaterials() {
+    const gl=this.gl;
+    for(const mesh of this.materialMeshes) {
+      this.bindMesh(mesh.buffer);
+      gl.vertexAttribPointer(this.locations.position,3,gl.FLOAT,false,32,0);
+      gl.vertexAttribPointer(this.locations.color,3,gl.FLOAT,false,32,12);
+      gl.enableVertexAttribArray(this.locations.uv);
+      gl.vertexAttribPointer(this.locations.uv,2,gl.FLOAT,false,32,24);
+      gl.uniform1i(this.locations.material,mesh.material);
+      gl.drawArrays(gl.TRIANGLES,0,mesh.count);
+    }
+    gl.uniform1i(this.locations.material,0);
   }
 
   makeSaleProducts(faces) {
@@ -848,7 +986,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const tyreBlack = [.075,.085,.09];
     const sidewall = [.11,.12,.125];
     const rim = [.38,.42,.43];
-    const blue = [.06,.42,.62];
+    const frameGreen = [.08,.48,.23];
     if (this.lastWheelFrame) this.wheelPhase += Math.min((now-this.lastWheelFrame)/1000,.05) * (car.vx || 0) / .23;
     this.lastWheelFrame = now;
 
@@ -875,26 +1013,80 @@ window.LPRRenderer3D = class LPRRenderer3D {
     };
 
     // Make the suspension pickup points visibly part of the open chassis.
-    const chassisColor = [.055,.20,.25];
+    const chassisColor = [.045,.065,.055];
     rod(bodyPoint(1.0,-2.4,1.5),bodyPoint(1.0,2.4,1.5),.22,chassisColor);
     rod(bodyPoint(3.4,-2.4,1.5),bodyPoint(3.4,2.4,1.5),.22,chassisColor);
     rod(bodyPoint(1.8,-2.4,3.5),bodyPoint(1.8,2.4,3.5),.18,chassisColor);
     rod(bodyPoint(4.0,-2.4,3.5),bodyPoint(4.0,2.4,3.5),.18,chassisColor);
 
-        // Open Formula Student bodywork: a silver nose, exposed cockpit and blue roll hoop.
-        const aluminium = [.56,.6,.58];
-        const aluminiumShade = [.38,.42,.41];
-        const cockpitBlack = [.025,.045,.05];
-        quad(bodyPoint(10.2,-2.1,2.35),bodyPoint(10.2,2.1,2.35),
-          bodyPoint(3.0,2.75,1.55),bodyPoint(3.0,-2.75,1.55),aluminium);
-        quad(bodyPoint(10.2,2.1,2.35),bodyPoint(10.2,4.35,1.45),
-          bodyPoint(3.0,3.0,1.15),bodyPoint(3.0,2.75,1.55),aluminiumShade);
-        quad(bodyPoint(10.2,-4.35,1.45),bodyPoint(10.2,-2.1,2.35),
-          bodyPoint(3.0,-2.75,1.55),bodyPoint(3.0,-3.0,1.15),aluminiumShade);
-        quad(bodyPoint(3.0,-2.75,1.55),bodyPoint(3.0,2.75,1.55),
-          bodyPoint(-1.2,2.7,2.45),bodyPoint(-1.2,-2.7,2.45),cockpitBlack);
-        quad(bodyPoint(3.0,-3.0,1.15),bodyPoint(3.0,3.0,1.15),
-          bodyPoint(-1.2,3.25,1.2),bodyPoint(-1.2,-3.25,1.2),aluminiumShade);
+    // Student-built concept: compact fairings leave the front tyre keep-out
+    // zones clear (FS 2027 T2.1). Coordinates use ten units per metre.
+    const bodyBlack = [.055,.075,.065];
+    const bodyShade = [.028,.042,.035];
+    const cockpitBlack = [.035,.055,.055];
+    const teamGreen = [.12,.75,.36];
+    // Rounded nose sections, tapering ahead of the front axle; no wheel covers.
+    const sections = [[-1.2,2.7,4.0],[3,2.75,2.65],[7.5,2.25,2.5],
+      [10.8,1.65,2.05],[12,1.1,1.55],[12.4,.65,1.1]];
+    for(let i=0;i<sections.length-1;i++) {
+      const [f,w,h]=sections[i], [nf,nw,nh]=sections[i+1];
+      quad(bodyPoint(f,-w,h),bodyPoint(f,w,h),
+        bodyPoint(nf,nw,nh),bodyPoint(nf,-nw,nh),bodyBlack);
+      for(const side of [-1,1]) {
+        quad(bodyPoint(f,side*w,h),bodyPoint(nf,side*nw,nh),
+          bodyPoint(nf,side*(nw+.22),.85),bodyPoint(f,side*(w+.22),.85),bodyShade);
+        // Painted stripes follow the surface, rather than floating above it.
+        quad(bodyPoint(f,side*w*.66,h+.018),bodyPoint(f,side*w*.84,h+.018),
+          bodyPoint(nf,side*nw*.84,nh+.018),bodyPoint(nf,side*nw*.66,nh+.018),teamGreen);
+      }
+      quad(bodyPoint(f,-.28,h+.02),bodyPoint(f,.28,h+.02),
+        bodyPoint(nf,.28,nh+.02),bodyPoint(nf,-.28,nh+.02),cockpitBlack);
+    }
+    quad(bodyPoint(12.4,-.65,1.1),bodyPoint(12.4,.65,1.1),
+      bodyPoint(12.4,.87,.85),bodyPoint(12.4,-.87,.85),bodyShade);
+    // Low side fairings sit inside the tyres and below the cockpit rim.
+    for(const side of [-1,1]) {
+      quad(bodyPoint(-7.8,side*3.1,2.2),bodyPoint(-7.8,side*5.1,1.7),
+        bodyPoint(2.8,side*4.5,1.6),bodyPoint(3,side*2.9,2.25),cockpitBlack);
+      quad(bodyPoint(-7.8,side*5.1,1.7),bodyPoint(-7.8,side*5.1,.8),
+        bodyPoint(2.8,side*4.5,.8),bodyPoint(2.8,side*4.5,1.6),bodyBlack);
+      quad(bodyPoint(-6.8,side*5.12,.87),bodyPoint(-6.8,side*5.12,1.0),
+        bodyPoint(1.8,side*4.58,1.0),bodyPoint(1.8,side*4.58,.87),teamGreen);
+      // Cockpit walls meet the rear section of the nose along a shared edge.
+      // The driver opening stays clear between the two longitudinal rails.
+      quad(bodyPoint(-9.4,side*2.7,.85),bodyPoint(-1.2,side*2.7,.85),
+        bodyPoint(-1.2,side*2.7,4),bodyPoint(-9.4,side*2.7,4),bodyBlack);
+      quad(bodyPoint(-9.4,side*2.7,4),bodyPoint(-1.2,side*2.7,4),
+        bodyPoint(-1.2,side*3.1,3.8),bodyPoint(-9.4,side*3.1,3.8),bodyShade);
+      rod(bodyPoint(-9.4,side*2.7,4.04),bodyPoint(-1.2,side*2.7,4.04),.08,teamGreen);
+    }
+    // High contrast university lettering on both sides, 56 mm tall (T12.3).
+    // Small geometry glyphs keep it readable without another texture upload.
+    const glyphs={
+      L:['10000','10000','10000','10000','10000','10000','11111'],
+      U:['10001','10001','10001','10001','10001','10001','01110'],
+      T:['11111','00100','00100','00100','00100','00100','00100'],
+      N:['10001','11001','11001','10101','10011','10011','10001'],
+      I:['11111','00100','00100','00100','00100','00100','11111'],
+      V:['10001','10001','10001','10001','10001','01010','00100'],
+      E:['11111','10000','10000','11110','10000','10000','11111'],
+      R:['11110','10001','10001','11110','10100','10010','10001'],
+      S:['01111','10000','10000','01110','00001','00001','11110'],
+      Y:['10001','10001','01010','00100','00100','00100','00100']
+    };
+    for(const side of [-1,1]) {
+      const labelPoint=(f,h)=>bodyPoint(f,side*(5.1-(f+7.8)*.6/10.6+.025),h);
+      [...'LUT UNIVERSITY'].forEach((letter,index)=>{
+        for(const [row,line] of (glyphs[letter] || []).entries()) {
+          for(let column=0;column<5;column++) if(line[column]==='1') {
+            const f=side===1 ? 1.8-index*.57-column*.08 : -6.3+index*.57+column*.08;
+            const next=f+(side===1 ? -.08 : .08);
+            const h=1.7-(f+7.8)*.1/10.6-.05-row*.08;
+            quad(labelPoint(f,h),labelPoint(next,h),labelPoint(next,h-.08),labelPoint(f,h-.08),[.87,.96,.9]);
+          }
+        }
+      });
+    }
 
         const upright = (a,b,width,color) => {
        quad([a[0]-width,a[1],a[2]],[a[0]+width,a[1],a[2]],
@@ -902,7 +1094,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
        quad([a[0],a[1],a[2]-width],[a[0],a[1],a[2]+width],
          [b[0],b[1],b[2]+width],[b[0],b[1],b[2]-width],color.map(value => value * .78));
         };
-        const rollHoop = [.04,.3,.48];
+        const rollHoop = frameGreen;
         upright(bodyPoint(-9.4,-2.7,2.3),bodyPoint(-8.6,-3.25,10.5),.24,rollHoop);
         upright(bodyPoint(-9.4,2.7,2.3),bodyPoint(-8.6,3.25,10.5),.24,rollHoop);
         rod(bodyPoint(-8.6,-3.25,10.5),bodyPoint(-8.6,3.25,10.5),.24,rollHoop);
@@ -928,8 +1120,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
         triangle(shadowCenter,shadowPoint(a),shadowPoint(b),[.065,.075,.075]);
       }
       // Double wishbone and steering link, anchored at the narrow chassis.
-      rod(bodyPoint(1.0,side*2.4,1.5),bodyPoint(8.1,side*6.0,1.7),.17,blue);
-      rod(bodyPoint(3.4,side*2.4,1.5),bodyPoint(8.1,side*6.0,1.7),.17,blue);
+      rod(bodyPoint(1.0,side*2.4,1.5),bodyPoint(8.1,side*6.0,1.7),.17,frameGreen);
+      rod(bodyPoint(3.4,side*2.4,1.5),bodyPoint(8.1,side*6.0,1.7),.17,frameGreen);
       rod(bodyPoint(1.8,side*2.4,3.5),bodyPoint(8.1,side*6.0,3.1),.15,[.13,.16,.18]);
       rod(bodyPoint(4.0,side*2.4,3.5),bodyPoint(8.1,side*6.0,3.1),.15,[.13,.16,.18]);
       rod(bodyPoint(5.2,side*2.2,2.2),bodyPoint(8.1,side*6.0,2.2),.11,[.36,.38,.37]);
@@ -964,7 +1156,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
         const side=(i%2?1:-1)*(4+i*.7);
         const a=bodyPoint(5+i*.8,side,.3);
         const b=bodyPoint(6+i*.9,side+1.5,.45);
-        rod(a,b,.25,i%2?blue:aluminium);
+        rod(a,b,.25,i%2?frameGreen:bodyBlack);
       }
     }
     this.bindMesh(this.wheelBuffer);
@@ -991,29 +1183,44 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const gl = this.gl;
     const angle = car.angle;
     const cos = Math.cos(angle), sin = Math.sin(angle);
-    const moving = Math.min(1, (car.speed || 0) / 5);
-    const roughness = Math.max(car.offroad ? .017 : 0, (car.kerbFraction || 0) * .028);
-    const bump = Math.sin(now * .06) * roughness * moving;
-    const crashTime=car.crashed ? Math.max(0,(now-car.crashedAt)/1000) : 10;
-    const crashShake=Math.exp(-crashTime*5)*Math.sin(crashTime*55)*.08;
-    const pitch = .055 - (car.longitudinalG || 0) * .014 + bump + crashShake;
-    const roll = Math.max(-.04, Math.min(.04, (car.lateralG || 0) * .015));
-    const sideShift = Math.max(-.8, Math.min(.8, (car.lateralG || 0) * .5));
-    const cameraX = car.x - cos * 8 - sin * sideShift;
-    const cameraZ = car.y - sin * 8 + cos * sideShift;
+    // Rigid driver camera: the chassis shares the driver's reference frame.
+    // Lateral-G camera sway made the 3D nose slide against the old 2D cockpit.
+    const pitch = .055;
+    const cameraX = car.x - cos * 8;
+    const cameraZ = car.y - sin * 8;
     const right = [-sin,0,cos];
     const up = [cos*Math.sin(pitch),Math.cos(pitch),sin*Math.sin(pitch)];
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program);
     this.bindMesh(this.buffer);
-    gl.uniform3f(this.locations.camera,cameraX,8 + Math.abs(bump) * 20,cameraZ);
+    gl.uniform3f(this.locations.camera,cameraX,8,cameraZ);
     gl.uniform3f(this.locations.forward,cos*Math.cos(pitch),-Math.sin(pitch),sin*Math.cos(pitch));
-    gl.uniform3f(this.locations.right,right[0]*Math.cos(roll)+up[0]*Math.sin(roll),right[1]*Math.cos(roll)+up[1]*Math.sin(roll),right[2]*Math.cos(roll)+up[2]*Math.sin(roll));
-    gl.uniform3f(this.locations.up,up[0]*Math.cos(roll)-right[0]*Math.sin(roll),up[1]*Math.cos(roll)-right[1]*Math.sin(roll),up[2]*Math.cos(roll)-right[2]*Math.sin(roll));
+    gl.uniform3f(this.locations.right,right[0],right[1],right[2]);
+    gl.uniform3f(this.locations.up,up[0],up[1],up[2]);
     gl.uniform1f(this.locations.aspect,this.width / this.height);
     const verticalFov = this.width < 650 ? 84 : 72;
     gl.uniform1f(this.locations.focal,1 / Math.tan(verticalFov * Math.PI / 360));
+    gl.uniform1i(this.locations.outdoor,1);
+    this.bindMesh(this.skyBuffer);
+    gl.uniform1i(this.locations.sky,1);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.drawArrays(gl.TRIANGLES,0,6);
+    gl.depthMask(true);
+    gl.enable(gl.DEPTH_TEST);
+    gl.uniform1i(this.locations.sky,0);
+    this.bindMesh(this.buffer);
     gl.drawArrays(gl.TRIANGLES,0,this.vertexCount);
+    this.drawCampusMaterials();
+    this.bindMesh(this.shadowBuffer);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.uniform1f(this.locations.opacity,.22);
+    gl.drawArrays(gl.TRIANGLES,0,this.shadowCount);
+    gl.uniform1f(this.locations.opacity,1);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
     this.drawSpectators(car,now);
     this.drawWheels(car,now);
     this.drawCockpit(car);
@@ -1323,6 +1530,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
   }
 
   renderSale(car) {
+    this.gl.uniform1i(this.locations.outdoor,0);
     const gl=this.gl, yaw=car.saunaYaw||0,pitch=car.saunaPitch||0;
     const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
     gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
@@ -1340,6 +1548,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
   }
 
   renderSauna(car, now) {
+    this.gl.uniform1i(this.locations.outdoor,0);
     const gl = this.gl;
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program);
@@ -1380,39 +1589,157 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gradient.addColorStop(1,'#050b0afb');
     ctx.fillStyle = gradient;
     ctx.fillRect(0,h*.68,w,h*.32);
-    // The photo shows an open chassis with blue tubing and dark body panels.
-    ctx.beginPath();
-    ctx.moveTo(w*.25,h);ctx.lineTo(w*.36,h*.83);ctx.lineTo(w*.45,h*.80);
-    ctx.lineTo(w*.55,h*.80);ctx.lineTo(w*.64,h*.83);ctx.lineTo(w*.75,h);
-    ctx.closePath();ctx.fillStyle='#151d1d';ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(w*.42,h*.83);ctx.lineTo(w*.48,h*.80);ctx.lineTo(w*.52,h*.80);ctx.lineTo(w*.58,h*.83);
-    ctx.lineTo(w*.56,h);ctx.lineTo(w*.44,h);ctx.closePath();
-    ctx.fillStyle='#242d2c';ctx.fill();
-    const tube = (x1,y1,x2,y2,width) => {
-      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
-      ctx.lineCap='round';ctx.strokeStyle='#064569';ctx.lineWidth=width+3;ctx.stroke();
-      ctx.strokeStyle='#167db2';ctx.lineWidth=width;ctx.stroke();
-      ctx.strokeStyle='#73b9d2';ctx.lineWidth=Math.max(1,width*.18);ctx.stroke();
-    };
-    tube(w*.18,h*.98,w*.34,h*.78,Math.max(5,w*.008));
-    tube(w*.82,h*.98,w*.66,h*.78,Math.max(5,w*.008));
-    tube(w*.34,h*.78,w*.46,h*.86,Math.max(4,w*.006));
-    tube(w*.66,h*.78,w*.54,h*.86,Math.max(4,w*.006));
-    tube(w*.19,h*.98,w*.37,h*.92,Math.max(4,w*.006));
-    tube(w*.81,h*.98,w*.63,h*.92,Math.max(4,w*.006));
-    // Steering wheel turns visibly with the active input.
+    // Bodywork and cockpit rails are one 3D assembly. Only the wheel and its
+    // instruments are drawn here, so no screen-fixed panels mask the chassis.
+    this.drawSteeringWheel(car);
+  }
+
+  steeringWheelLayout(car) {
+    const radius=Math.min(this.width*.29,this.height*.20,165);
+    return { x:this.width*.5, y:this.height-radius*.89-10, radius, angle:(car.steer || 0)*.52 };
+  }
+
+  steeringWheelActionAt(car, clientX, clientY) {
+    if(car.sauna || car.sale || car.crashed) return null;
+    const rect=this.canvas.getBoundingClientRect();
+    const layout=this.steeringWheelLayout(car);
+    if(!layout.radius || !rect.width || !rect.height) return null;
+    const dx=(clientX-rect.left)*this.width/rect.width-layout.x;
+    const dy=(clientY-rect.top)*this.height/rect.height-layout.y;
+    const x=(dx*Math.cos(layout.angle)+dy*Math.sin(layout.angle))/layout.radius;
+    const y=(-dx*Math.sin(layout.angle)+dy*Math.cos(layout.angle))/layout.radius;
+    return this.steeringWheelControls().find(control=>Math.hypot(x-control.x,y-control.y)<.15)?.action || null;
+  }
+
+  steeringWheelControls() {
+    return [{action:'page',x:-.65,y:-.18,label:'DISP',color:'#46aaff'},
+      {action:'brightness',x:.65,y:-.18,label:'DIM',color:'#e0b94f'},
+      {action:'tc',x:0,y:.44,label:'TC',color:'#22c878'}];
+  }
+
+  drawSteeringWheel(car) {
+    const ctx=this.cockpit, layout=this.steeringWheelLayout(car), r=layout.radius;
+    if(r<=0) return;
+    // FS 2027 T2.8.7: closed, convex oval perimeter, including at full lock.
     ctx.save();
-    ctx.translate(w*.5,h*1.015);
-    ctx.rotate((car.steer || 0) * .52);
-    const radius = Math.min(w*.155,h*.20);
-    ctx.strokeStyle = '#08100f';ctx.lineWidth = Math.max(20,radius*.19);
-    ctx.beginPath();ctx.ellipse(0,0,radius,radius*.8,0,Math.PI,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle = '#374c42';ctx.lineWidth = Math.max(4,radius*.035);
-    ctx.beginPath();ctx.ellipse(0,0,radius,radius*.8,0,Math.PI,Math.PI*2);ctx.stroke();
-    ctx.fillStyle = '#111b18';ctx.fillRect(-radius*.7,-radius*.08,radius*1.4,radius*.2);
-    ctx.beginPath();ctx.arc(0,0,radius*.32,0,Math.PI*2);ctx.fillStyle='#0bc78a';ctx.fill();
-    ctx.fillStyle='#ffffff';ctx.font=`900 ${Math.max(12,radius*.2)}px Arial`;ctx.textAlign='center';ctx.fillText('LPR',0,radius*.07);
+    ctx.translate(layout.x,layout.y);ctx.rotate(layout.angle);ctx.scale(r,r);
+    ctx.lineJoin='round';ctx.lineCap='round';
+    // Paddle silhouettes and the quick-release collar sit inside the perimeter.
+    ctx.fillStyle='#83908b';
+    ctx.fillRect(-.72,-.33,.13,.64);ctx.fillRect(.59,-.33,.13,.64);
+    ctx.beginPath();ctx.arc(0,.24,.22,0,Math.PI*2);ctx.fillStyle='#b5bcbc';ctx.fill();
+    ctx.beginPath();ctx.arc(0,.24,.15,0,Math.PI*2);ctx.fillStyle='#c4a24b';ctx.fill();
+    const faceplate=()=>{
+      ctx.beginPath();ctx.moveTo(-.42,-.36);ctx.lineTo(.42,-.36);
+      ctx.lineTo(.72,-.27);ctx.lineTo(.73,.06);ctx.lineTo(.49,.26);
+      ctx.lineTo(.26,.56);ctx.lineTo(-.26,.56);ctx.lineTo(-.49,.26);
+      ctx.lineTo(-.73,.06);ctx.lineTo(-.72,-.27);ctx.closePath();
+    };
+    faceplate();ctx.fillStyle='#101a19';ctx.fill();
+    ctx.strokeStyle='#596762';ctx.lineWidth=.012;ctx.stroke();
+    ctx.save();
+    faceplate();ctx.clip();
+    // Staggered twill weave on the sculpted carbon centre plate.
+    for(let row=0;row<24;row++) for(let column=0;column<40;column++) {
+      ctx.fillStyle=(row+column)%4<2 ? '#bccac50b' : '#00000035';
+      ctx.fillRect(-.8+column*.04,-.38+row*.04,.035,.016);
+    }
+    ctx.restore();
+    ctx.beginPath();ctx.ellipse(0,0,.94,.64,0,0,Math.PI*2);
+    ctx.strokeStyle='#050a0b';ctx.lineWidth=.16;ctx.stroke();
+    ctx.strokeStyle='#485754';ctx.lineWidth=.018;ctx.stroke();
+    // Padded side grips follow the same convex outer oval. Thumb bolsters
+    // are on the inner edge and do not change the closed outer perimeter.
+    for(const side of [-1,1]) {
+      const start=side===1 ? -.54 : Math.PI-.54;
+      ctx.beginPath();ctx.ellipse(0,0,.935,.64,0,start,start+1.08);
+      ctx.strokeStyle='#192725';ctx.lineWidth=.145;ctx.stroke();
+      ctx.beginPath();ctx.ellipse(0,0,.885,.59,0,start+.06,start+1.02);
+      ctx.strokeStyle='#36bc70';ctx.lineWidth=.012;ctx.stroke();
+      ctx.beginPath();ctx.ellipse(side*.78,-.03,.065,.15,side*.20,0,Math.PI*2);
+      ctx.fillStyle='#243831';ctx.fill();
+    }
+    // Grip stitching follows the rim without introducing concave cut-outs.
+    ctx.strokeStyle='#93a6a0';ctx.lineWidth=.008;
+    for(const side of [-1,1]) for(let i=0;i<7;i++) {
+      const angle=(side===1 ? 0 : Math.PI)+(i-3)*.1;
+      ctx.beginPath();ctx.moveTo(.9*Math.cos(angle),.60*Math.sin(angle));
+      ctx.lineTo(.98*Math.cos(angle+.018),.67*Math.sin(angle+.018));ctx.stroke();
+    }
+    ctx.strokeStyle='#39d77a';ctx.lineWidth=.035;
+    ctx.beginPath();ctx.ellipse(0,0,.94,.64,0,-Math.PI/2-.045,-Math.PI/2+.045);ctx.stroke();
+    const text=(value,x,y,size,color='#e7fff3')=>{
+      ctx.fillStyle=color;ctx.font=`600 ${size}px monospace`;ctx.textAlign='center';ctx.fillText(value,x,y);
+    };
+    // Recessed fasteners and green trim give the centre a machined finish.
+    for(const [x,y] of [[-.45,-.29],[.45,-.29],[-.43,.20],[.43,.20],[-.19,.51],[.19,.51]]) {
+      ctx.beginPath();ctx.arc(x,y,.018,0,Math.PI*2);ctx.fillStyle='#7b8783';ctx.fill();
+      ctx.strokeStyle='#18231f';ctx.lineWidth=.007;
+      ctx.beginPath();ctx.moveTo(x-.009,y);ctx.lineTo(x+.009,y);ctx.stroke();
+    }
+    ctx.strokeStyle='#23ba65';ctx.lineWidth=.012;
+    for(const side of [-1,1]) {
+      ctx.beginPath();ctx.moveTo(side*.48,.27);ctx.lineTo(side*.28,.51);ctx.stroke();
+    }
+    // LED bar reports modeled tyre use; it is not an invented RPM indicator.
+    const grip=Math.max(0,Math.min(1,car.tireUse || 0));
+    text('GRIP',0,-.44,.055,'#bccfc7');
+    for(let i=0;i<10;i++) {
+      ctx.fillStyle=grip>(i/10) ? i>7 ? '#ff5954' : i>5 ? '#ffce55' : '#38d889' : '#20352b';
+      ctx.fillRect(-.34+i*.07,-.40,.048,.025);
+    }
+    // Compact instrument module leaves space for the grips and thumb controls.
+    ctx.fillStyle='#080f11';ctx.fillRect(-.40,-.30,.80,.49);
+    ctx.strokeStyle='#52645e';ctx.lineWidth=.012;ctx.strokeRect(-.40,-.30,.80,.49);
+    ctx.fillStyle='#020b0b';ctx.fillRect(-.36,-.26,.72,.41);
+    ctx.save();ctx.globalAlpha=car.wheelDim ? .55 : 1;
+    const seconds=Math.max(0,car.lapElapsedMs || 0)/1000;
+    const lapTime=`${Math.floor(seconds/60)}:${(seconds%60).toFixed(1).padStart(4,'0')}`;
+    text(`L${car.lap || 1}  ${lapTime}`,0,-.175,.065,'#92b6a7');
+    ctx.strokeStyle='#274238';ctx.lineWidth=.006;
+    ctx.beginPath();ctx.moveTo(-.31,-.13);ctx.lineTo(.31,-.13);ctx.stroke();
+    if(car.wheelPage===1) {
+      text(`${Math.abs(car.lateralG || 0).toFixed(2)} G`,0,-.015,.12);
+      text(`${rendererText('PITO')} ${Math.round(grip*100)}%`,0,.075,.065,'#a6e8c3');
+    } else {
+      text(String(Math.round((car.speed || 0)*3.6)),0,-.005,.14);
+      text('km/h',0,.065,.055,'#a6c3b5');
+    }
+    const status=car.crashed ? 'STOP' : car.damage ? rendererText('VAURIO') : car.offroad ? 'OFF TRACK' : car.tcActive ? 'TC ACTIVE' : car.tcEnabled===false ? 'TC OFF' : 'TC ON';
+    text(status,0,.13,.055,car.crashed || car.damage || car.offroad ? '#ff8075' : car.tcActive ? '#ffce55' : '#91d4ae');
+    ctx.restore();
+    // Pedal command bars are sourced from the same input sent to the dynamics.
+    for(const [x,value,color,label] of [[-.57,car.throttleInput,'#36d787','G'],[.53,car.brakeInput,'#ff715e','B']]) {
+      ctx.fillStyle='#0b1513';ctx.fillRect(x,-.02,.04,.27);
+      const amount=Math.max(0,Math.min(1,value || 0));ctx.fillStyle=color;
+      ctx.fillRect(x,.25-amount*.27,.04,amount*.27);text(label,x+.02,.34,.065,color);
+    }
+    for(const control of this.steeringWheelControls()) {
+      ctx.beginPath();ctx.arc(control.x,control.y,.115,0,Math.PI*2);
+      ctx.fillStyle='#040a08';ctx.fill();
+      ctx.beginPath();ctx.arc(control.x,control.y,.095,0,Math.PI*2);
+      ctx.fillStyle=control.action==='tc' && car.tcEnabled===false ? '#5c392b' : control.color;ctx.fill();
+      ctx.strokeStyle='#dae7df';ctx.lineWidth=.012;ctx.stroke();
+      // Knurled encoder caps and index marks keep controls distinct by shape.
+      if(control.action!=='tc') {
+        for(let notch=0;notch<12;notch++) {
+          const angle=notch*Math.PI/6;
+          ctx.strokeStyle='#71877c';ctx.lineWidth=.006;
+          ctx.beginPath();ctx.moveTo(control.x+Math.cos(angle)*.10,control.y+Math.sin(angle)*.10);
+          ctx.lineTo(control.x+Math.cos(angle)*.112,control.y+Math.sin(angle)*.112);ctx.stroke();
+        }
+        ctx.beginPath();ctx.arc(control.x,control.y,.065,0,Math.PI*2);ctx.fillStyle='#182b2e';ctx.fill();
+        ctx.strokeStyle=control.color;ctx.lineWidth=.02;
+        const selected=control.action==='page' ? car.wheelPage===1 : car.wheelDim;
+        const angle=selected ? -.65 : -2.5;
+        ctx.beginPath();ctx.moveTo(control.x+Math.cos(angle)*.03,control.y+Math.sin(angle)*.03);
+        ctx.lineTo(control.x+Math.cos(angle)*.067,control.y+Math.sin(angle)*.067);ctx.stroke();
+      } else {
+        text(car.tcEnabled===false ? '0' : '1',control.x,control.y+.025,.07,'#05180e');
+      }
+      text(control.label,control.x,control.y+.155,.065,'#edf5f0');
+    }
+    text('LPR / LUT',0,.31,.055,'#b1c7bc');
     ctx.restore();
   }
 };

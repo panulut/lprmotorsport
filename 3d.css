@@ -6,7 +6,11 @@
 .app { touch-action: none; }
 body { overscroll-behavior: none; }
 dialog { touch-action: pan-y pinch-zoom; }
-.controls { position: relative; }
+.controls { position: relative; flex-wrap: wrap; }
+.wheel-controls { flex: 0 0 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.wheel-controls button { min-height: 44px; padding: 6px 12px; border: 1px solid #566f65; border-radius: 8px; background: #10251f; color: #e9fff2; font: 700 12px sans-serif; touch-action: manipulation; }
+.wheel-controls button[aria-pressed="true"] { border-color: #55df92; background: #21613f; }
+.wheel-controls button:focus-visible { outline: 2px solid #eac958; outline-offset: 3px; }
 .tilt-controls { position: absolute; z-index: 3; left: 8px; bottom: calc(100% + 10px); display: flex; gap: 6px; align-items: center; max-width: calc(100% - 16px); }
 .tilt-controls button { border: 1px solid #60dfab; border-radius: 8px; background: #0c211aee; color: #fff; min-height: 44px; padding: 6px 10px; font-size: 11px; font-weight: 700; touch-action: manipulation; }
 .tilt-controls button[aria-pressed="true"] { background: #237052; }
@@ -32,3 +36,21 @@ dialog { touch-action: pan-y pinch-zoom; }
 .sauna-actions button[aria-pressed="true"] { background:#665032; }
 @media(max-width:650px) { .sauna-dialogue { top:58px; font-size:12px; padding:8px 12px; } }
 @media(max-width:650px) { .sauna-actions { bottom:34px; max-width:60%; gap:4px; } .sauna-actions span { font-size:10px; } .sauna-actions button { padding:8px; font-size:11px; } }
+
+/* Landscape phones use the whole viewport for driving, with thumb controls overlaid. */
+@media (pointer:coarse) and (orientation:landscape), (max-width:900px) and (max-height:500px) and (orientation:landscape) {
+  .app { position:relative; width:100%; max-width:none; height:100dvh; padding:0; gap:0; }
+  .topbar, .help, .hud, .game-footer, .telemetry, .notice,
+  .sauna-actions, .sauna-dialogue, .wheel-controls, .tilt-controls { display:none; }
+  .game-shell { position:absolute; inset:0; width:100%; height:100%; min-height:0; border:0; border-radius:0; box-shadow:none; }
+  .controls { position:absolute; z-index:4; left:0; right:0; bottom:0; margin:0; padding:0 max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); height:96px; flex-wrap:nowrap; align-items:stretch; justify-content:space-between; pointer-events:none; }
+  .steering { display:none; }
+  .steering-pad { display:flex; flex:0 1 220px; max-width:32%; background:linear-gradient(90deg,#15392bb3,#0c211a99,#15392bb3); pointer-events:auto; }
+  .steering-guide { top:6px; }
+  .steering-thumb { top:30px; }
+  .pedals { flex:0 1 220px; max-width:34%; gap:10px; pointer-events:none; }
+  .pedals .control { pointer-events:auto; min-height:0; height:100%; background:#48231eb3; box-shadow:none; }
+  .pedals .gas { background:#087c57b3; }
+  .pedals .brake.active { background:#713328; }
+  .pedals .gas.active { background:#05a772; }
+}

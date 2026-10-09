@@ -122,13 +122,22 @@ for (let time = 33; time < 39; time += .1) {
 }
 
 let mesh;
+let boundBuffer, rendererReady=false;
+const uploads=new Map();
+const validateMesh=(data,stride)=>{
+  assert.equal(data.length % (stride*3),0);
+  assert([...data].every(Number.isFinite));
+  assert([...data].filter((_,index)=>index%stride>=3 && index%stride<6).every(value=>value>=0 && value<=1));
+};
 const gl = new Proxy({}, {
   get: (_, key) => key === 'getShaderParameter' || key === 'getProgramParameter' ? () => true
+    : key === 'createBuffer' ? () => ({})
+    : key === 'bindBuffer' ? (_,buffer) => {boundBuffer=buffer;}
     : key === 'bufferData' ? (_, data) => {
       mesh = data;
-      assert.equal(data.length % 18, 0);
       assert([...data].every(Number.isFinite));
-      assert([...data].filter((_, index) => index % 6 >= 3).every(value => value >= 0 && value <= 1));
+      uploads.set(boundBuffer,data);
+      if(rendererReady) validateMesh(data,6);
     } : () => 0
 });
 vm.runInContext(source('campus.js'), context);
@@ -136,6 +145,9 @@ vm.runInContext(source('sale.js'), context);
 vm.runInContext(source('renderer3d.js'), context);
 const points = context.window.LPRCampus.track;
 const renderer = new context.window.LPRRenderer3D({ getContext: () => gl }, { getContext: () => ({}) }, points);
+for(const [buffer,data] of uploads) validateMesh(data,renderer.materialMeshes.some(mesh=>mesh.buffer===buffer)?8:6);
+assert(renderer.materialMeshes.every(mesh=>mesh.count>0),'Campus must contain brick, concrete, wood and glass surfaces');
+rendererReady=true;
 assert.equal(renderer.saunaGuestMeshes.length, 8);
 assert(renderer.saleVertexCount>0);
 assert.equal(context.window.LPRSale.canWalk(35,130),true);
