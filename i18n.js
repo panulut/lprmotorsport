@@ -21,7 +21,6 @@
   "PARAS": "BEST",
   "NOPEUS": "SPEED",
   "3D-n\u00e4kym\u00e4 kuljettajan paikalta": "3D view from the driver's seat",
-  "Saunapaku ja palju ovat Tervahaudanpuistossa.": "The sauna van and hot tub are in Tervahaudanpuisto.",
   "Saunapaku on ensimm\u00e4isen mutkan ulkopuolella.": "The sauna van is outside the first corner.",
   "Mene saunaan (E)": "Enter sauna (E)",
   "Vaihda vastakkaiselle lauteelle (F)": "Switch to the opposite bench (F)",

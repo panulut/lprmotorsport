@@ -183,7 +183,7 @@
     updateSteamTarget();
     saunaSeat.hidden = !car.sauna;
     saunaSound.hidden = !car.sauna;
-    saunaHint.textContent = car.sauna ? t("W/S: eteen/taakse, A/D: sivuille. Klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : t("Saunapaku ja palju ovat Tervahaudanpuistossa.");
+    saunaHint.textContent = car.sauna ? t("W/S: eteen/taakse, A/D: sivuille. Klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. Valitse \u00e4mp\u00e4ri tai kauha heitt\u00e4\u00e4ksesi l\u00f6yly\u00e4.") : nearSauna() ? t("Pys\u00e4hdy saunapakun viereen ja tule l\u00f6ylyihin.") : '';
     if(car.sale) saunaHint.textContent=t('Salessa: klikkaa n\u00e4kym\u00e4\u00e4 ja katsele hiirell\u00e4 (Esc vapauttaa). Kosketuksella katsele vet\u00e4m\u00e4ll\u00e4. W/S: eteen/taakse, A/D: sivuille. Palaa autoon: E.');
     else if(nearSale()) saunaHint.textContent=t('Pysähdy Salen ovelle ja mene sisään painikkeella tai E-näppäimellä.');
     canvas.classList.toggle('sauna-view', !!(car.sauna || car.sale));

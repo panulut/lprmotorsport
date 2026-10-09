@@ -12,6 +12,8 @@ dialog { touch-action: pan-y pinch-zoom; }
 .wheel-controls button[aria-pressed="true"] { border-color: #55df92; background: #21613f; }
 .wheel-controls button:focus-visible { outline: 2px solid #eac958; outline-offset: 3px; }
 #cockpit { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.notice { z-index: 5; }
+#restart-button { flex-shrink: 0; min-width: 44px; min-height: 44px; touch-action: manipulation; }
 .telemetry { position: absolute; z-index: 2; right: 16px; bottom: 46px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; color: #fff; text-shadow: 0 2px 6px #000; }
 .telemetry strong { font: 800 25px/1 'Barlow Condensed', Impact, sans-serif; }
 .telemetry span { color: #8df3c2; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
@@ -35,8 +37,13 @@ dialog { touch-action: pan-y pinch-zoom; }
 /* Landscape phones use the whole viewport for driving, with thumb controls overlaid. */
 @media (pointer:coarse) and (orientation:landscape), (max-width:900px) and (max-height:500px) and (orientation:landscape) {
   .app { position:relative; width:100%; max-width:none; height:100dvh; padding:0; gap:0; }
-  .topbar, .help, .hud, .game-footer, .telemetry, .notice,
+  .help, .hud, .game-footer, .telemetry,
   .sauna-dialogue, .wheel-controls { display:none; }
+  .topbar { display:flex; position:absolute; z-index:6; top:max(8px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right)); height:auto; pointer-events:none; }
+  .topbar > :not(#restart-button) { display:none; }
+  #restart-button { pointer-events:auto; margin:0; background:#10221dee; }
+  #restart-button span { display:inline; }
+  .notice { display:block; top:calc(60px + env(safe-area-inset-top)); width:max-content; max-width:80%; white-space:normal; }
   .game-shell { position:absolute; inset:0; width:100%; height:100%; min-height:0; border:0; border-radius:0; box-shadow:none; }
   .controls { position:absolute; z-index:4; left:0; right:0; bottom:0; margin:0; padding:0 max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); height:96px; flex-wrap:nowrap; align-items:stretch; justify-content:space-between; pointer-events:none; }
   .steering { display:none; }
