@@ -2,6 +2,7 @@
   'use strict';
   const endpoint = 'https://lpr-leaderboard.panu-musakka.workers.dev';
   const version = 'lut-20261011-v3';
+  const protocol = 'timed-v1';
   const t = (text, values) => window.LPRI18n?.t(text, values) ?? text;
   const nickname = document.querySelector('#leaderboard-name');
   const status = document.querySelector('#leaderboard-status');
@@ -15,8 +16,13 @@
   const validName = name => /^[\p{L}\p{N} _.-]{1,24}$/u.test(name);
   const validToken = value => /^[a-f0-9]{64}$/.test(value ?? '');
   const newToken = () => [...crypto.getRandomValues(new Uint8Array(32))].map(n => n.toString(16).padStart(2, '0')).join('');
-  let trackBestMs = null;
   let token, activeName = '', rememberedName = '', legacyToken;
+  let pending = [], sending = null;
+  let activeLap = null;
+  const pendingKey = () => `lpr-pending-laps:${token}`;
+  function savePending() {
+    try { localStorage.setItem(pendingKey(), JSON.stringify(pending)); } catch {}
+  }
   try {
     rememberedName = localStorage.getItem('lpr-nickname') ?? '';
     nickname.value = rememberedName;
@@ -50,17 +56,30 @@
     token = chooseIdentity(name);
     activeName = name;
     window.LPRAnalytics?.identify(name);
+    try {
+      const saved = JSON.parse(localStorage.getItem(pendingKey()) ?? '[]');
+      if (Array.isArray(saved)) pending = saved.filter(lap => lap?.version === version && lap.protocol === protocol &&
+        typeof lap.nickname === 'string' && lap.nickname.normalize('NFC').toLowerCase() === name.toLowerCase() &&
+        validToken(lap.lapId) && Number.isSafeInteger(lap.lapMs) && lap.lapMs > 5000 &&
+        Array.isArray(lap.sectors) && lap.sectors.length === 3 && lap.sectors.every(n => Number.isSafeInteger(n) && n > 0) &&
+        lap.sectors.reduce((a, b) => a + b, 0) === lap.lapMs);
+    } catch {}
     nickname.value = name;
     nickname.readOnly = true;
     startButton.hidden = true;
     closeButton.hidden = false;
     dialog.classList.remove('session-start');
     dialog.close();
+    flushPending();
   });
   dialog.addEventListener('cancel', event => { if (!activeName) event.preventDefault(); });
   async function api(path, options) {
     const response = await fetch(endpoint + path, { ...options, signal: AbortSignal.timeout(10000) });
-    if (!response.ok) throw new Error(`Leaderboard HTTP ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`Leaderboard HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
     return response.json();
   }
   async function refresh() {
@@ -71,7 +90,6 @@
       if (data.version !== version || !Array.isArray(data.results)) throw new Error('Invalid leaderboard');
       list.textContent = '';
       const results = data.results.slice(0, 10);
-      trackBestMs = results[0]?.lap_ms ?? null;
       for (let rank = 1; rank <= 3; rank++) {
         const row = results[rank - 1];
         const name = document.querySelector(`#podium-name-${rank}`);
@@ -91,50 +109,106 @@
       return false;
     } finally { podium.setAttribute('aria-busy', 'false'); }
   }
-  document.querySelector('#leaderboard-refresh').addEventListener('click', refresh);
-  window.LPRLeaderboard = {
-    refresh,
-    get requiresName() { return !activeName; },
-    beginSession() {
-      if (activeName) return;
-      // The last name is a suggestion, never an automatic login: each page
-      // load requires an explicit confirmation before any driving can start.
-      dialog.classList.add('session-start');
-      closeButton.hidden = true;
-      startButton.hidden = false;
-      if (!dialog.open) dialog.showModal();
-      refresh();
-    },
-    async submit(lapMs, sectors) {
-      const name = activeName;
-      if (!token || !validName(name)) {
-        status.textContent = t('Valitse nimimerkki tuloslistasta ennen seuraavaa kierrosta.');
-        return;
-      }
+  async function flushPending() {
+    if (sending) return sending;
+    if (!token || !pending.length) return;
+    sending = (async () => {
       try {
-        status.textContent = t('Lähetetään kierrosaikaa…');
+        do {
+          while (pending.length) {
+            const lap = pending[0];
+            status.textContent = t('Lähetetään kierrosaikaa…');
+            let result;
+            try {
+              result = await api('/api/laps', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(lap)
+              });
+            } catch (error) {
+              if ([400,401,403,404,409,410,413,415,422,428].includes(error.status)) {
+                pending.shift(); savePending();
+                status.textContent = t('Kierrosta ei hyväksytty verkkotuloslistalle. Paikallinen aika säilyy.');
+                continue;
+              }
+              throw error;
+            }
+            if (result.mode !== 'laps') {
+              status.textContent = t('Verkkotuloslista ei vielä tue useita kierroksia samalta kuljettajalta.');
+              return;
+            }
+            if (result.protection !== protocol || result.lapMs !== lap.lapMs) throw new Error('Invalid lap response');
+            if (result.moderation === 'quarantined' || result.moderation === 'hidden') {
+              pending.shift(); savePending();
+              status.textContent = t('Kierros odottaa ylläpidon tarkistusta eikä näy vielä tuloslistalla.');
+              continue;
+            }
+            if (result.moderation !== 'approved' || !Number.isSafeInteger(result.rank) || result.rank < 1) throw new Error('Invalid lap response');
+            pending.shift();
+            savePending();
+            // The server decides whether this is a new record. A cached list may be stale.
+            if (result.record === true && result.rank === 1) window.LPRRaceEffects?.celebrate(lap.lapMs);
+            status.textContent = t('lapRank', { time: format(lap.lapMs), rank: result.rank });
+            }
+            await refresh();
+          } while (pending.length);
+        } catch {
+          status.textContent = t('Kierrosaika odottaa lähetystä. Yritä uudelleen painamalla Päivitä tuloslista.');
+        }
+      })();
+      try { await sending; } finally { sending = null; }
+    }
+    document.querySelector('#leaderboard-refresh').addEventListener('click', async () => { await flushPending(); await refresh(); });
+    window.addEventListener('online', flushPending);
+    window.LPRLeaderboard = {
+      refresh,
+      cancelLap() { activeLap = null; },
+      startLap() {
+        if (!token || !activeName) return Promise.resolve(null);
+        const lap = { requestId: newToken(), nickname: activeName };
+        activeLap = lap;
+        lap.ticket = api('/api/laps/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ version, nickname: lap.nickname, requestId: lap.requestId })
+        }).then(data => {
+          if (data.mode !== protocol || !validToken(data.lapId)) throw new Error('Invalid lap start');
+          return data.lapId;
+        }).catch(() => null);
+        return lap.ticket;
+      },
+      get requiresName() { return !activeName; },
+      beginSession() {
+        if (activeName) return;
+        // The last name is a suggestion, never an automatic login: each page
+        // load requires an explicit confirmation before any driving can start.
+        dialog.classList.add('session-start');
+        closeButton.hidden = true;
+        startButton.hidden = false;
+        if (!dialog.open) dialog.showModal();
+        refresh();
+      },
+      async submit(lapMs, sectors) {
+        const started = activeLap;
+        activeLap = null;
+        const name = activeName;
+        if (!token || !validName(name)) {
+          status.textContent = t('Valitse nimimerkki tuloslistasta ennen seuraavaa kierrosta.');
+          return;
+        }
+        if (!Number.isFinite(lapMs) || lapMs <= 5000 || !Array.isArray(sectors) || sectors.length !== 3 ||
+            !sectors.every(n => Number.isFinite(n) && n > 0)) return;
         const rounded = sectors.map(Math.round);
         const elapsed = Math.round(lapMs);
         rounded[2] += elapsed - rounded.reduce((a, b) => a + b, 0);
-        const previousRecord = trackBestMs;
-        const result = await api('/api/laps', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ version, nickname: name, lapId: newToken(), lapMs: elapsed, sectors: rounded })
-        });
-        if (result.mode !== 'laps') {
-          status.textContent = t('Verkkotuloslista ei vielä tue useita kierroksia samalta kuljettajalta.');
-          await refresh();
+        if (!rounded.every(n => Number.isSafeInteger(n) && n > 0) || !Number.isSafeInteger(elapsed) || elapsed <= 5000) return;
+        const lapId = started && await started.ticket;
+        if (!lapId || started.nickname !== name) {
+          status.textContent = t('Kierros tallentui vain paikallisesti: verkkokierroksen aloitusta ei vahvistettu.');
           return;
         }
-        if (result.record === true && result.rank === 1 && result.lapMs === elapsed &&
-            (previousRecord === null || elapsed < previousRecord)) {
-          trackBestMs = elapsed;
-          window.LPRRaceEffects?.celebrate(elapsed);
-        }
-        status.textContent = t('lapRank', { time: format(elapsed), rank: result.rank });
-        await refresh();
-      } catch { status.textContent = t('Tuloksen lähetys epäonnistui. Oma aika säilyy selaimessa.'); }
-    }
-  };
-  window.LPRLeaderboard.beginSession();
-})();
+        pending.push({ version, protocol, nickname: name, lapId, lapMs: elapsed, sectors: rounded });
+        savePending();
+        await flushPending();
+      }
+    };
+    window.LPRLeaderboard.beginSession();
+  })();

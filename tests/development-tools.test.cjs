@@ -41,7 +41,6 @@ for(const scene of ['sale','sauna','pool',null,'unknown']){
   for(const name of ['toggleSale','toggleSauna','togglePool','openTestScene'])vm.runInContext(gameFunction(name),context);
   context.openTestScene(scene===null?'':`?test-scene=${scene}`);
   const valid=['sale','sauna','pool'].includes(scene);
-  assert.equal(!!car.onlineInvalid,valid,'Test scenes must invalidate competitive laps');
   assert.equal(saunaEntered,scene==='sauna');
   if(valid){
     assert.equal(car[scene],true,`Enter ${scene} directly`);

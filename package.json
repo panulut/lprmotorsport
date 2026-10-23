@@ -5,6 +5,8 @@
     "dev": "node server.js",
     "build": "node scripts/build.cjs",
     "preview": "node server.js --production",
+    "probe:replay": "node scripts/replay-probe.cjs",
+    "test:replay": "node tests/replay-probe.test.cjs",
     "test:audio": "node tests/audio.test.cjs",
     "test:physics": "node tests/collision.test.cjs && node tests/wall-sliding.test.cjs && node tests/obstacle-dynamics.test.cjs && node tests/vehicle.test.cjs && node tests/steering-lock.test.cjs && node tests/suspension.test.cjs",
     "test:tools": "node tests/track-objects.test.cjs && node tests/asphalt-track-mask.test.cjs && node tests/terrain.test.cjs && node tests/track-sync.test.cjs && node tests/editor-lake-brush.test.cjs && node tests/development-tools.test.cjs",

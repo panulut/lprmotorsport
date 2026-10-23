@@ -2,6 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const analytics=[];
 const nodes=new Map(),submissions=[],mediaHandlers=[];let requiresName=true,startedSessions=0;
+let onlineStarts=0,onlineCancels=0;
 const timers=new Map();let nextTimer=0;
 const windowHandlers=new Map(),documentHandlers=new Map();
 const emitDocument=(type,event={})=>{for(const fn of documentHandlers.get(type)||[])fn(event)};
@@ -14,7 +15,7 @@ const element=id=>{
 const ctx={URLSearchParams,window:{LPRVehicleSpec:require('../shared/vehicle-spec.js'),location:{search:''},screen:{},addEventListener(type,fn){if(!windowHandlers.has(type))windowHandlers.set(type,[]);windowHandlers.get(type).push(fn)},
   matchMedia:()=>({matches:false,addEventListener:(type,handler)=>mediaHandlers.push(handler)}),
   LPRAnalytics:{event:(type,details)=>analytics.push({type,...details})},
-  LPRLeaderboard:{refresh(){},get requiresName(){return requiresName},beginSession(){startedSessions++;element('#settings-dialog').showModal()},submit:(ms,sectors)=>submissions.push({ms,sectors})}},
+  LPRLeaderboard:{refresh(){},startLap(){onlineStarts++;},cancelLap(){onlineCancels++;},get requiresName(){return requiresName},beginSession(){startedSessions++;element('#settings-dialog').showModal()},submit:(ms,sectors)=>submissions.push({ms,sectors})}},
   document:{hidden:false,querySelector:element,querySelectorAll:()=>['left','right','gas','brake'].map(name=>element(`[data-control="${name}"]`)),addEventListener(type,fn){if(!documentHandlers.has(type))documentHandlers.set(type,[]);documentHandlers.get(type).push(fn)}},performance:{now:()=>clock},navigator:{},
   localStorage:{getItem:()=>null,setItem(){}},setTimeout(fn,ms){const id=++nextTimer;timers.set(id,{fn,ms});return id},clearTimeout(id){timers.delete(id)},requestAnimationFrame(){},ResizeObserver:class{observe(){}},
   LPRRenderer3D:class{constructor(){this.saunaStop={x:900,y:650}}resize(){}updatePeople(){}}};
@@ -22,7 +23,7 @@ let clock=1000;
 vm.createContext(ctx);
 for(const file of ['audio.js','sauna.js','vehicle.js','campus.js','sale.js','timing.js'])vm.runInContext(read(file),ctx);
 for(const name of ['LPRGameAudio','LPRCampus','LPRSaunaLife','VehicleDynamics','LPRLapTiming'])ctx[name]=ctx.window[name];
-const source=read('game.js').replace('  reset();\n  openTestScene',
+const source=read('game.js').replace(/  reset\(\);\r?\n  openTestScene/,
  '  globalThis.test={get car(){return car},held,update,dynamics,reset,showSector,readInput,toggleSauna,toggleSale,togglePool};\n  reset();\n  openTestScene');
 ctx.window.LPRLeaderboard.beginSession(); // leaderboard.js runs before game.js.
 vm.runInContext(source,ctx);const game=ctx.test,dialog=element('#settings-dialog');
@@ -41,6 +42,8 @@ for(const [index,time] of [[65,12000],[125,22000],[185,27000],[0,42000]]){
 }
 assert.equal(submissions.length,1,'The very first complete valid lap is submitted');
 assert.equal(submissions[0].ms,40000);
+assert.equal(onlineStarts,2,'The first start and the next flying lap each request their own server ticket');
+assert(onlineCancels>=1,'Reset cancels any stale online lap');
 assert.deepEqual(Array.from(submissions[0].sectors),[10000,10000,20000]);
 assert.equal(game.car.lap,2);
 assert.equal(analytics.filter(e=>e.type==='lap_start').length,2);

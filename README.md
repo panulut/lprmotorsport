@@ -4,9 +4,15 @@ Peli avaa aluksi TOP 10 -tuloslistan. Vahvista julkinen nimimerkki ja paina
 **Aloita ajo** ennen ajamista. Edellinen nimi on ehdotuksena, mutta se
 vahvistetaan jokaisella sivun avauksella. Ensimmäinenkin kelvollinen kierros
 lähetetään automaattisesti tulospalveluun. Listalla näytetään kymmenen
-parasta pelaajaennätystä; tauko mitätöi kyseisen verkkokierroksen. Vierailut ovat sallittuja ja niiden aika lasketaan mukaan kierrokseen.
+nopeinta kierrosta; sama kuljettaja voi saada useita sijoituksia. Tauot ja vierailut lasketaan mukaan kierrosaikaan.
 Samalla selaimella käytetyt eri nimimerkit saavat erilliset pelaajatunnisteet.
 Tarkistukset: `npm run test:leaderboard`.
+
+Rataennätys syntyy alittamalla tuloslistan nopein aika kokonaisella kierroksella.
+Verkkokatkon aikana kierrokset jäävät lähetysjonoon selaimeen. Lähetys yritetään
+uudelleen yhteyden palatessa, tuloslistan päivityspainikkeesta tai kun sama
+nimimerkki vahvistetaan seuraavalla avauksella. Sama kierrostunniste estää
+uusintalähetysten kaksoiskappaleet. Jonon säilyminen vaatii selaimen tallennustilan.
 
 Auton kori, etusiipi ja renkaiden kiinteät sekä pyörivät osat säilytetään
 näytönohjaimen muistissa. Ajon aikana päivitetään niiden asennot; jousituksen

@@ -68,7 +68,7 @@ function client(storage = new Map()) {
   assert.equal((await send({...payload,extra:'x'.repeat(40000)})).status,413);
   assert.equal((await send(payload,{Origin:'https://evil.test'})).status,403);
   const adminHTML = await (await worker.fetch(new Request('https://service.test/admin'),env)).text();
-  assert.equal(adminHTML, fs.readFileSync(path.join(__dirname,'../cloudflare/admin.html'),'utf8'));
+  assert.equal(adminHTML, fs.readFileSync(path.join(__dirname,'../cloudflare/admin.html'),'utf8').replace(/\r\n/g, '\n'));
   new vm.Script(adminHTML.match(/<script>([\s\S]*?)<\/script>/)[1]);
   assert(adminHTML.includes('Ylläpitoavain'));assert(!adminHTML.includes(env.ANALYTICS_ADMIN_TOKEN));
   assert.equal((await worker.fetch(new Request('https://service.test/api/analytics/me',{method:'DELETE'}),env)).status,401);

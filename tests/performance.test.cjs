@@ -23,7 +23,7 @@ const source = read('game.js');
 const frameSource = source.slice(source.indexOf('  let lastPresentation = null;'), source.indexOf('  const keyMap ='));
 for (const refresh of [60, 120, 144, 240]) {
   let renders = 0, simulated = 0;
-  const frameContext = { document: { hidden: false }, lastFrame: 0, car: {},
+  const frameContext = { window: {}, document: { hidden: false }, lastFrame: 0, car: {},
     requestAnimationFrame() {}, update(dt) { simulated += dt; }, updateSteamTarget() {},
     syncAudio() {}, audio: { update() {} },
     renderer: { render() { renders++; } } };

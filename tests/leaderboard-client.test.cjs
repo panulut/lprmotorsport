@@ -1,89 +1,106 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../leaderboard.js'),'utf8');
-function setup(storage=new Map(),offline=false,lapResult={mode:'laps',saved:true,rank:2,lapMs:12346,bestMs:12346,record:false}) {
-  const nodes=new Map(),calls=[],celebrations=[];
+function setup(storage=new Map(),options={}){
+  const nodes=new Map(),calls=[],celebrations=[],handlers=new Map(),identified=[];
+  const network={offline:false,finishOffline:false,status:200,statuses:[],...options};
   const node=id=>{
-    if(!nodes.has(id)) {
-      const handlers=new Map();let text='';
+    if(!nodes.has(id)){
+      const events=new Map();let text='';
       nodes.set(id,{value:'',children:[],open:false,hidden:false,readOnly:false,
-        get textContent(){return text},set textContent(value){text=value;this.children=[]},
-        classList:{add(){},remove(){}},addEventListener:(type,fn)=>handlers.set(type,fn),
-        trigger(type,event={preventDefault(){}}){handlers.get(type)?.(event)},
-        append(item){this.children.push(item)},setAttribute(){},setCustomValidity(message){this.validationMessage=message},
-        reportValidity(){this.reported=true},showModal(){this.open=true},close(){this.open=false}});
+        get textContent(){return text;},set textContent(value){text=value;this.children=[];},
+        classList:{add(){},remove(){}},addEventListener:(type,fn)=>events.set(type,fn),
+        trigger(type,event={preventDefault(){}}){return events.get(type)?.(event);},
+        append(item){this.children.push(item);},setAttribute(){},setCustomValidity(message){this.validationMessage=message;},
+        reportValidity(){this.reported=true;},showModal(){this.open=true;},close(){this.open=false;}});
     }
     return nodes.get(id);
   };
-  const context={window:{LPRRaceEffects:{celebrate:ms=>celebrations.push(ms)}},crypto:require('node:crypto').webcrypto,AbortSignal,
+  const context={window:{addEventListener:(type,fn)=>handlers.set(type,fn),LPRAnalytics:{identify:name=>identified.push(name)},
+    LPRRaceEffects:{celebrate:ms=>celebrations.push(ms)}},crypto:require('node:crypto').webcrypto,AbortSignal,
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
     document:{querySelector:node,createElement:()=>({textContent:''})},
-    async fetch(url,options){calls.push({url,options});if(offline)throw new Error('offline');
-      return {ok:true,json:async()=>url.endsWith('/api/laps')?lapResult:
+    async fetch(url,request){
+      calls.push({url,options:request});
+      const finish=url.endsWith('/api/laps'),start=url.endsWith('/api/laps/start');
+      if(network.offline||(finish&&network.finishOffline))throw Error('offline');
+      const status=finish?(network.statuses.shift()??network.status):start?(network.startStatus??200):200;
+      const body=request?.body?JSON.parse(request.body):null;
+      return {ok:status>=200&&status<300,status,json:async()=>start?
+        {mode:'timed-v1',lapId:body.requestId,startedAt:1,expiresAt:86400001}:
+        finish?{mode:'laps',protection:'timed-v1',moderation:'approved',saved:true,rank:2,lapMs:body.lapMs,record:false,...network.result}:
         {version:'lut-20261011-v3',results:Array.from({length:20},(_,i)=>({nickname:i?'Driver '+i:'<script>',lap_ms:12346+i*1000}))}};
     }};
   vm.createContext(context);vm.runInContext(source,context);
-  return {board:context.window.LPRLeaderboard,node,calls,storage,celebrations};
+  const board=context.window.LPRLeaderboard;
+  return {board,node,calls,storage,celebrations,network,handlers,identified,
+    login(name='Panu'){node('#leaderboard-name').value=name;node('#leaderboard-start-form').trigger('submit');},
+    starts:()=>calls.filter(c=>c.url.endsWith('/api/laps/start')),
+    finishes:()=>calls.filter(c=>c.url.endsWith('/api/laps')),
+    async lap(ms=40000,sectors=[10000,10000,ms-20000]){await board.startLap();await board.submit(ms,sectors);},
+    queue(){return JSON.parse(storage.get('lpr-pending-laps:'+storage.get('lpr-player-token'))??'[]');}};
 }
 (async()=>{
-  const app=setup(),{board,node,calls,storage}=app;
+  const app=setup(),{board,node,storage}=app;
   board.beginSession();await board.refresh();
-  assert(node('#settings-dialog').open,'Leaderboard opens independently of 3D initialization');
-  assert(board.requiresName);
-  assert.equal(node('#leaderboard-list').children.length,10,'Only the top ten are shown');
-  assert.equal(node('#podium-name-1').textContent,'<script>','Leader is rendered safely on the podium');
+  assert(node('#settings-dialog').open);assert(board.requiresName);
+  assert.equal(node('#leaderboard-list').children.length,10);
+  assert.equal(node('#podium-name-1').textContent,'<script>');
   assert.equal(node('#podium-time-1').textContent,'0:12.346');
-  assert.equal(node('#podium-name-2').textContent,'Driver 1');
-  assert.equal(node('#podium-name-3').textContent,'Driver 2');
-  assert.equal(node('#leaderboard-list').children[0].textContent,'<script> · 0:12.346','Names render as plain text');
-  let prevented=false;node('#settings-dialog').trigger('cancel',{preventDefault(){prevented=true}});
-  assert(prevented,'Escape cannot bypass naming');
-  await board.submit(12345.6,[3000.4,3000.4,6344.8]);
-  assert.equal(calls.filter(c=>c.options?.method==='POST').length,0,'No lap can submit before confirmation');
-  node('#leaderboard-name').value='   ';node('#leaderboard-start-form').trigger('submit');
-  assert(board.requiresName);assert(node('#leaderboard-name').reported);
-  node('#leaderboard-name').value=' Panu ';node('#leaderboard-start-form').trigger('submit');
-  assert(!board.requiresName);assert(!node('#settings-dialog').open);
-  assert(node('#leaderboard-name').readOnly);assert(node('#leaderboard-start').hidden);
+  assert.equal(node('#leaderboard-list').children[0].textContent,'<script> · 0:12.346');
+  let prevented=false;node('#settings-dialog').trigger('cancel',{preventDefault(){prevented=true;}});assert(prevented);
+  await app.lap();assert.equal(app.starts().length,0);assert.equal(app.finishes().length,0);
+  app.login('   ');assert(board.requiresName);assert(node('#leaderboard-name').reported);assert.deepEqual(app.identified,[]);
+  app.login(' Panu ');assert(!board.requiresName);assert(!node('#settings-dialog').open);
+  assert.deepEqual(app.identified,['Panu']);assert(node('#leaderboard-name').readOnly);assert(node('#leaderboard-start').hidden);
   const token=storage.get('lpr-player-token');assert.match(token,/^[a-f0-9]{64}$/);
-  await board.submit(12345.6,[3000.4,3000.4,6344.8]);
-  const post=calls.find(c=>c.options?.method==='POST'),sent=JSON.parse(post.options.body);
-  assert.equal(sent.nickname,'Panu');assert.match(sent.lapId,/^[a-f0-9]{64}$/);assert.equal(sent.sectors.reduce((a,b)=>a+b,0),sent.lapMs);
-  assert.equal(post.options.headers.Authorization,`Bearer ${token}`,'The first named lap is submitted');
-  node('#leaderboard-name').value='Other';await board.submit(12345.6,[3000.4,3000.4,6344.8]);
-  assert.equal(JSON.parse(calls.filter(c=>c.options?.method==='POST').at(-1).options.body).nickname,'Panu','Session identity stays fixed');
-  const laps=calls.filter(c=>c.options?.method==='POST').map(c=>JSON.parse(c.options.body));
-  assert.equal(new Set(laps.map(lap=>lap.lapId)).size,laps.length,'Each lap in one session has a distinct submission ID');
-  const legacyServer=setup(new Map(),false,{rank:1,bestMs:10000,saved:true});
-  legacyServer.node('#leaderboard-name').value='Legacy server';legacyServer.node('#leaderboard-start-form').trigger('submit');
-  await legacyServer.board.submit(10000,[3000,3000,4000]);
-  assert.match(legacyServer.node('#leaderboard-status').textContent,/ei vielä tue/,'An old server cannot silently claim to support multiple laps');
-  const reopened=setup(storage);reopened.board.beginSession();await reopened.board.refresh();
-  assert(reopened.board.requiresName,'Every page load asks again, even with a remembered nickname');
-  assert.equal(reopened.node('#leaderboard-name').value,'Panu');
-  reopened.node('#leaderboard-start-form').trigger('submit');
-  assert.equal(storage.get('lpr-player-token'),token,'Same name preserves private identity and previous records');
-  const other=setup(storage);other.node('#leaderboard-name').value='Eve';other.node('#leaderboard-start-form').trigger('submit');
-  assert.notEqual(storage.get('lpr-player-token'),token,'Another driver on the same browser has a separate record');
-  const legacyStorage=new Map([['lpr-nickname','Legacy'],['lpr-player-token','a'.repeat(64)]]);
-  const legacy=setup(legacyStorage);legacy.node('#leaderboard-start-form').trigger('submit');
-  assert.equal(legacyStorage.get('lpr-player-token:legacy'),'a'.repeat(64),'Existing player records survive migration');
-  const record=setup(new Map(),false,{mode:'laps',saved:true,rank:1,lapMs:11000,bestMs:11000,record:true});
-  await record.board.refresh();record.node('#leaderboard-name').value='Record';record.node('#leaderboard-start-form').trigger('submit');
-  await record.board.submit(11000,[3000,3000,5000]);
-  assert.deepEqual(record.celebrations,[11000],'Confirmed new leader triggers champagne');
-  const unchanged=setup(new Map(),false,{mode:'laps',saved:true,rank:3,lapMs:15000,bestMs:11000,record:false});
-  await unchanged.board.refresh();unchanged.node('#leaderboard-name').value='Record';unchanged.node('#leaderboard-start-form').trigger('submit');
-  await unchanged.board.submit(15000,[5000,5000,5000]);
-  assert.equal(unchanged.celebrations.length,0,'An existing leader driving a slower lap does not celebrate');
-  const tied=setup(new Map(),false,{mode:'laps',saved:true,rank:2,lapMs:12346,bestMs:12346,record:false});
-  await tied.board.refresh();tied.node('#leaderboard-name').value='Tie';tied.node('#leaderboard-start-form').trigger('submit');
-  await tied.board.submit(12346,[3000,3000,6346]);
-  assert.equal(tied.celebrations.length,0,'Matching a known track record does not celebrate');
-  const offline=setup(new Map(),true);offline.board.beginSession();await offline.board.refresh();
-  assert.match(offline.node('#leaderboard-list').textContent,/saatavilla/);
-  offline.node('#leaderboard-name').value='Offline';offline.node('#leaderboard-start-form').trigger('submit');
-  assert(!offline.board.requiresName,'Unavailable leaderboard does not block playing');
-  await offline.board.submit(12345.6,[3000.4,3000.4,6344.8]);
-  assert.match(offline.node('#leaderboard-status').textContent,/epäonnistui/);
-  console.log('PASS: required startup nickname, top ten, first submission, reload confirmation, fixed/per-name identity, migration, safe rendering and offline play');
-})().catch(e=>{console.error(e);process.exitCode=1});
+  await app.lap(40000.6,[10000.4,10000.4,19999.8]);
+  const post=app.finishes()[0],sent=JSON.parse(post.options.body);
+  assert.equal(sent.nickname,'Panu');assert.equal(sent.protocol,'timed-v1');
+  assert.equal(sent.lapId,JSON.parse(app.starts()[0].options.body).requestId,'Submission uses the returned server ticket');
+  assert.equal(sent.sectors.reduce((a,b)=>a+b,0),sent.lapMs);
+  assert.equal(post.options.headers.Authorization,`Bearer ${token}`);
+  node('#leaderboard-name').value='Other';await app.lap();
+  assert.equal(JSON.parse(app.finishes().at(-1).options.body).nickname,'Panu');
+  assert.notEqual(sent.lapId,JSON.parse(app.finishes().at(-1).options.body).lapId);
+  const count=app.finishes().length;
+  await board.submit(40000,[10000,10000,20000]);assert.equal(app.finishes().length,count,'No retroactive start can be minted at finish');
+  await board.startLap();board.cancelLap();await board.submit(40000,[10000,10000,20000]);
+  assert.equal(app.finishes().length,count,'Restart discards the active start');
+  const reopened=setup(storage);assert(reopened.board.requiresName);assert.equal(reopened.node('#leaderboard-name').value,'Panu');
+  reopened.login();assert.equal(storage.get('lpr-player-token'),token);
+  const other=setup(storage);other.login('Eve');assert.notEqual(storage.get('lpr-player-token'),token);
+  const legacy=setup(new Map([['lpr-nickname','Legacy'],['lpr-player-token','a'.repeat(64)]]));
+  legacy.login('Legacy');assert.equal(legacy.storage.get('lpr-player-token:legacy'),'a'.repeat(64));
+  const record=setup(new Map(),{result:{rank:1,record:true}});record.login();await record.lap();
+  assert.deepEqual(record.celebrations,[40000]);
+  for(const moderation of ['quarantined','hidden']){
+    const reviewed=setup(new Map(),{status:202,result:{moderation,rank:null,record:false}});
+    reviewed.login();await reviewed.lap();
+    assert.equal(reviewed.celebrations.length,0);assert.equal(reviewed.queue().length,0);
+    assert.match(reviewed.node('#leaderboard-status').textContent,/tarkistusta/);
+  }
+  const offline=setup(new Map(),{offline:true});offline.login('Offline');
+  await offline.lap();assert(!offline.board.requiresName);assert.equal(offline.finishes().length,0);
+  assert.match(offline.node('#leaderboard-status').textContent,/vain paikallisesti/);
+  offline.network.offline=false;await offline.handlers.get('online')();
+  assert.equal(offline.finishes().length,0,'An offline lap is never backdated into a new ticket');
+  await offline.lap();assert.equal(offline.finishes().length,1);
+  const retry=setup(new Map(),{finishOffline:true});retry.login('Retry');await retry.lap();
+  assert.equal(retry.queue().length,1);const queued=retry.finishes()[0].options.body;
+  assert.match(retry.node('#leaderboard-status').textContent,/odottaa lähetystä/);
+  retry.network.finishOffline=false;await retry.handlers.get('online')();
+  assert.equal(retry.finishes().at(-1).options.body,queued);assert.equal(retry.queue().length,0);
+  const saved=setup(new Map(),{finishOffline:true});saved.login('Reload');await saved.lap();
+  const reload=setup(saved.storage);reload.login('Reload');await reload.handlers.get('online')();
+  assert.equal(reload.starts().length,0);assert.equal(reload.finishes().length,1,'Reload retries the original ticket rather than starting again');
+  assert.equal(reload.queue().length,0);assert.deepEqual(reload.identified,['Reload']);
+  const failure=setup(new Map(),{finishOffline:true});failure.login();await failure.lap();await failure.lap();
+  assert.equal(failure.queue().length,2);
+  failure.network.finishOffline=false;failure.network.statuses=[409,200];
+  await failure.handlers.get('online')();assert.equal(failure.queue().length,0,'A permanently rejected item cannot block the next queued lap');
+  const throttled=setup(new Map(),{status:429});throttled.login();await throttled.lap();assert.equal(throttled.queue().length,1);
+  throttled.network.status=200;await throttled.handlers.get('online')();assert.equal(throttled.queue().length,0);
+  const old=setup(new Map(),{result:{mode:'old'}});old.login();await old.lap();
+  assert.match(old.node('#leaderboard-status').textContent,/ei vielä tue/);
+  console.log('PASS: required identity, server start/finish hooks, no retrospective tickets, cancellation, moderation, safe rendering, records, per-name identities, offline play, durable retries and terminal/transient queue errors');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -314,6 +314,7 @@
   }
 
   function reset() {
+    window.LPRLeaderboard?.cancelLap?.();
     if (car) window.LPRAnalytics?.event('restart');
     window.LPRCampus.resetObstacles();
     audio.stopEffects();
@@ -485,6 +486,7 @@
     if (!car.started && input.gas > .08) {
       car.started = true;
       window.LPRAnalytics?.event('lap_start');
+      window.LPRLeaderboard?.startLap?.();
       car.lapStart = now;
       ui.notice.classList.add('hidden');
     }
@@ -540,6 +542,7 @@
           } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
           car.lap++;
           window.LPRAnalytics?.event('lap_start');
+          window.LPRLeaderboard?.startLap?.();
           car.lapStart = now;
           car.stage = 0;
           timing.reset();
