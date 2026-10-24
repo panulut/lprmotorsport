@@ -1,0 +1,20 @@
+{
+  "scope": "Render free baseline before asphalt optimization",
+  "pairWallMs": 66165.81976299995,
+  "pair": [
+    {
+      "status": 422,
+      "requestWallMs": 65817.01020199989,
+      "body": {
+        "error": "Verification time budget exceeded"
+      }
+    },
+    {
+      "status": 422,
+      "requestWallMs": 66163.19884799987,
+      "body": {
+        "error": "Verification time budget exceeded"
+      }
+    }
+  ]
+}

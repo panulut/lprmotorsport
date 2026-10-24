@@ -212,10 +212,25 @@ window.LPRTrackObjects = (() => {
     objectBodies.set(o,campus.makeBody(b,o.type==='tree'?'tree':o.type==='building'?'wall':o.type,
       o.type==='cone'?3:Infinity));
   }
+  // Static, conservative point-query grid. Rounded/rotated shapes still use
+  // the original exact membership test; insertion preserves document order.
+  const asphaltCells=new Map(),asphaltCellSize=100;
+  for(const o of objects.filter(o=>o.type==='asphalt')) {
+    const r=Math.hypot(types.asphalt.w,o.square?types.asphalt.w:types.asphalt.d)*o.scale/2+1e-7;
+    for(let cx=Math.floor((o.x-r)/asphaltCellSize);cx<=Math.floor((o.x+r)/asphaltCellSize);cx++)
+      for(let cy=Math.floor((o.y-r)/asphaltCellSize);cy<=Math.floor((o.y+r)/asphaltCellSize);cy++) {
+        const key=cx+','+cy;
+        if(!asphaltCells.has(key))asphaltCells.set(key,[]);
+        asphaltCells.get(key).push(o);
+      }
+  }
   function onAsphalt(x,y) {
-    return objects.some(o=>{
-      if(o.type!=='asphalt')return false;
-      if(o.allowOnTrack===false&&roadMask.contains(x,y))return false;
+    let onRoad;
+    return (asphaltCells.get(Math.floor(x/asphaltCellSize)+','+Math.floor(y/asphaltCellSize))||[]).some(o=>{
+      if(o.allowOnTrack===false) {
+        onRoad ??= roadMask.contains(x,y);
+        if(onRoad)return false;
+      }
       return onAsphaltObject(o,x,y);
     });
   }

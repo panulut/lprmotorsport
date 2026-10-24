@@ -17,8 +17,8 @@ function setup(storage=new Map(),options={}){
   };
   const context={window:{addEventListener:(type,fn)=>handlers.set(type,fn),LPRAnalytics:{identify:name=>identified.push(name)},
     LPRRaceEffects:{celebrate:ms=>celebrations.push(ms)}},crypto:require('node:crypto').webcrypto,AbortSignal,
-    localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
-    document:{querySelector:node,createElement:()=>({textContent:''})},
+    setInterval(){},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
+    document:{querySelector:node,createElement:()=>({textContent:'',append(...items){this.textContent+=items.map(item=>item.textContent).join('');}})},
     async fetch(url,request){
       calls.push({url,options:request});
       const finish=url.endsWith('/api/laps'),start=url.endsWith('/api/laps/start');
@@ -33,7 +33,7 @@ function setup(storage=new Map(),options={}){
   vm.createContext(context);vm.runInContext(source,context);
   const board=context.window.LPRLeaderboard;
   return {board,node,calls,storage,celebrations,network,handlers,identified,
-    login(name='Panu'){node('#leaderboard-name').value=name;node('#leaderboard-start-form').trigger('submit');},
+    login(name='Panu'){node('#analytics-consent').checked=true;node('#leaderboard-name').value=name;node('#leaderboard-start-form').trigger('submit');},
     starts:()=>calls.filter(c=>c.url.endsWith('/api/laps/start')),
     finishes:()=>calls.filter(c=>c.url.endsWith('/api/laps')),
     async lap(ms=40000,sectors=[10000,10000,ms-20000]){await board.startLap();await board.submit(ms,sectors);},
@@ -44,11 +44,11 @@ function setup(storage=new Map(),options={}){
   board.beginSession();await board.refresh();
   assert(node('#settings-dialog').open);assert(board.requiresName);
   assert.equal(node('#leaderboard-list').children.length,10);
-  assert.equal(node('#podium-name-1').textContent,'<script>');
-  assert.equal(node('#podium-time-1').textContent,'0:12.346');
   assert.equal(node('#leaderboard-list').children[0].textContent,'<script> · 0:12.346');
   let prevented=false;node('#settings-dialog').trigger('cancel',{preventDefault(){prevented=true;}});assert(prevented);
   await app.lap();assert.equal(app.starts().length,0);assert.equal(app.finishes().length,0);
+  node('#leaderboard-name').value='Panu';node('#leaderboard-start-form').trigger('submit');
+  assert(board.requiresName,'Consent is required before naming can start play');assert.equal(board.identity,null);assert(node('#analytics-consent').reported);assert.deepEqual(app.identified,[]);
   app.login('   ');assert(board.requiresName);assert(node('#leaderboard-name').reported);assert.deepEqual(app.identified,[]);
   app.login(' Panu ');assert(!board.requiresName);assert(!node('#settings-dialog').open);
   assert.deepEqual(app.identified,['Panu']);assert(node('#leaderboard-name').readOnly);assert(node('#leaderboard-start').hidden);
@@ -66,6 +66,9 @@ function setup(storage=new Map(),options={}){
   await board.submit(40000,[10000,10000,20000]);assert.equal(app.finishes().length,count,'No retroactive start can be minted at finish');
   await board.startLap();board.cancelLap();await board.submit(40000,[10000,10000,20000]);
   assert.equal(app.finishes().length,count,'Restart discards the active start');
+  const withdrawn=setup();withdrawn.login();withdrawn.node('#analytics-consent').checked=false;withdrawn.node('#analytics-consent').trigger('change');
+  assert(withdrawn.board.requiresName);assert.equal(withdrawn.board.identity,null);assert(withdrawn.node('#settings-dialog').open,'Withdrawal pauses play behind the required start dialog');
+  withdrawn.login();assert(!withdrawn.board.requiresName);assert(!withdrawn.node('#settings-dialog').open,'Consent can be accepted again');
   const reopened=setup(storage);assert(reopened.board.requiresName);assert.equal(reopened.node('#leaderboard-name').value,'Panu');
   reopened.login();assert.equal(storage.get('lpr-player-token'),token);
   const other=setup(storage);other.login('Eve');assert.notEqual(storage.get('lpr-player-token'),token);

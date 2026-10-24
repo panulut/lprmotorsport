@@ -12,8 +12,8 @@
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>Skinnarila Grand Prix · LPR Motorsport</title>
     <link rel="stylesheet" href="styles.css?v=single-line-topbar-20261015" />
-    <link rel="stylesheet" href="3d.css?v=analytics-20261020" />
-    <script src="i18n.js?v=timed-laps-20261024" defer></script>
+    <link rel="stylesheet" href="3d.css?v=start-lights-20261024" />
+    <script src="i18n.js?v=start-lights-20261024" defer></script>
     <script src="shared/vehicle-spec.js?v=visual-steering-motion-20261015" defer></script>
     <script src="campus.js?v=roadside-trees-20261014" defer></script>
     <script src="shared/track-document.js?v=asphalt-small-brush-20261013" defer></script>
@@ -21,16 +21,23 @@
     <script src="data/track-data.js?v=2" defer></script>
     <script src="shared/track-objects.js?v=solid-tyre-stacks-20261015" defer></script>
     <script src="shared/track-sync.js?v=20261013" defer></script>
+    <script src="shared/collision-index.js" defer></script>
+    <script src="shared/people.js" defer></script>
+    <script src="shared/driving.js" defer></script>
+    <script src="verification/revision.js" defer></script>
+    <script src="verification/config.js" defer></script>
+    <script src="experiment/live-client.js" defer></script>
     <script src="sale.js?v=solid-shelves-long-checkout-20261013" defer></script>
     <script src="renderer3d.js?v=visual-steering-motion-20261015" defer></script>
     <script src="vehicle.js?v=visual-steering-20261015" defer></script>
     <script src="sauna.js?v=sound-20261013" defer></script>
     <script src="timing.js?v=sectors-20261009" defer></script>
     <script src="analytics.js?v=20261020" defer></script>
-    <script src="leaderboard.js?v=timed-laps-20261024" defer></script>
+    <script src="leaderboard.js?v=compact-start-20261024" defer></script>
     <script src="audio.js?v=warm-sound-20261013" defer></script>
     <script src="race-effects.js?v=skinnarila-20261015" defer></script>
-    <script src="game.js?v=timed-laps-20261024" defer></script>
+    <script src="verified-driving.js?v=start-lights-20261024" defer></script>
+    <script src="game.js?v=start-lights-20261024" defer></script>
   </head>
   <body>
     <main class="app">
@@ -47,6 +54,11 @@
       </header>
 
       <section class="game-shell" aria-label="Ajopeli">
+        <p id="verification-state" role="status" class="verification-state"></p>
+        <div id="start-lights" class="start-lights" data-phase="" role="status" hidden>
+          <div class="start-lights-row" aria-hidden="true"><span></span><span></span><span></span></div>
+          <strong id="start-lights-label">Valmistaudu</strong>
+        </div>
         <div class="hud">
           <div class="hud-item"><span>KIERROS</span><strong id="lap-count">1</strong></div>
           <div class="hud-item wide"><span>AIKA</span><strong id="lap-time">00:00.000</strong></div>
@@ -86,38 +98,32 @@
         <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><span aria-hidden="true">×</span> Takaisin peliin</button>
         </div>
       </div>
-      <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Tuloslista">
-        <div id="leaderboard-podium" class="leaderboard-podium" aria-label="Kolme parasta">
-          <div class="podium-place podium-second">
-            <div class="podium-step"><span class="podium-rank">2</span><strong id="podium-name-2">—</strong><span id="podium-time-2" class="podium-time">—</span></div>
-          </div>
-          <div class="podium-place podium-first">
-            <svg class="podium-trophy" viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24v15c0 11-5 18-12 18s-12-7-12-18V10Z" fill="#f5ce72"/><path d="M20 14H10v8c0 9 5 14 15 14M44 14h10v8c0 9-5 14-15 14" fill="none" stroke="#e9b64d" stroke-width="5"/><path d="M32 42v10M22 55h20" stroke="#f5ce72" stroke-width="6" stroke-linecap="round"/><path d="m26 17 2 12" stroke="#fff0b8" stroke-width="3" stroke-linecap="round"/></svg>
-            <div class="podium-step"><span class="podium-rank">1</span><strong id="podium-name-1">—</strong><span id="podium-time-1" class="podium-time">—</span></div>
-          </div>
-          <div class="podium-place podium-third">
-            <div class="podium-step"><span class="podium-rank">3</span><strong id="podium-name-3">—</strong><span id="podium-time-3" class="podium-time">—</span></div>
-          </div>
-        </div>
-        <div class="leaderboard-entry-grid">
+      <div class="leaderboard-entry-grid">
+      <section class="leaderboard-panel verified-standings" aria-label="Kierrosajat">
+        <h3>Kierrosajat</h3>
+        <p id="verification-status" role="status"></p>
+        <ol id="verified-list"></ol>
+      </section>
+      <section id="leaderboard-panel" class="leaderboard-panel legacy-standings" aria-label="Tuloslista">
+        <h3>Aiemmat ajat</h3>
           <div class="leaderboard-standings">
-            <div class="standings-heading"><h3>TOP 10</h3><button id="leaderboard-refresh" type="button" aria-label="Päivitä tuloslista"><span aria-hidden="true">↻</span></button></div>
+            <div class="standings-heading"><h3>TOP 10</h3></div>
             <p>Kymmenen nopeinta kierrosta. Sama kuljettaja voi saada useita sijoituksia.</p>
             <ol id="leaderboard-list" aria-live="polite"><li>Ladataan tuloslistaa…</li></ol>
           </div>
-          <form id="leaderboard-start-form" class="leaderboard-start-form">
+      </section>
+          <form id="leaderboard-start-form" class="leaderboard-panel leaderboard-start-form">
             <h3>Kuljettaja</h3>
             <label for="leaderboard-name">Nimimerkki</label>
             <input id="leaderboard-name" required maxlength="24" autocomplete="nickname" autocapitalize="off" enterkeyhint="go" placeholder="Nimimerkki" />
             <fieldset class="analytics-settings" aria-label="Analytiikka / Analytics">
-              <label><input id="analytics-consent" type="checkbox" /> <span id="analytics-label"></span></label>
+              <label><input id="analytics-consent" type="checkbox" required /> <span id="analytics-label"></span></label>
               <details><summary>Tiedot / Details</summary><p id="analytics-info"></p><a href="privacy.html" target="_blank" rel="noopener">Tietosuoja / Privacy</a><br><button id="analytics-delete" type="button">Poista analytiikkatietoni</button><p id="analytics-status" role="status"></p></details>
             </fieldset>
             <button id="leaderboard-start" class="leaderboard-start" type="submit">Aloita ajo <span aria-hidden="true">→</span></button>
             <p id="leaderboard-status" role="status"></p>
           </form>
-        </div>
-      </section>
+      </div>
     </dialog>
   </body>
 </html>

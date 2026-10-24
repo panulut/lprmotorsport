@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {createWorld,recordLap,replayLap}=require('../scripts/lib/replay-probe.cjs');
+const {createWorld,recordLap,replayLap,hz}=require('../scripts/lib/replay-probe.cjs');
 const world=createWorld(),replay=recordLap(world);
 const first=replayLap(world,replay),second=replayLap(createWorld(),replay);
 assert.deepEqual(first,second,'A fresh world must reproduce the same lap and final state');
@@ -8,7 +8,7 @@ assert.equal(first.sectorTicks.reduce((a,b)=>a+b,0),first.ticks);
 assert.throws(()=>replayLap(world,{...replay,revision:'modified'}),/header/);
 assert.throws(()=>replayLap(world,{...replay,inputs:[[2,0,0]]}),/controls/);
 assert.throws(()=>replayLap(world,{...replay,inputs:[[0,0,NaN]]}),/controls/);
-assert.throws(()=>replayLap(world,{...replay,inputs:Array(90*240+1).fill([0,0,0])}),/header/);
+assert.throws(()=>replayLap(world,{...replay,inputs:Array(hz*240+1).fill([0,0,0])}),/header/);
 assert.throws(()=>replayLap(world,{...replay,inputs:replay.inputs.slice(0,100)}),/did not complete/);
 assert.throws(()=>replayLap(world,{...replay,inputs:[...replay.inputs,[0,0,0]]}),/after finish/);
 const claimed={...replay,lapMs:12345};

@@ -36,6 +36,10 @@ function createServer({production=false}={}) {
       } catch(error){return reply(400,error.message);}
     }
     if(!['GET','HEAD'].includes(request.method))return reply(405,'Method not allowed');
+    if(pathname==='/verification/revision.js') {
+      response.writeHead(200,{'Content-Type':mime['.js'],'Cache-Control':'no-store'});
+      return response.end(production?fs.readFileSync(path.join(base,'verification/revision.js')):`window.LPRDrivingRevision=${JSON.stringify(require('./verification/world.cjs').revision)};`);
+    }
     if(!production && pathname==='/data/track-data.js') {
       try{response.writeHead(200,{'Content-Type':mime['.js'],'Cache-Control':'no-store'});return response.end(request.method==='HEAD'?undefined:dataScript(readDocument()));}catch(e){return reply(500,e.message);}
     }

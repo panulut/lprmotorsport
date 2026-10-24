@@ -1,4 +1,4 @@
-/* Optional, first-party gameplay analytics. No requests or identifiers before consent. */
+/* First-party gameplay analytics. No requests or identifiers before consent. */
 (() => {
   'use strict';
   const endpoint = 'https://lpr-leaderboard.panu-musakka.workers.dev';
@@ -60,7 +60,7 @@
     try {
       const response = await fetch(endpoint + '/api/analytics/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(10000) });
       if (response.status === 410) {
-        enabled = false; consent.checked = false; write(key, 'no'); queue = []; buckets = {};
+        enabled = false; consent.checked = false; window.LPRLeaderboard?.consentChanged?.(); write(key, 'no'); queue = []; buckets = {};
       }
       if (response.ok) { const ids = new Set(events.map(e => e.id)); queue = queue.filter(e => !ids.has(e.id)); }
     } catch {} finally { sending = false; }
@@ -83,7 +83,7 @@
     else { enabled = false; queue = []; buckets = {}; }
   });
   remove.addEventListener('click', async () => {
-    enabled = false; consent.checked = false; write(key, 'no'); queue = []; buckets = {};
+    enabled = false; consent.checked = false; window.LPRLeaderboard?.consentChanged?.(); write(key, 'no'); queue = []; buckets = {};
     const saved = token || read(tokenKey);
     if (!saved) { status.textContent = english() ? 'No analytics profile on this browser.' : 'Tässä selaimessa ei ole analytiikkaprofiilia.'; return; }
     remove.disabled = true; consent.disabled = true;
@@ -100,8 +100,8 @@
   });
   function english() { return document.documentElement.lang === 'en'; }
   function translate() {
-    document.querySelector('#analytics-label').textContent = english() ? 'I allow nickname-linked gameplay and usage data to improve the game (optional)' : 'Sallin nimimerkkiini yhdistettyjen peli- ja käyttötietojen keräämisen pelin kehittämiseksi (vapaaehtoinen)';
-    document.querySelector('#analytics-info').textContent = english() ? 'The game developer can see your sessions, activity, lap times, device/browser categories and referring site. Stored for 90 days. No IP addresses or precise location are stored in your profile. You can play without analytics and turn it off here at any time. This browser identifies your profile; it is not a verified identity.' : 'Pelin kehittäjä näkee pelikerrat, tekemiset, kierrosajat, laite- ja selainluokan sekä tulosivuston. Säilytys 90 päivää. Profiiliin ei tallenneta IP-osoitetta tai tarkkaa sijaintia. Voit pelata ilman analytiikkaa ja lopettaa keräyksen tästä milloin tahansa. Profiili tunnistaa tämän selaimen, ei varmennettua henkilöä.';
+    document.querySelector('#analytics-label').textContent = english() ? 'I accept the collection of nickname-linked gameplay and usage data to improve the game (required to play)' : 'Hyväksyn nimimerkkiini yhdistettyjen peli- ja käyttötietojen keräämisen pelin kehittämiseksi (pelaamisen edellytys)';
+    document.querySelector('#analytics-info').textContent = english() ? 'The game developer can see your sessions, activity, lap times, device/browser categories and referring site. Stored for 90 days. No IP addresses or precise location are stored in your profile. You must accept collection before playing. You can withdraw here at any time; driving then stops. This browser identifies your profile; it is not a verified identity.' : 'Pelin kehittäjä näkee pelikerrat, tekemiset, kierrosajat, laite- ja selainluokan sekä tulosivuston. Säilytys 90 päivää. Profiiliin ei tallenneta IP-osoitetta tai tarkkaa sijaintia. Tietojen kerääminen on hyväksyttävä ennen pelaamista. Voit perua suostumuksen tästä milloin tahansa, jolloin ajo keskeytyy. Profiili tunnistaa tämän selaimen, ei varmennettua henkilöä.';
     remove.textContent = english() ? 'Delete my analytics' : 'Poista analytiikkatietoni';
   }
   translate(); new MutationObserver(translate).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
@@ -112,7 +112,7 @@
   }, { passive: true });
   window.addEventListener('storage', e => {
     if ((e.key === key && e.newValue !== 'yes') || (e.key === tokenKey && !e.newValue) || e.key === null) {
-      enabled = false; consent.checked = false; queue = []; buckets = {};
+      enabled = false; consent.checked = false; window.LPRLeaderboard?.consentChanged?.(); queue = []; buckets = {};
     }
   });
   window.addEventListener('blur', () => { tick(); focused = false; void flush(true); });

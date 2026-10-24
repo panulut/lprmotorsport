@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const analytics=[];
+let observedPeopleTime;
 const nodes=new Map(),submissions=[],mediaHandlers=[];let requiresName=true,startedSessions=0;
 let onlineStarts=0,onlineCancels=0;
 const timers=new Map();let nextTimer=0;
@@ -18,7 +19,7 @@ const ctx={URLSearchParams,window:{LPRVehicleSpec:require('../shared/vehicle-spe
   LPRLeaderboard:{refresh(){},startLap(){onlineStarts++;},cancelLap(){onlineCancels++;},get requiresName(){return requiresName},beginSession(){startedSessions++;element('#settings-dialog').showModal()},submit:(ms,sectors)=>submissions.push({ms,sectors})}},
   document:{hidden:false,querySelector:element,querySelectorAll:()=>['left','right','gas','brake'].map(name=>element(`[data-control="${name}"]`)),addEventListener(type,fn){if(!documentHandlers.has(type))documentHandlers.set(type,[]);documentHandlers.get(type).push(fn)}},performance:{now:()=>clock},navigator:{},
   localStorage:{getItem:()=>null,setItem(){}},setTimeout(fn,ms){const id=++nextTimer;timers.set(id,{fn,ms});return id},clearTimeout(id){timers.delete(id)},requestAnimationFrame(){},ResizeObserver:class{observe(){}},
-  LPRRenderer3D:class{constructor(){this.saunaStop={x:900,y:650}}resize(){}updatePeople(){}}};
+  LPRRenderer3D:class{constructor(){this.saunaStop={x:900,y:650}}resize(){}updatePeople(time){observedPeopleTime=time;}}};
 let clock=1000;
 vm.createContext(ctx);
 for(const file of ['audio.js','sauna.js','vehicle.js','campus.js','sale.js','timing.js'])vm.runInContext(read(file),ctx);
@@ -31,7 +32,13 @@ assert.equal(startedSessions,1);assert(dialog.open);
 game.held.gas=true;game.update(0,1500);assert.equal(game.car.started,false,'Startup dialog prevents the first lap from starting');
 element('#close-settings').click();assert(dialog.open,'Close button cannot bypass nickname selection');
 for(const handler of mediaHandlers)handler({matches:true});assert(dialog.open,'Rotating the phone cannot bypass nickname selection');
-requiresName=false;dialog.close();game.update(0,2000);
+requiresName=false;dialog.close();
+ctx.window.LPRVerifiedDriving={waitingForStart:true};
+const waitingCar=JSON.stringify(game.car);
+game.update(.5,1900);
+assert.equal(JSON.stringify(game.car),waitingCar,'Throttle cannot move the car or start timing before server readiness');
+delete ctx.window.LPRVerifiedDriving;
+game.update(0,2000);
 assert(game.car.started);assert.equal(game.car.lapStart,2000);assert(!game.car.onlineInvalid,'Initial naming does not invalidate the first lap');
 // Move through the genuine gate/sector logic without replacing scoring or submission.
 game.dynamics.step=()=>{};
@@ -107,3 +114,13 @@ for(const [index,time] of [[65,270000],[125,280000],[185,290000],[0,300000]]) {
 }
 assert.equal(submissions.length,3);assert.equal(submissions[2].ms,100000,'Interrupted lap submits normally including time away');
 console.log('PASS: leaderboard menu and app switching preserve submission and full elapsed time');
+
+// Fixed physics time and timed-v1 wall-clock scoring must remain independent.
+game.reset();game.held.gas=true;game.update(0,1000,400000);
+assert.equal(game.car.lapStart,400000,'Server-timed lap starts on the wall clock');
+for(const [index,simTime,wallTime] of [[65,2000,410000],[125,3000,420000],[185,4000,430000],[0,5000,440000]]) {
+ game.car.x=track[index].x;game.car.y=track[index].y;game.car.speed=10;game.update(0,simTime,wallTime);
+}
+assert.equal(submissions.at(-1).ms,40000,'Slow simulation cannot shorten the timed-v1 reported lap');
+assert.equal(observedPeopleTime,5000,'Collision people follow simulation time');
+console.log('PASS: fixed-step physics clock is independent of server-compatible wall-clock scoring');

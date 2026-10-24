@@ -2264,47 +2264,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.drawArrays(gl.TRIANGLES,0,vertices.length/6);
   }
 
-  spectatorPose(mesh,index,now) {
-    if(mesh.body.direction && mesh.body.pose)return {...mesh.body.pose,walking:false};
-    const time = now / 1000;
-      let forward = mesh.forward, side = mesh.side, yaw = side > 0 ? Math.PI : 0;
-      let walking = false, elevation = 0;
-      const phase = (time + index*3.1) % 36;
-      if (mesh.activity === 'walk') {
-        // Walk around the rear corner, pause by the sauna, then return to friends.
-        const path = [[mesh.forward,mesh.side],[-49,mesh.side],[-49,4],[-37,4]];
-        const progress = phase < 12 ? phase/12 : phase < 20 ? 1 : phase < 32 ? 1-(phase-20)/12 : 0;
-        walking = phase < 12 || (phase >= 20 && phase < 32);
-        const lengths = path.slice(1).map((p,i)=>Math.hypot(p[0]-path[i][0],p[1]-path[i][1]));
-        let distance = progress*lengths.reduce((a,b)=>a+b,0);
-        for (let segment=0;segment<lengths.length;segment++) {
-          if (distance <= lengths[segment] || segment === lengths.length-1) {
-            const a=path[segment],b=path[segment+1],mix=Math.min(1,distance/Math.max(.001,lengths[segment]));
-            forward=a[0]+(b[0]-a[0])*mix; side=a[1]+(b[1]-a[1])*mix;
-            if (segment===2) elevation=Math.max(0,Math.min(8,(forward+43)/2*2));
-            yaw=Math.atan2(b[0]-a[0],-(b[1]-a[1]))+(phase>=20 ? Math.PI : 0);
-            break;
-          }
-          distance-=lengths[segment];
-        }
-      }
-    return {forward,side,yaw,walking,elevation,phase};
-  }
+  spectatorPose(mesh,index,now) { return window.LPRPeople.pose(mesh,index,now); }
 
   updatePeople(now) {
-    const frame=this.spectatorFrame;
-    for(const [index,mesh] of this.spectatorMeshes.entries()) {
-      const pose=this.spectatorPose(mesh,index,now);
-      window.LPRCampus.movePerson(mesh.body,
-        frame.stop[0]+frame.forwardX*pose.forward+frame.rightX*pose.side,
-        frame.stop[2]+frame.forwardZ*pose.forward+frame.rightZ*pose.side,pose);
-    }
+    this.peopleTime=now;
+    this.peopleModel ||= window.LPRPeople.create();
+    this.peopleModel.update(now);
   }
 
   drawSpectators(car, now) {
     const frame=this.spectatorFrame,vertices=[],time=now/1000;
     for(const [index,mesh] of this.spectatorMeshes.entries()) {
-      const {forward,side,yaw,walking,elevation,phase}=this.spectatorPose(mesh,index,now);
+      const {forward,side,yaw,walking,elevation,phase}=this.spectatorPose(mesh,index,this.peopleTime ?? now);
       const near = Math.hypot(car.x-frame.stop[0],car.y-frame.stop[2]) < 180 && Math.abs(car.speed || 0) > 3;
       const cheer = !mesh.body.damage && mesh.activity === 'cheer' && (near || phase < 7);
       const sip = !mesh.body.damage && mesh.activity === 'drink' ? Math.max(0,Math.sin((time+index*2.7)%11/11*Math.PI*2)) : 0;

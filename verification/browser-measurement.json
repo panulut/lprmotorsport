@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-10-24T17:45:11.808Z",
+  "browser": "155.0.8059.85",
+  "revision": "a6909ec56beb14e785dc7b290ee185c68466584e5ec7e4546d28c5b02076b09b",
+  "ticks": 23220,
+  "verifiedLaps": 2,
+  "scope": "Real 3D game with synthetic controls and accelerated server clock; no remote/human capacity claim",
+  "automaticStart": true,
+  "automaticRestart": true,
+  "practiceDuringPreparation": true,
+  "consentRequired": true,
+  "tamperedPhysicsRejected": true,
+  "tamperedPowerRejected": true,
+  "errors": []
+}

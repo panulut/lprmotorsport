@@ -64,6 +64,7 @@
     sectorUI.classList.toggle('slower', result.delta !== null && result.delta > 0);
   }
   let car;
+  let drivingWorld = null;
   let lastFrame = performance.now();
   let lastDeviceUpdate = 0;
   let noticeTimeout = 0;
@@ -313,7 +314,12 @@
     showNotice(t("Tsssss\u2026 Hyv\u00e4t l\u00f6ylyt!"), 2000);
   }
 
-  function reset() {
+  function reset({verified=false}={}) {
+    if(!verified && window.LPRVerifiedDriving && window.LPRLeaderboard?.identity){
+      void window.LPRVerifiedDriving.start({replace:true});return;
+    }
+    if(!verified) window.LPRVerifiedDriving?.cancel();
+    drivingWorld=null;
     window.LPRLeaderboard?.cancelLap?.();
     if (car) window.LPRAnalytics?.event('restart');
     window.LPRCampus.resetObstacles();
@@ -438,9 +444,17 @@
     return total / 4;
   }
 
-  function update(dt, now) {
+  function update(dt, now, wallNow = now) {
+    if(window.LPRVerifiedDriving?.waitingForStart)return;
+    if(window.LPRVerifiedDriving?.active && (ui.dialog.open || car.sauna || car.sale || car.pool || car.crashed))window.LPRVerifiedDriving.cancel();
+    if(drivingWorld && !ui.dialog.open && !car.sauna && !car.sale && !car.pool){
+      updateDriving(now);return;
+    }
+    const physicsNow = now;
+    // Keep timed-v1 wall-clock scoring until the server replay protocol replaces it.
+    now = wallNow;
     if(!ui.dialog.open) {
-      renderer.updatePeople(now);
+      renderer.updatePeople(physicsNow);
       window.LPRCampus.stepObstacles(dt,car,contact=>{
         dynamics.applyImpact(car,contact.normal,contact.impactMaterial,contact);
         audio.impact(car.impactSpeed);
@@ -463,7 +477,7 @@
         ui.time.textContent = formatTime(car.lapElapsedMs);
       }
       if (car.sauna && !ui.dialog.open) {
-        saunaLife.update(dt,car,now);
+        saunaLife.update(dt,car,wallNow);
       }
       if ((car.sauna || car.sale) && !ui.dialog.open) {
         const forward = input.gas - input.brake;
@@ -486,7 +500,7 @@
     if (!car.started && input.gas > .08) {
       car.started = true;
       window.LPRAnalytics?.event('lap_start');
-      window.LPRLeaderboard?.startLap?.();
+      if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
       car.lapStart = now;
       ui.notice.classList.add('hidden');
     }
@@ -531,7 +545,7 @@
           window.LPRAnalytics?.event('lap_complete', { lapMs: Math.round(lapTime) });
           audio.lap(!best || lapTime < best);
           showSector(lapTime);
-          if (timing.sectors.length === 3) window.LPRLeaderboard?.submit(lapTime, timing.sectors.slice());
+          if (!window.LPRVerifiedDriving && timing.sectors.length === 3) window.LPRLeaderboard?.submit(lapTime, timing.sectors.slice());
           if (!best || lapTime < best) {
             best = lapTime;
             localStorage.setItem('lpr-best-time-lut-20261011-v3', String(best));
@@ -542,11 +556,12 @@
           } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
           car.lap++;
           window.LPRAnalytics?.event('lap_start');
-          window.LPRLeaderboard?.startLap?.();
+          if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
           car.lapStart = now;
           car.stage = 0;
           timing.reset();
           ui.lap.textContent = String(car.lap);
+          if(window.LPRVerifiedDriving && !window.LPRVerifiedDriving.active)void window.LPRVerifiedDriving.start();
         }
       }
     }
@@ -561,7 +576,43 @@
     updateSaunaUI();
   }
 
+  function updateDriving(now) {
+    if(car.crashed){window.LPRVerifiedDriving.cancel();showNotice(t("Auto hajosi! Aloita uudelleen."),0);return;}
+    const input=readInput();input.steer=Math.abs(input.steer)<.04?0:input.steer;input.tc=car.tcEnabled;
+    const event=drivingWorld.step(input),result=drivingWorld.result();
+    renderer.peopleTime=result.ticks*1000/120;
+    window.LPRVerifiedDriving.step(input,result,event);
+    car.stage=result.stage;car.lap=result.lap;
+    car.lapElapsedMs=(result.ticks-result.lapStartTick)*1000/120;
+    if(event.split!==null)showSector(event.split*1000/120);
+    if(event.completed){
+      const lapMs=event.completed.lapTicks*1000/120;
+      window.LPRAnalytics?.event('lap_complete',{lapMs:Math.round(lapMs)});
+      audio.lap(false);timing.reset();ui.lap.textContent=String(car.lap);
+      showNotice('Kierros '+formatTime(lapMs)+(window.LPRVerifiedDriving.active?'':' · harjoittelu'),3000);
+      if(!window.LPRVerifiedDriving.active){void window.LPRVerifiedDriving.start();return;}
+    }
+    car.throttleInput=input.gas;car.brakeInput=input.brake;
+    ui.time.textContent=formatTime(car.lapElapsedMs);
+    ui.speed.textContent=String(Math.round(car.speed*3.6));
+    ui.lateralG.textContent=`${Math.abs(car.lateralG).toFixed(1)} G`;
+    ui.grip.textContent=car.damage>0?`${t("VAURIO")} ${Math.round(car.damage*100)} %`:car.offroad?t("RADAN ULKOPUOLELLA"):t("PITO OK");
+    ui.tc.textContent=car.tcActive?t("TC RAJOITTAA TEHOA"):t(car.tcEnabled?"TC PÄÄLLÄ":"TC POIS");
+    updateSaunaUI();
+  }
+  window.LPRVerifiedDriving?.attach({prepare(){reset({verified:true});ui.notice.classList.add('hidden');},start(){
+    reset({verified:true});
+    drivingWorld=window.LPRDriving.create({car,dynamics,onImpact:(contact,damage)=>{audio.impact(car.impactSpeed);if(damage>0)showNotice(t("Auto vaurioitui."),2500);}});
+    car.started=true;car.lapStart=performance.now();
+    accumulator=0;lastFrame=performance.now();
+    ui.dialog.close();ui.notice.classList.add('hidden');
+    window.LPRAnalytics?.event('lap_start');
+  },saved(lapMs){showNotice('Kierrosaika '+formatTime(lapMs)+' tallennettu',3500);}});
+
   let lastPresentation = null;
+  // Fixed physics step; existing timed-v1 scoring remains on the wall clock.
+  const STEP = 1 / 120, STEP_MS = 1000 / 120;
+  let simTick = 0, accumulator = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     if (document.hidden) { lastPresentation = null; return; }
@@ -570,9 +621,13 @@
     const elapsed = lastPresentation === null ? interval : now - lastPresentation;
     if (elapsed < interval - .01) return;
     lastPresentation = now - (elapsed >= interval ? elapsed % interval : 0);
-    const dt = Math.min((now - lastFrame) / 1000, .05);
+    accumulator += Math.min((now - lastFrame) / 1000, .1);
     lastFrame = now;
-    if (!document.hidden) update(dt, now);
+    while (accumulator >= STEP) {
+      accumulator -= STEP;
+      simTick++;
+      update(STEP, simTick * STEP_MS, now);
+    }
     window.LPRAnalytics?.sample(ui.dialog.open ? 'menu' : car.crashed ? 'crashed' : car.sale ? 'shop' : car.sauna ? 'sauna' : car.pool ? 'pool' : 'driving', !!activePad && (activePad.axes.some(v => Math.abs(v) > .1) || activePad.buttons.some(b => b.pressed)), held.left || held.right || held.gas || held.brake);
     syncAudio();
     audio.update(car);
@@ -673,8 +728,8 @@
     syncAudio();
     clearInput();
     if(document.hidden) saunaLife.stopSound();
-    // Resume physics without a large step; the lap clock includes time away.
-    if (!document.hidden) lastFrame = performance.now();
+    // Hidden time is not simulated; timed-v1 scoring still includes wall-clock time away.
+    if (!document.hidden) { lastFrame = performance.now(); accumulator = 0; }
   });
   window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);
@@ -690,6 +745,7 @@
   });
   function openLeaderboard() {
     if (car) window.LPRAnalytics?.event('leaderboard_open');
+    window.LPRVerifiedDriving?.cancel();
     clearInput(); saunaLife.stopSound(); ui.dialog.showModal(); syncAudio();
   }
   ui.dialog.addEventListener('close', () => { syncAudio(); audio.unlock(); });
@@ -697,6 +753,7 @@
     openLeaderboard();
     ui.dialog.scrollTop = 0;
     window.LPRLeaderboard?.refresh();
+    void window.LPRVerifiedDriving?.refresh();
   });
   document.querySelector('#close-settings').addEventListener('click', () => {
     if (!window.LPRLeaderboard?.requiresName) ui.dialog.close();

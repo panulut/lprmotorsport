@@ -10,9 +10,9 @@
   const format = ms => `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(3).padStart(6, '0')}`;
   const dialog = document.querySelector('#settings-dialog');
   const startForm = document.querySelector('#leaderboard-start-form');
+  const consent = document.querySelector('#analytics-consent');
   const startButton = document.querySelector('#leaderboard-start');
   const closeButton = document.querySelector('#close-settings');
-  const podium = document.querySelector('#leaderboard-podium');
   const validName = name => /^[\p{L}\p{N} _.-]{1,24}$/u.test(name);
   const validToken = value => /^[a-f0-9]{64}$/.test(value ?? '');
   const newToken = () => [...crypto.getRandomValues(new Uint8Array(32))].map(n => n.toString(16).padStart(2, '0')).join('');
@@ -46,8 +46,11 @@
   nickname.addEventListener('input', () => nickname.setCustomValidity(''));
   startForm.addEventListener('submit', event => {
     event.preventDefault();
-    if (activeName) return;
-    const name = nickname.value.trim().normalize('NFC');
+    if (!consent.checked) {
+      consent.setCustomValidity(t('Hyväksy nimimerkkiin yhdistettyjen peli- ja käyttötietojen kerääminen ennen pelaamista.'));
+      consent.reportValidity();return;
+    }
+    const name = activeName || nickname.value.trim().normalize('NFC');
     if (!validName(name)) {
       nickname.setCustomValidity(t('Kirjoita 1–24 merkin nimimerkki. Käytä kirjaimia, numeroita, välilyöntiä, pistettä, viivaa tai alaviivaa.'));
       nickname.reportValidity();
@@ -72,7 +75,8 @@
     dialog.close();
     flushPending();
   });
-  dialog.addEventListener('cancel', event => { if (!activeName) event.preventDefault(); });
+  dialog.addEventListener('cancel', event => { if (!activeName || !consent.checked) event.preventDefault(); });
+  consent.addEventListener('change',()=>window.LPRLeaderboard.consentChanged());
   async function api(path, options) {
     const response = await fetch(endpoint + path, { ...options, signal: AbortSignal.timeout(10000) });
     if (!response.ok) {
@@ -84,22 +88,22 @@
   }
   async function refresh() {
     list.textContent = t('Ladataan tuloslistaa…');
-    podium.setAttribute('aria-busy', 'true');
+    list.setAttribute('aria-busy', 'true');
     try {
       const data = await api('/api/leaderboard');
       if (data.version !== version || !Array.isArray(data.results)) throw new Error('Invalid leaderboard');
       list.textContent = '';
       const results = data.results.slice(0, 10);
-      for (let rank = 1; rank <= 3; rank++) {
-        const row = results[rank - 1];
-        const name = document.querySelector(`#podium-name-${rank}`);
-        name.textContent = row ? row.nickname : '—';
-        name.title = row ? row.nickname : '';
-        document.querySelector(`#podium-time-${rank}`).textContent = row ? format(row.lap_ms) : '—';
-      }
       for (const row of results) {
         const item = document.createElement('li');
-        item.textContent = `${row.nickname} · ${format(row.lap_ms)}`;
+        const name = document.createElement('span');
+        name.className = 'standing-name';
+        name.textContent = row.nickname;
+        name.title = row.nickname;
+        const time = document.createElement('span');
+        time.className = 'standing-time';
+        time.textContent = ` · ${format(row.lap_ms)}`;
+        item.append(name, time);
         list.append(item);
       }
       if (!data.results.length) list.textContent = t('Ei vielä tuloksia.');
@@ -107,7 +111,7 @@
     } catch {
       list.textContent = t('Tuloslista ei ole juuri nyt saatavilla.');
       return false;
-    } finally { podium.setAttribute('aria-busy', 'false'); }
+    } finally { list.setAttribute('aria-busy', 'false'); }
   }
   async function flushPending() {
     if (sending) return sending;
@@ -152,14 +156,24 @@
             await refresh();
           } while (pending.length);
         } catch {
-          status.textContent = t('Kierrosaika odottaa lähetystä. Yritä uudelleen painamalla Päivitä tuloslista.');
+          status.textContent = t('Kierrosaika odottaa lähetystä. Lähetystä yritetään uudelleen automaattisesti.');
         }
       })();
       try { await sending; } finally { sending = null; }
     }
-    document.querySelector('#leaderboard-refresh').addEventListener('click', async () => { await flushPending(); await refresh(); });
+    setInterval(()=>{
+      if(!document.hidden&&dialog.open)void (async()=>{await flushPending();await refresh();})();
+    },15000);
     window.addEventListener('online', flushPending);
     window.LPRLeaderboard = {
+      get identity() { return activeName && token && consent.checked ? {nickname:activeName,token} : null; },
+      consentChanged() {
+        consent.setCustomValidity('');
+        if(activeName && !consent.checked){
+          window.LPRVerifiedDriving?.cancel('Ajo keskeytetty: peli- ja käyttötietojen keräämisen suostumus on peruttu.');
+          window.LPRLeaderboard.beginSession();
+        }
+      },
       refresh,
       cancelLap() { activeLap = null; },
       startLap() {
@@ -175,9 +189,9 @@
         }).catch(() => null);
         return lap.ticket;
       },
-      get requiresName() { return !activeName; },
+      get requiresName() { return !activeName || !consent.checked; },
       beginSession() {
-        if (activeName) return;
+        if (activeName && consent.checked) return;
         // The last name is a suggestion, never an automatic login: each page
         // load requires an explicit confirmation before any driving can start.
         dialog.classList.add('session-start');

@@ -1,18 +1,26 @@
 # LPR Lap Challenge
 
-Peli avaa aluksi TOP 10 -tuloslistan. Vahvista julkinen nimimerkki ja paina
-**Aloita ajo** ennen ajamista. Edellinen nimi on ehdotuksena, mutta se
-vahvistetaan jokaisella sivun avauksella. Ensimmäinenkin kelvollinen kierros
-lähetetään automaattisesti tulospalveluun. Listalla näytetään kymmenen
-nopeinta kierrosta; sama kuljettaja voi saada useita sijoituksia. Tauot ja vierailut lasketaan mukaan kierrosaikaan.
-Samalla selaimella käytetyt eri nimimerkit saavat erilliset pelaajatunnisteet.
-Tarkistukset: `npm run test:leaderboard`.
+Tässä kehityshaarassa 3D-peli on yhdistetty palvelimen ajovarmennukseen.
+Käynnistä koko paikallinen ketju komennolla `npm run dev:verified` ja avaa
+http://127.0.0.1:8000. Kirjoita nimimerkki, hyväksy peli- ja käyttötietojen
+kerääminen ja paina **Aloita ajo**. Varmennus valmistellaan automaattisesti.
+Kun yhteys toimii, ajo alkaa ilman harjoitteluvaihetta. Jos yhteyttä joudutaan
+odottamaan, voi ajaa harjoitteluna. Peli yrittää yhteyttä automaattisesti uudelleen
+ja käynnistää virallisen ajon lähtöruudusta heti, kun yhteys on valmis.
+Erillistä lähtölaskentaa ei ole. Palvelin laskee ajan ohjaussyötteistä;
+erillinen varmennettu tuloslista hyväksyy vain palvelimen allekirjoittamat ajat.
+Lentävät jatkokierrokset käyttävät samaa palvelinsessiota.
 
-Rataennätys syntyy alittamalla tuloslistan nopein aika kokonaisella kierroksella.
-Verkkokatkon aikana kierrokset jäävät lähetysjonoon selaimeen. Lähetys yritetään
-uudelleen yhteyden palatessa, tuloslistan päivityspainikkeesta tai kun sama
-nimimerkki vahvistetaan seuraavalla avauksella. Sama kierrostunniste estää
-uusintalähetysten kaksoiskappaleet. Jonon säilyminen vaatii selaimen tallennustilan.
+Myös **Aloita uudelleen** valmistelee varmennuksen automaattisesti. Lentävät
+jatkokierrokset säilyvät samassa varmennetussa ajossa.
+Harjoittelusta ei lähetetä uusia aikoja vanhalle listalle.
+Vanha lista säilyy näkyvissä erikseen ilman varmennusmerkintää. Katkos, pelin
+piilottaminen tai ajotilan poikkeama muuttaa varmennetun ajon harjoitteluksi.
+Jo allekirjoitettu kierroskuitti jää tarvittaessa lähetysjonoon; saman nimimerkin
+vahvistaminen ja tuloslistan automaattinen päivitys yrittävät tallennusta uudelleen.
+
+Ohjeet, luottamusketju, tarkistukset ja vielä tekemätön julkinen käyttöönotto:
+[verification/README.md](verification/README.md).
 
 Auton kori, etusiipi ja renkaiden kiinteät sekä pyörivät osat säilytetään
 näytönohjaimen muistissa. Ajon aikana päivitetään niiden asennot; jousituksen
@@ -298,10 +306,10 @@ Jousitustyyppi on vahvistettu push rod. Nykyinen kuvamalli sisältää työntöt
 
 ## Pelianalytiikka
 
-Aloitusnäkymän vapaaehtoinen valinta sallii nimimerkkiin yhdistetyn
-pelihistorian tallennuksen 90 päiväksi. Ilman valintaa analytiikkaa ei lähetetä.
+Aloitusnäkymässä hyväksytään nimimerkkiin yhdistetyn pelihistorian tallennus
+90 päiväksi ennen pelaamista. Ilman hyväksyntää ajo ei ala eikä analytiikkaa lähetetä.
 Tiedot-linkistä voi lukea lisätietoja ja poistaa oman analytiikkaprofiilin;
-samassa kohdassa valinnan poistaminen lopettaa keräyksen.
+samassa kohdassa valinnan poistaminen lopettaa keräyksen ja keskeyttää ajon.
 Ylläpidon suojattu raportti ja palvelimen käyttöönotto:
 [cloudflare/README.md](cloudflare/README.md#vapaaehtoinen-pelianalytiikka-20102026).
 Testit: `npm run test:analytics`.

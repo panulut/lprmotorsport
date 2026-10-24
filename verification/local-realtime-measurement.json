@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-10-24T17:29:40.083Z",
+  "revision": "a6909ec56beb14e785dc7b290ee185c68466584e5ec7e4546d28c5b02076b09b",
+  "browser": "155.0.8059.85",
+  "wallMs": 97868.1421,
+  "scope": "Two simultaneous local Chrome clients, real 3D rendering, synthetic controls, real server clock; no remote capacity claim",
+  "states": [
+    {
+      "active": true,
+      "tick": 11579,
+      "simulated": 11593,
+      "status": "Palvelimen varmentama kierros 96.158 s tallennettu.",
+      "hidden": false
+    },
+    {
+      "active": true,
+      "tick": 11580,
+      "simulated": 11594,
+      "status": "Palvelimen varmentama kierros 96.158 s tallennettu.",
+      "hidden": false
+    }
+  ],
+  "laps": [
+    {
+      "nickname": "Realtime 1",
+      "lap": 1,
+      "lap_ticks": 11539,
+      "sector1": 2803,
+      "sector2": 2895,
+      "sector3": 5841
+    },
+    {
+      "nickname": "Realtime 2",
+      "lap": 1,
+      "lap_ticks": 11539,
+      "sector1": 2803,
+      "sector2": 2895,
+      "sector3": 5841
+    }
+  ],
+  "errors": []
+}

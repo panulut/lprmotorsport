@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-10-24T14:27:20.569Z",
+  "target": "https://lpr-replay-experiment.onrender.com",
+  "health": {
+    "ready": true,
+    "experiment": true,
+    "revision": "c385a0a9ff89fba5400a77423ced2241c6a3e6efbe93927984fdf5cfdc80febc",
+    "hz": 120,
+    "active": 0
+  },
+  "startupWallMs": 5280.389857,
+  "startupNote": "Includes cold start only if the service was actually asleep",
+  "single": {
+    "requestWallMs": 24517.136656,
+    "result": {
+      "finished": true,
+      "ticks": 11541,
+      "lapMs": 96175,
+      "sectorTicks": [
+        2804,
+        2895,
+        5842
+      ],
+      "stage": 3,
+      "crashed": false,
+      "state": {
+        "x": 1002.2001565531522,
+        "y": 590.7076837292205,
+        "angle": 6.337290865143396,
+        "vx": 9.70826918593349,
+        "vy": 0.0021012548276499823,
+        "yawRate": -0.008209345337069717,
+        "damage": 0
+      }
+    },
+    "wallMs": 23494.788661999995,
+    "cpuMs": 2975.519,
+    "experiment": true,
+    "leaderboardSaved": false
+  },
+  "pair": {
+    "wallMs": 49491.8041,
+    "results": [
+      {
+        "requestWallMs": 44777.375648,
+        "result": {
+          "finished": true,
+          "ticks": 11541,
+          "lapMs": 96175,
+          "sectorTicks": [
+            2804,
+            2895,
+            5842
+          ],
+          "stage": 3,
+          "crashed": false,
+          "state": {
+            "x": 1002.2001565531522,
+            "y": 590.7076837292205,
+            "angle": 6.337290865143396,
+            "vx": 9.70826918593349,
+            "vy": 0.0021012548276499823,
+            "yawRate": -0.008209345337069717,
+            "damage": 0
+          }
+        },
+        "wallMs": 43800.96320099999,
+        "cpuMs": 3150.031,
+        "experiment": true,
+        "leaderboardSaved": false
+      },
+      {
+        "requestWallMs": 49486.531986,
+        "result": {
+          "finished": true,
+          "ticks": 11541,
+          "lapMs": 96175,
+          "sectorTicks": [
+            2804,
+            2895,
+            5842
+          ],
+          "stage": 3,
+          "crashed": false,
+          "state": {
+            "x": 1002.2001565531522,
+            "y": 590.7076837292205,
+            "angle": 6.337290865143396,
+            "vx": 9.70826918593349,
+            "vy": 0.0021012548276499823,
+            "yawRate": -0.008209345337069717,
+            "damage": 0
+          }
+        },
+        "wallMs": 41010.63257500001,
+        "cpuMs": 2995.861,
+        "experiment": true,
+        "leaderboardSaved": false
+      }
+    ]
+  },
+  "plan": "free",
+  "region": "frankfurt",
+  "serviceId": "srv-dbebsrlg1s2s73f3ob60",
+  "deployedCommit": "6d6e217f554ff3e9b396633a9f07e701e99040d3",
+  "deployId": "dep-dbebvi3rjlhs73f6usd0",
+  "localReferenceMatch": true,
+  "idleColdStartMeasured": false
+}

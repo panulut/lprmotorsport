@@ -1,0 +1,108 @@
+{
+  "generatedAt": "2026-10-24T14:24:09.199Z",
+  "runtime": "v24.22.1",
+  "hostCPU": "AMD EPYC 9V74 80-Core Processor",
+  "revision": "c385a0a9ff89fba5400a77423ced2241c6a3e6efbe93927984fdf5cfdc80febc",
+  "source": "synthetic Node driver; not a human or actual browser recording",
+  "hz": 120,
+  "lapMs": 96175,
+  "ticks": 11541,
+  "indexed": {
+    "wallMs": 1541.4044949999998,
+    "cpuMs": 1535.646
+  },
+  "reference": {
+    "wallMs": 3023.401493,
+    "cpuMs": 3016.327
+  },
+  "exactReferenceMatch": true,
+  "browserBundleNodeMatch": true,
+  "actualBrowserTest": "not run: Chromium unavailable",
+  "single": {
+    "result": {
+      "finished": true,
+      "ticks": 11541,
+      "lapMs": 96175,
+      "sectorTicks": [
+        2804,
+        2895,
+        5842
+      ],
+      "stage": 3,
+      "crashed": false,
+      "state": {
+        "x": 1002.2001565531522,
+        "y": 590.7076837292205,
+        "angle": 6.337290865143396,
+        "vx": 9.70826918593349,
+        "vy": 0.0021012548276499823,
+        "yawRate": -0.008209345337069717,
+        "damage": 0
+      }
+    },
+    "wallMs": 1629.070229,
+    "cpuMs": 1622.84,
+    "experiment": true,
+    "leaderboardSaved": false
+  },
+  "pair": {
+    "wallMs": 1953.7461470000017,
+    "results": [
+      {
+        "result": {
+          "finished": true,
+          "ticks": 11541,
+          "lapMs": 96175,
+          "sectorTicks": [
+            2804,
+            2895,
+            5842
+          ],
+          "stage": 3,
+          "crashed": false,
+          "state": {
+            "x": 1002.2001565531522,
+            "y": 590.7076837292205,
+            "angle": 6.337290865143396,
+            "vx": 9.70826918593349,
+            "vy": 0.0021012548276499823,
+            "yawRate": -0.008209345337069717,
+            "damage": 0
+          }
+        },
+        "wallMs": 1876.0758729999998,
+        "cpuMs": 1867.996,
+        "experiment": true,
+        "leaderboardSaved": false
+      },
+      {
+        "result": {
+          "finished": true,
+          "ticks": 11541,
+          "lapMs": 96175,
+          "sectorTicks": [
+            2804,
+            2895,
+            5842
+          ],
+          "stage": 3,
+          "crashed": false,
+          "state": {
+            "x": 1002.2001565531522,
+            "y": 590.7076837292205,
+            "angle": 6.337290865143396,
+            "vx": 9.70826918593349,
+            "vy": 0.0021012548276499823,
+            "yawRate": -0.008209345337069717,
+            "damage": 0
+          }
+        },
+        "wallMs": 1756.5401269999984,
+        "cpuMs": 1750.977,
+        "experiment": true,
+        "leaderboardSaved": false
+      }
+    ]
+  },
+  "scope": "Local experiment; not Render capacity or production anti-cheat evidence"
+}

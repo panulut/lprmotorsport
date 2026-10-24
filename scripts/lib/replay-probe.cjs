@@ -4,19 +4,19 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 const files = ['shared/vehicle-spec.js', 'campus.js', 'shared/track-document.js',
-  'shared/terrain.js', 'shared/track-objects.js', 'vehicle.js'];
+  'shared/terrain.js', 'shared/track-objects.js', 'vehicle.js', 'shared/collision-index.js'];
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const game = read('game.js');
 const begin = game.indexOf('  function nearestTrack(x, y) {');
-const end = game.indexOf('  function update(dt, now) {', begin);
+const end = game.indexOf('  function update(dt, now', begin);
 if (begin < 0 || end < begin) throw Error('Game contact helpers moved; update the probe.');
 const helpers = game.slice(begin, end);
 const sources = files.map(read);
 const trackData = read('data/track-objects.json');
-const revision = createHash('sha256').update(sources.join('\n') + helpers + trackData).digest('hex');
-const hz = 90;
+const revision = createHash('sha256').update(sources.join('\n') + helpers + trackData + 'experiment-120hz-v1' + createWorld.toString() + validateReplay.toString()).digest('hex');
+const hz = 120;
 
-function createWorld() {
+function createWorld(indexed = true) {
   // Compile trusted repository sources once per world. No replay data is code.
   // A separate vm realm would add global-lookup overhead absent from a Worker.
   return new Function('window', 'module', `${sources.join('\n')}\nreturn (() => {
@@ -29,22 +29,29 @@ function createWorld() {
       track[(i+1)%POINTS].x-track[i].x,track[(i+1)%POINTS].y-track[i].y));
     const dynamics = new VehicleDynamics();
     ${helpers}
-    let car, ticks, stage, sectors, lastSplit, finished;
+    let car, ticks, stage, sectors, lastSplit, finished, collisionQuery;
+    const indexed=${indexed ? 'true' : 'false'};
     const impact = contact => dynamics.applyImpact(car, contact.normal, contact.impactMaterial, contact);
     function reset() {
       LPRCampus.resetObstacles();
       car = {x:track[0].x,y:track[0].y,angle:Math.atan2(track[1].y-track[0].y,track[1].x-track[0].x)};
       dynamics.reset(car);
+      collisionQuery=window.LPRCreateCollisionIndex(LPRCampus.obstacleBounds);
       ticks=0;stage=0;sectors=[];lastSplit=0;finished=false;
     }
     function split() { sectors.push(ticks-lastSplit);lastSplit=ticks; }
     function step(input) {
       if (finished) throw Error('Replay continues after finish');
-      LPRCampus.stepObstacles(1/90,car,impact);
+      LPRCampus.stepObstacles(1/120,car,impact);
       car.grassFraction=grassContact(car);
       const previous={x:car.x,y:car.y,angle:car.angle};
-      dynamics.step(car,input,1/90,car.grassFraction);
-      LPRCampus.resolveObstacleCollision(car,previous,impact);
+      dynamics.step(car,input,1/120,car.grassFraction);
+      if(indexed){
+        const reach=Math.max(...LPRCampus.carCollisionParts(car).flat().map(p=>Math.hypot(...p)));
+        // Padding covers any slide path of up to this step's full travel length.
+        const padding=reach+Math.hypot(car.x-previous.x,car.y-previous.y)+1;
+        LPRCampus.resolveBoundsCollision(car,previous,collisionQuery(previous.x,previous.y,car.x,car.y,padding),impact);
+      }else LPRCampus.resolveObstacleCollision(car,previous,impact);
       const x=Math.max(12,Math.min(WORLD.width-12,car.x));
       const y=Math.max(12,Math.min(WORLD.height-12,car.y));
       if(x!==car.x||y!==car.y){car.vx=0;car.vy=0;}
@@ -76,12 +83,12 @@ function createWorld() {
         brake:car.speed>target+.3?Math.min(1,(car.speed-target)*.25):0,steer,analog:true,wheel:true};
     }
     function result() {
-      return {finished,ticks,lapMs:ticks*1000/90,sectorTicks:[...sectors],stage,
+      return {finished,ticks,lapMs:ticks*1000/120,sectorTicks:[...sectors],stage,
         crashed:!!car.crashed,state:{x:car.x,y:car.y,angle:car.angle,vx:car.vx,vy:car.vy,
-          yawRate:car.yawRate,damage:car.damage}};
+          yawRate:car.yawRate,damage:car.damage??0}};
     }
     reset();
-    return {reset,step,driver,result,bodies:LPRCampus.bodies.length};
+    return {reset,step,driver,result,track,position:()=>({x:car.x,y:car.y,angle:car.angle}),bodies:LPRCampus.bodies.length};
   })()` )({ LPRTrackData: JSON.parse(trackData) }, undefined);
 }
 
@@ -117,4 +124,7 @@ function replayLap(world,replay) {
   if(!result.finished||result.crashed)throw Error('Replay did not complete a valid test lap');
   return result;
 }
-module.exports={createWorld,recordLap,replayLap,validateReplay,revision,hz};
+function browserBundle() {
+  return `const sources=${JSON.stringify(sources)},helpers=${JSON.stringify(helpers)},trackData=${JSON.stringify(trackData)},revision=${JSON.stringify(revision)},hz=${hz};\n${createWorld.toString()}\n${validateReplay.toString()}\n${replayLap.toString()}\nwindow.ReplayLab={createWorld,validateReplay,replayLap,revision,hz};`;
+}
+module.exports={createWorld,recordLap,replayLap,validateReplay,revision,hz,browserBundle};

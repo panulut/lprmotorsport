@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-10-24T14:52:10.199Z",
+  "target": "https://lpr-replay-experiment.onrender.com",
+  "revision": "c385a0a9ff89fba5400a77423ced2241c6a3e6efbe93927984fdf5cfdc80febc",
+  "plan": "free",
+  "scope": "Two real-time paced Node clients using a synthetic fixture, not human/browser/3D-game evidence",
+  "players": [
+    {
+      "player": 1,
+      "verified": true,
+      "inputs": 11541,
+      "batches": 184,
+      "lapMs": 96175,
+      "completionWallMs": 96334.987308,
+      "finishDelayMs": 159.98730799999612,
+      "maxObservedAckLagMs": 1117.1128553333347,
+      "workerCpuMs": 3550.213999999999,
+      "maxBatchWallMs": 963.6360399999976,
+      "lastAck": {
+        "seq": 183,
+        "ticks": 11541,
+        "wallMs": 7.365675000008196,
+        "cpuMs": 5.885,
+        "elapsedMs": 96334.221467
+      },
+      "result": {
+        "finished": true,
+        "ticks": 11541,
+        "lapMs": 96175,
+        "sectorTicks": [
+          2804,
+          2895,
+          5842
+        ],
+        "stage": 3,
+        "crashed": false,
+        "state": {
+          "x": 1002.2001565531522,
+          "y": 590.7076837292205,
+          "angle": 6.337290865143396,
+          "vx": 9.70826918593349,
+          "vy": 0.0021012548276499823,
+          "yawRate": -0.008209345337069717,
+          "damage": 0
+        }
+      }
+    },
+    {
+      "player": 2,
+      "verified": true,
+      "inputs": 11541,
+      "batches": 187,
+      "lapMs": 96175,
+      "completionWallMs": 96323.264354,
+      "finishDelayMs": 148.264353999999,
+      "maxObservedAckLagMs": 1111.4380236666693,
+      "workerCpuMs": 3126.4689999999996,
+      "maxBatchWallMs": 898.5478239999939,
+      "lastAck": {
+        "seq": 186,
+        "ticks": 11541,
+        "wallMs": 5.799771999998484,
+        "cpuMs": 5.112,
+        "elapsedMs": 96323.192678
+      },
+      "result": {
+        "finished": true,
+        "ticks": 11541,
+        "lapMs": 96175,
+        "sectorTicks": [
+          2804,
+          2895,
+          5842
+        ],
+        "stage": 3,
+        "crashed": false,
+        "state": {
+          "x": 1002.2001565531522,
+          "y": 590.7076837292205,
+          "angle": 6.337290865143396,
+          "vx": 9.70826918593349,
+          "vy": 0.0021012548276499823,
+          "yawRate": -0.008209345337069717,
+          "damage": 0
+        }
+      }
+    }
+  ],
+  "serviceId": "srv-dbebsrlg1s2s73f3ob60",
+  "deployedCommit": "8cf36f27dbc2a02ea48589bb757354b82c678c7b",
+  "deployId": "dep-dbecaojncjis73dpqd40",
+  "idleColdStartMeasured": false
+}

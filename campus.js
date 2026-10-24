@@ -984,7 +984,7 @@ window.LPRCampus = (() => {
     for(let i=0;i<3;i++) block(727+i*24,213,5,64,1,[.56,.46,.32],0,'wood');
   }
   return { track, road, length, world, occupied, build, saunaSite, bonfireSite, trees, treeSeed, treeBounds,
-    campusCars, studentCarModels, lakesideCars, vehicleBounds, buildingBounds, obstacleBounds, resolveBuildingCollision,
+    campusCars, studentCarModels, lakesideCars, vehicleBounds, buildingBounds, obstacleBounds, resolveBoundsCollision, resolveBuildingCollision,
     resolveObstacleCollision, carGeometry, carCollisionParts, tyreBarrier, tyreBarrierBounds,
     bodies,poolSite,poolBody,registerPerson,movePerson,placeBody,makeBody,stepObstacles,resetObstacles,deformPoint, bounds:{width:5200,height:4400} };
 })();
