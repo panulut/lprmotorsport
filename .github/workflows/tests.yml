@@ -1,0 +1,24 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [test:audio, test:physics, test:tools, test:performance, test:leaderboard, test:analytics, test:replay-service, test:collision-index, test:replay]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # node:sqlite (leaderboard tests) needs a current Node release.
+          node-version: 24
+      - run: npm run ${{ matrix.suite }}

@@ -13,6 +13,12 @@
     "test:performance": "node tests/performance.test.cjs && node tests/vehicle-mesh-cache.test.cjs && node tests/view-culling.test.cjs",
     "test:leaderboard": "node tests/leaderboard-client.test.cjs && node tests/leaderboard-start.test.cjs && node tests/leaderboard.test.cjs",
     "test:analytics": "node tests/analytics.test.cjs",
-    "build:worker": "node scripts/embed-admin.cjs"
+    "build:worker": "node scripts/embed-admin.cjs",
+    "dev:replay": "node experiment/server.cjs",
+    "test:replay-service": "node tests/replay-service.test.cjs",
+    "test:replay-browser": "node scripts/check-replay-browser.cjs",
+    "measure:replay": "node scripts/measure-replay-experiment.cjs",
+    "test:collision-index": "node tests/collision-index.test.cjs",
+    "measure:replay-remote": "node scripts/check-replay-remote.cjs"
   }
 }

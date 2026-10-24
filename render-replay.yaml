@@ -1,0 +1,17 @@
+# Isolated experiment; deploy as a Blueprint using this file's path.
+services:
+  - type: web
+    name: lpr-replay-experiment
+    runtime: node
+    plan: free
+    branch: codex/server-replay-experiment
+    buildCommand: node --check experiment/server.cjs
+    startCommand: node experiment/server.cjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: LAB_PUBLIC
+        value: "1"
+      - key: LAB_TOKEN
+        generateValue: true

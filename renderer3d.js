@@ -2292,6 +2292,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
   }
 
   updatePeople(now) {
+    // Spectators are collision bodies; draw them at the same simulation time.
+    this.peopleTime=now;
     const frame=this.spectatorFrame;
     for(const [index,mesh] of this.spectatorMeshes.entries()) {
       const pose=this.spectatorPose(mesh,index,now);
@@ -2304,7 +2306,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
   drawSpectators(car, now) {
     const frame=this.spectatorFrame,vertices=[],time=now/1000;
     for(const [index,mesh] of this.spectatorMeshes.entries()) {
-      const {forward,side,yaw,walking,elevation,phase}=this.spectatorPose(mesh,index,now);
+      const {forward,side,yaw,walking,elevation,phase}=this.spectatorPose(mesh,index,this.peopleTime ?? now);
       const near = Math.hypot(car.x-frame.stop[0],car.y-frame.stop[2]) < 180 && Math.abs(car.speed || 0) > 3;
       const cheer = !mesh.body.damage && mesh.activity === 'cheer' && (near || phase < 7);
       const sip = !mesh.body.damage && mesh.activity === 'drink' ? Math.max(0,Math.sin((time+index*2.7)%11/11*Math.PI*2)) : 0;

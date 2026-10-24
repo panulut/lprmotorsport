@@ -438,9 +438,12 @@
     return total / 4;
   }
 
-  function update(dt, now) {
+  function update(dt, now, wallNow = now) {
+    const physicsNow = now;
+    // Keep timed-v1 wall-clock scoring until the server replay protocol replaces it.
+    now = wallNow;
     if(!ui.dialog.open) {
-      renderer.updatePeople(now);
+      renderer.updatePeople(physicsNow);
       window.LPRCampus.stepObstacles(dt,car,contact=>{
         dynamics.applyImpact(car,contact.normal,contact.impactMaterial,contact);
         audio.impact(car.impactSpeed);
@@ -463,7 +466,7 @@
         ui.time.textContent = formatTime(car.lapElapsedMs);
       }
       if (car.sauna && !ui.dialog.open) {
-        saunaLife.update(dt,car,now);
+        saunaLife.update(dt,car,wallNow);
       }
       if ((car.sauna || car.sale) && !ui.dialog.open) {
         const forward = input.gas - input.brake;
@@ -562,6 +565,9 @@
   }
 
   let lastPresentation = null;
+  // Fixed physics step; existing timed-v1 scoring remains on the wall clock.
+  const STEP = 1 / 120, STEP_MS = 1000 / 120;
+  let simTick = 0, accumulator = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     if (document.hidden) { lastPresentation = null; return; }
@@ -570,9 +576,13 @@
     const elapsed = lastPresentation === null ? interval : now - lastPresentation;
     if (elapsed < interval - .01) return;
     lastPresentation = now - (elapsed >= interval ? elapsed % interval : 0);
-    const dt = Math.min((now - lastFrame) / 1000, .05);
+    accumulator += Math.min((now - lastFrame) / 1000, .1);
     lastFrame = now;
-    if (!document.hidden) update(dt, now);
+    while (accumulator >= STEP) {
+      accumulator -= STEP;
+      simTick++;
+      update(STEP, simTick * STEP_MS, now);
+    }
     window.LPRAnalytics?.sample(ui.dialog.open ? 'menu' : car.crashed ? 'crashed' : car.sale ? 'shop' : car.sauna ? 'sauna' : car.pool ? 'pool' : 'driving', !!activePad && (activePad.axes.some(v => Math.abs(v) > .1) || activePad.buttons.some(b => b.pressed)), held.left || held.right || held.gas || held.brake);
     syncAudio();
     audio.update(car);
@@ -673,8 +683,8 @@
     syncAudio();
     clearInput();
     if(document.hidden) saunaLife.stopSound();
-    // Resume physics without a large step; the lap clock includes time away.
-    if (!document.hidden) lastFrame = performance.now();
+    // Hidden time is not simulated; timed-v1 scoring still includes wall-clock time away.
+    if (!document.hidden) { lastFrame = performance.now(); accumulator = 0; }
   });
   window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);

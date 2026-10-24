@@ -1,0 +1,8 @@
+<!doctype html><html lang="fi"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LPR — ajon tarkastuskokeilu</title>
+<style>body{max-width:1000px;margin:30px auto;padding:0 20px;background:#101b17;color:#edf6ef;font:16px system-ui}canvas{width:100%;background:#213d2d;border:1px solid #53755e}button,input{font:inherit;padding:10px;margin:5px;background:#e2efdf;color:#112419;border:0;border-radius:5px}pre{white-space:pre-wrap}#status{min-height:2em;color:#c1ef9b}</style>
+<h1>LPR · Ajon tarkastuskokeilu</h1><p>Erillinen testi, ei virallinen tuloslista. Yhteinen 120 Hz fysiikka selaimessa ja Node-palvelimella. Mukana rata, maasto ja esteet; animoidut ihmiset ja sisätilat puuttuvat.</p>
+<p>Ohjaa nuolinäppäimillä: ↑ kaasu, ↓ jarru, ← → ohjaus. Automaattiajo on synteettinen vertailutesti. Uusi ajo nollaa maailman.</p>
+<button id="manual">Aja itse</button><button id="auto">Automaattiajo</button><button id="verify" disabled>Tarkasta palvelimella</button><button id="download" disabled>Lataa tallenne</button>
+<label>Testipalvelimen avain <input id="token" type="password" autocomplete="off" placeholder="Vain julkisessa testipalvelussa"></label>
+<p id="status" role="status">Valmis lähtöön</p><canvas id="track" width="960" height="700" tabindex="0"></canvas><pre id="report"></pre>
+<script src="/simulation.js"></script><script src="/lab.js"></script></html>
