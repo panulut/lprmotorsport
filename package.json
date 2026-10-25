@@ -31,6 +31,7 @@
     "test:verified": "node tests/verified-driving.test.cjs && node tests/verified-client.test.cjs",
     "test:verified-browser": "node scripts/check-verified-browser.cjs",
     "test:verified-realtime": "node scripts/check-verified-realtime.cjs",
-    "test:recordings": "node tests/recordings.test.cjs && node tests/replay-viewer.test.cjs"
+    "test:recordings": "node tests/recordings.test.cjs && node tests/replay-viewer.test.cjs",
+    "build:test": "node scripts/build-test.cjs"
   }
 }
