@@ -47,7 +47,7 @@ export async function replayRoute(request,env,url,reply,headers,readBody){
    .bind(id,Number(lap),...(isAdmin?[now]:[])).first();
   if(!r)return reply({error:'Recording unavailable'},404);
   const bytes=Uint8Array.from(atob(r.payload),c=>c.charCodeAt(0));
-  return new Response(bytes,{headers:{...headers,'Content-Type':'application/json','Content-Encoding':'gzip'}});
+  return new Response(bytes,{encodeBody:'manual',headers:{...headers,'Content-Type':'application/json','Content-Encoding':'gzip'}});
  }
  if(privateRoute&&url.pathname==='/api/verified/admin/replays'&&request.method==='GET'){
   const offset=Number(url.searchParams.get('offset')||0);
