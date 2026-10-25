@@ -1,8 +1,8 @@
 # Varmennettujen kierrosten uusinnat
 
-Uudet varmennetut kierrokset voivat sisältää katsottavan 2D-uusinnan. TOP 10:n rivillä on
+Uudet varmennetut kierrokset voivat sisältää kuljettajan paikalta katsottavan 3D-uusinnan. TOP 10:n rivillä on
 **Katso uusinta**, kun tallenne on saatavilla. Vanhoihin tuloksiin ei synny tallennetta
-jälkikäteen. Kierrosajat, nykyinen fysiikkarevisio ja vanhat tulokset eivät muutu.
+jälkikäteen. Fysiikkarevisio ja tallennetut vanhat tulokset eivät muutu, mutta TOP 10 edellyttää julkista tallennetta.
 
 ## Tallennus ja luottamusketju
 
@@ -16,19 +16,33 @@ jälkikäteen. Kierrosajat, nykyinen fysiikkarevisio ja vanhat tulokset eivät m
   se ei voi korvata tallennettua ajolinjaa tai ohjauskomentoja.
 - Selain pitää kuitin ja tallenteen samassa lähetysjonossa. Tulos ja tallenne
   tallennetaan samaan D1-transaktioon. Uusintalähetykset eivät monista rivejä.
-- Tallenne on tarkoituksella valinnainen kierrostulokseen nähden: vanha selain,
-  täysi selaintallennus, yli 900 000 merkin pakattu tallenne tai muu tallennushäiriö
-  ei tee allekirjoitetusta kierrosajasta virheellistä. Pelkkä kuitti voidaan tallentaa
-  ilman tallennetta. Uusinnan puuttuminen ei yksin ole bottiepäily.
-- Jos selaimen localStorage täyttyy, kuitit yritetään säilyttää kevyempänä jonona;
-  tallenteet pysyvät avoimen välilehden muistissa lähetyksen ajan. Sulkeminen ennen
-  onnistunutta lähetystä voi silloin menettää tallenteen, vaikka aika säilyisi.
+- Julkinen tuloslista hyväksyy uuden kierroksen vain, jos sen allekirjoitettu
+  kuitti sitoo mukana toimitetun tallenteen. Pelkkä aika tai kuitti ilman
+  tallennetta hylätään. Myös selaimen tallennustilan täyttyessä jonossa pidetään
+  koko tallenne, ei pelkkiä kuitteja. Pidä välilehti auki lähetyksen ajan.
+- TOP 10 valitaan vain kierroksista, joilla on julkinen, pysyvästi kiinnitetty
+  tallenne. Vanhat tallenteettomat tulokset säilyvät tietokannassa ylläpidolle,
+  mutta eivät voi viedä TOP 10 -paikkoja. Jos tallennus ylittää 900 000 merkin
+  rajan tai epäonnistuu, kierros ei kelpaa julkiselle listalle.
 
-Katselin interpoloi tallennettuja sijainteja; se ei suorita vanhaa fysiikkaversiota.
-Näin fysiikan myöhempi päivitys ei riko uusinnan katselua. Tämä on ylhäältä nähtävä
-rata- ja ajolinjanäkymä, ei alkuperäisen 3D-renderöinnin tai liikkuvien ihmisten uusinta.
-Se sisältää aikajanan, tauon, alusta aloittamisen, ¼–4× nopeuden ja ohjaustiedot.
-Tallenne ei yksin tunnista ihmistä tai bottia. Automaattista bottipisteytystä ei lisätty.
+Katselin käyttää samaa `LPRRenderer3D`-kameraa ja ohjaamoa kuin peli. Sijainnin,
+suunnan ja nopeuden lisäksi uusi tallenne sisältää todellisen ohjauskulman,
+korin kallistuksen (pitch/roll), pystysuuntaisen liikkeen, pyörien joustoliikkeet
+sekä pito- ja luistonestotilat 20 Hz:llä. Näytteiden välillä arvot interpoloidaan.
+Kamera siis liikkuu tallennetun jousituksen mukana eikä pelkän tasaisen ajolinjan
+perusteella. Ratin näyttö käyttää samoja esityssääntöjä kuin peli. Aikajana,
+tauko, alusta aloittaminen ja ¼–4× nopeus toimivat molemmissa näkymissä.
+
+Tämä on pelidatasta muodostettu uusinta, ei alkuperäisen pelaajan kuvakaappausvideo.
+Näytön kuvasuhde riippuu katsojan laitteesta. Ympäristön kaikkia törmäysvaurioita tai
+pelaajan ohjaamon näyttövalintoja ei tallenneta. Liikkuvat ihmiset esitetään session
+alkuperäisellä ajalla. Rataversioltaan poikkeava tallenne näytetään vain ratakuvana.
+
+Vanhoja kuusikenttäisiä tallenteita voi katsoa 3D:nä, mutta niistä puuttuvat
+jousituksen ja todellisen ohjauskulman tiedot: ratin liike on silloin arvio
+komentodatasta ja puutteesta näytetään huomautus. Uusiin tallenteisiin tiedot
+tallennetaan palvelimella. WebGL:n puuttuessa katselin kertoo syyn ja käyttää
+vaihtoehtoista 2D-ratakuvaa. Automaattista bottipisteytystä ei lisätty.
 
 ## Säilytys ja ylläpito
 
@@ -48,7 +62,7 @@ Tallenne ei yksin tunnista ihmistä tai bottia. Automaattista bottipisteytystä 
 Ylläpito: pelin `replay.html?admin=1` tai katselimen **Ylläpito**-linkki.
 Kirjaudu Workerille asetetulla `ANALYTICS_ADMIN_TOKEN`-avaimella. Avain jää vain
 sivun muistiin; sitä ei aseteta URL:iin tai selaintallennukseen. **Lukitse** tyhjentää
-näkymän ja avaimen. Listassa ovat myös vanhat ja tallenteettomat kierrokset;
+näkymän ja avaimen. Ylläpidon listassa ovat myös vanhat ja tallenteettomat kierrokset;
 se on sivutettu 50 rivin eriin ja sen voi rajata tarkastettaviin.
 
 ## Käyttöönotto
@@ -92,7 +106,7 @@ luodaan automaattisesti. Uusinnat tallentuvat samaan paikalliseen SQLite-tietoka
   `npm run build:verified-worker`.
 
 Paikallisessa automaattiohjauskokeessa noin 96 sekunnin tallenne oli noin
-381–386 kB base64-gzip-muodossa D1:ssä (raakagzip noin 286–290 kB). Tuhat
-vastaavaa kierrosta olisi noin 381–386 MB tallennekenttien sisältöä ennen
+546–550 kB base64-gzip-muodossa D1:ssä (raakagzip noin 409–413 kB). Tuhat
+vastaavaa kierrosta olisi noin 546–550 MB tallennekenttien sisältöä ennen
 SQLite-taulujen ja indeksien lisätilaa. Ohjaustapa ja ajon pituus vaikuttavat kokoon.
 Tallenteen katselu siirtää raakagzipin; katsoja ei lataa koko arkistoa.

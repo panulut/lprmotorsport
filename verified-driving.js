@@ -49,8 +49,8 @@
  const snapshots=new Map(),pending=[];
  const key=()=>`lpr-verified-receipts:${identity?.token}`;
  const persist=()=>{try{localStorage.setItem(key(),JSON.stringify(pending));}catch{
-  // A full browser store must never discard a signed score. Recordings remain in memory for this tab.
-  try{localStorage.setItem(key(),JSON.stringify(pending.map(v=>typeof v==='string'?v:v.receipt)));}catch{}
+  // Keep full artifacts in this tab; a receipt alone is never eligible for TOP 10.
+  console.warn('Uusintajono ei mahdu selaimen tallennustilaan. Pidä välilehti auki, kunnes lähetys onnistuu.');
  }};
  function restore(){
   const chosen=window.LPRLeaderboard.identity;if(!chosen)return;
@@ -89,7 +89,7 @@
    try{const reply=await api('/api/verified/laps',(typeof pending[0]==='string'?{receipt:pending[0]}:pending[0]));
     if(!reply.verified||reply.protocol!=='driving-v1')throw Error('Virheellinen tallennuskuittaus.');
     pending.shift();persist();say(`Kierrosaika ${(reply.lapMs/1000).toFixed(3)} s tallennettu.`);hooks?.saved?.(reply.lapMs);
-   }catch(error){if([400,401,403,409,413,415,422].includes(error.status)){pending.shift();persist();say('Kierrosaikaa ei voitu tallentaa tuloslistalle.');continue;}
+   }catch(error){if([400,401,403,409,413,415,422].includes(error.status)){pending.shift();persist();say('Kierrosta ei voitu julkaista. TOP 10 edellyttää varmennettua, julkista uusintaa.');continue;}
     say('Kierrosaika odottaa tallennusta.');return;}
   }await refresh();}while(pending.length);})();
   try{await sending;}finally{sending=null;}

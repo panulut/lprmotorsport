@@ -2,14 +2,16 @@
 const {gzipSync}=require('node:zlib');
 const {createHash}=require('node:crypto');
 const {metresPerWorldUnit}=require('../shared/vehicle-spec.js');
+const pose=require('../replay-pose.js');
 const round=n=>Math.round(n*1e5)/1e5;
 class Recorder {
- constructor(world){
+ constructor(world,revision){
+  this.revision=revision;
   this.world=world;
   this.track=world.track.map(p=>[round(p.x),round(p.y)]);
   this.reset();
  }
- frame(){const r=this.world.result(),s=r.state;return [r.ticks,round(s.x),round(s.y),round(s.angle),round(s.vx),round(s.vy)];}
+ frame(){const r=this.world.result(),s=r.state;return [r.ticks,round(s.x),round(s.y),round(s.angle),round(s.vx),round(s.vy),pose.capture(this.world.car)];}
  reset(){this.startTick=this.world.result().ticks;this.frames=[this.frame()];this.inputs=[];}
  step(input,event){
   const tick=this.world.result().ticks;
@@ -18,7 +20,7 @@ class Recorder {
   if(tick%6===0||event.completed)this.frames.push(this.frame());
   if(!event.completed)return null;
   const lap=event.completed;
-  const document={format:'lpr-replay-v1',hz:120,sampleHz:20,metresPerWorldUnit,track:this.track,roadHalfWidth:33,
+  const document={format:'lpr-replay-v1',sceneRevision:this.revision,visualState:true,lap:lap.lap,hz:120,sampleHz:20,metresPerWorldUnit,track:this.track,roadHalfWidth:33,
    startTick:this.startTick,endTick:lap.endTick,frames:this.frames,inputs:this.inputs};
   const payload=gzipSync(JSON.stringify(document),{level:6}).toString('base64');
   this.reset();

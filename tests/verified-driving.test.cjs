@@ -49,6 +49,7 @@ const {driver}=require('./helpers-driving.cjs');
    const signed=await verify(receipt,secret),replay=recordings.get(receipt);
    assert.equal(await hash(replay),signed.replayHash);
    const document=JSON.parse(require('node:zlib').gunzipSync(Buffer.from(replay,'base64')));
+   assert.equal(document.visualState,true);assert.equal(document.sceneRevision,revision);
    assert.equal(document.startTick,signed.startTick);assert.equal(document.endTick,signed.endTick);
    assert.equal(document.frames[0][0],signed.startTick);assert.equal(document.frames.at(-1)[0],signed.endTick);
    assert.equal(document.inputs[0][0],signed.startTick,'Flying laps include their own starting control and server trajectory');
@@ -59,7 +60,12 @@ const {driver}=require('./helpers-driving.cjs');
     const sample=document.frames[frame];
     if(sample&&sample[0]===tick+1){
      assert(Math.abs(sample[1]-replayWorld.world.car.x)<=.000006,'Stored trajectory matches recorded inputs');
-     assert(Math.abs(sample[2]-replayWorld.world.car.y)<=.000006);frame++;
+     assert(Math.abs(sample[2]-replayWorld.world.car.y)<=.000006);
+     const car=replayWorld.world.car;assert(Math.abs(sample[6].steerAngle-car.steerAngle)<=.000006);
+     assert(Math.abs(sample[6].suspension.pitch-car.suspension.pitch)<=.000006);
+     assert(Math.abs(sample[6].suspension.roll-car.suspension.roll)<=.000006);
+     for(let w=0;w<4;w++)assert(Math.abs(sample[6].suspension.wheels[w].travel-car.suspension.wheels[w].travel)<=.000006);
+     frame++;
     }
    }
    assert.equal(frame,document.frames.length,'All authoritative position samples were checked');
@@ -69,7 +75,7 @@ const {driver}=require('./helpers-driving.cjs');
    const tampered=receipt.slice(0,-2)+(receipt.at(-2)==='A'?'B':'A')+receipt.at(-1);
    assert.equal((await post(boardURL,'/api/verified/laps',{receipt:tampered})).status,403,'Forged signature fails');
    const saved=await post(boardURL,'/api/verified/laps',{receipt,replay});assert.equal(saved.status,200);assert.equal((await saved.json()).saved,true);
-   assert.equal((await(await post(boardURL,'/api/verified/laps',{receipt})).json()).saved,false,'Receipt retries never duplicate a lap');
+   assert.equal((await(await post(boardURL,'/api/verified/laps',{receipt,replay})).json()).saved,false,'Receipt retries never duplicate a lap');
   }
   const rows=await(await fetch(boardURL+'/api/verified/leaderboard')).json();assert.equal(rows.results.length,2);
   assert.equal((await post(boardURL,'/api/verified/laps',{lapMs:12345})).status,403,'Unsigned client scores are never accepted');

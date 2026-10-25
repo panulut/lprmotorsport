@@ -40,8 +40,8 @@ export default {
    if(url.pathname.startsWith('/api/verified/replays/')||url.pathname.startsWith('/api/verified/admin/'))return await replayRoute(request,env,url,reply,headers,body);
    if(url.pathname==='/api/verified/leaderboard'&&request.method==='GET'){
     const rows=await env.DB.prepare(`SELECT l.nickname,l.lap_ticks,l.sector1,l.sector2,l.sector3,l.session_id,l.lap,
-     CASE WHEN r.pinned=1 THEN 1 ELSE 0 END AS replay_available FROM verified_laps l LEFT JOIN verified_replays r USING(session_id,lap)
-     WHERE l.revision=? ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10`).bind(revision).all();
+     CASE WHEN r.pinned=1 THEN 1 ELSE 0 END AS replay_available FROM verified_laps l JOIN verified_replays r USING(session_id,lap)
+     WHERE l.revision=? AND r.pinned=1 ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10`).bind(revision).all();
     return reply({protocol,revision:revision,results:rows.results.map(row=>({...row,lap_ms:row.lap_ticks*1000/120}))});
    }
    if(!['/api/verified/start','/api/verified/laps'].includes(url.pathname))return reply({error:'Not found'},404);
@@ -68,6 +68,7 @@ export default {
     !Number.isSafeInteger(lap.lapTicks)||lap.lapTicks<=600||lap.endTick-lap.startTick!==lap.lapTicks||
     !Array.isArray(lap.sectorTicks)||lap.sectorTicks.length!==3||!lap.sectorTicks.every(n=>Number.isSafeInteger(n)&&n>0)||lap.sectorTicks.reduce((a,b)=>a+b,0)!==lap.lapTicks||
     !Number.isSafeInteger(lap.issuedAt)||lap.issuedAt>now+5000)return reply({error:'Invalid verified lap'},403);
+   if(!validPlayer(lap.replayHash)||typeof data.replay!=='string')return reply({error:'A signed public replay is required for leaderboard submission'},403);
    const replayWrites=await replayStatements(env,lap,data,now);
    const insert=env.DB.prepare(`INSERT OR IGNORE INTO verified_laps
     (session_id,lap,revision,player_hash,nickname,start_tick,end_tick,lap_ticks,sector1,sector2,sector3,issued_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)

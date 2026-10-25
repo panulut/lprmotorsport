@@ -1,7 +1,7 @@
 const {parentPort}=require('node:worker_threads');
-const {createWorld}=require('./world.cjs');
+const {createWorld,revision}=require('./world.cjs');
 const {world,api}=createWorld();
-const recorder=new (require('./replay.cjs').Recorder)(world);
+const recorder=new (require('./replay.cjs').Recorder)(world,revision);
 parentPort.postMessage({ready:true,result:world.result()});
 parentPort.on('message',({id,inputs})=>{
  const start=performance.now();

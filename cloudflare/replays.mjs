@@ -18,7 +18,8 @@ export async function replayStatements(env,lap,data,now){
  }
  // Sticky pin: keep any recording which has appeared in this revision's top ten.
  statements.push(env.DB.prepare(`UPDATE verified_replays SET pinned=1 WHERE (session_id,lap) IN
-  (SELECT session_id,lap FROM verified_laps WHERE revision=? ORDER BY lap_ticks,issued_ms,session_id,lap LIMIT 10)`).bind(lap.revision));
+  (SELECT l.session_id,l.lap FROM verified_laps l JOIN verified_replays r USING(session_id,lap)
+   WHERE l.revision=? AND (r.pinned=1 OR r.review='flagged' OR r.expires_ms>?) ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10)`).bind(lap.revision,now));
  statements.push(env.DB.prepare("DELETE FROM verified_replays WHERE expires_ms<=? AND pinned=0 AND review!='flagged'").bind(now));
  return statements;
 }
