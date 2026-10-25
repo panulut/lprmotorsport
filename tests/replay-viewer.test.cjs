@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
-const sample={format:'lpr-replay-v1',hz:120,metresPerWorldUnit:.1,startTick:120,endTick:240,track:[[0,0],[100,0],[100,100]],frames:[[120,0,0,0,100,0],[180,50,0,0,100,0],[240,100,0,0,100,0]],inputs:[[120,1,0,0,false,false,true],[180,0,1,-.5,true,true,true]]};
+const sample={format:'lpr-replay-v1',hz:120,metresPerWorldUnit:.1,startTick:120,endTick:240,track:[[0,0],[100,0],[100,100]],frames:[[120,0,0,0,10,0],[180,50,0,0,10,0],[240,100,0,0,10,0]],inputs:[[120,1,0,0,false,false,true],[180,0,1,-.5,true,true,true]]};
 function fixture({admin=false,response=sample,error=0}={}){
  const nodes=new Map(),requests=[],draws=[];let animate;
  function node(id){if(!nodes.has(id))nodes.set(id,{hidden:true,value:id==='#speed'?'1':'',checked:false,textContent:'',append(){},replaceChildren(){},setAttribute(){},getContext(){return new Proxy({},{get:(_,method)=>(...args)=>{if(method==='translate')draws.push(args);},set:()=>true});}});return nodes.get(id);}

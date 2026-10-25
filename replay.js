@@ -37,8 +37,8 @@
   const delta=Math.atan2(Math.sin(b[3]-a[3]),Math.cos(b[3]-a[3])),angle=a[3]+delta*t;
   ctx.save();ctx.translate(x(lerp(1)),y(lerp(2)));ctx.rotate(angle);ctx.fillStyle='#d3ff86';ctx.fillRect(-8,-4,16,8);ctx.fillStyle='#0c1312';ctx.fillRect(-3,-3,5,6);ctx.fillStyle='#fff';ctx.fillRect(6,-4,2,8);ctx.restore();
   const input=r.inputs[find(r.inputs,tick)];$('#gas').value=input[1];$('#brake').value=input[2];$('#steer').textContent=(input[3]*100).toFixed(0)+' %';
-  // Physics velocities use world units/s; same metres-per-world-unit as the game (stored in artifact).
-  $('#velocity').textContent=(Math.hypot(lerp(4),lerp(5))*(r.metresPerWorldUnit||.1)*3.6).toFixed(0)+' km/h';
+  // Physics velocities are already SI metres/second, matching the live speedometer.
+  $('#velocity').textContent=(Math.hypot(lerp(4),lerp(5))*3.6).toFixed(0)+' km/h';
   $('#clock').textContent=elapsed.toFixed(3)+' / '+seconds().toFixed(3)+' s';$('#seek').value=seconds()?elapsed/seconds():0;
  }
  async function load(id,lap,privateReplay=false,label=''){
