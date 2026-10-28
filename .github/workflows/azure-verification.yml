@@ -1,6 +1,7 @@
 name: Azure verification container
 
 on:
+  workflow_call:
   push:
     branches: [deploy/azure-test]
   pull_request:
@@ -12,6 +13,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,19 +22,38 @@ jobs:
       - run: npm run test:azure-verification
       - run: npm run test:verified
       - run: npm run test:replay-service
+      - run: npm run test:verification-capacity
+      - run: npm run test:worker-pool
+      - name: Compile Azure template
+        run: az bicep build --file infra/azure/verification.bicep --outfile "$RUNNER_TEMP/verification.json"
+      - name: Validate compiled deployment isolation
+        run: node tests/azure-deployment.test.cjs "$RUNNER_TEMP/verification.json"
       - run: docker build --file Dockerfile.verification --tag lpr-verification-test:${{ github.sha }} .
+      - name: Scan container vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.1
+          image-ref: lpr-verification-test:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
       - name: Smoke-test container and shutdown
         shell: bash
         run: |
           set -euo pipefail
-          container_id=$(docker run --detach --rm \
-            --publish 18081:8081 \
-            --env VERIFICATION_SECRET=azure-test-signing-secret-not-for-production-123 \
-            --env VERIFICATION_METRICS_TOKEN=azure-test-metrics-token-not-for-production-123 \
+          export VERIFICATION_SECRET=$(openssl rand -hex 32)
+          export VERIFICATION_METRICS_TOKEN=$(openssl rand -hex 32)
+          container_id=$(docker run --detach \
+            --publish 127.0.0.1:18081:8081 \
+            --env GAME_ORIGINS=https://lpr-game-test.azurestaticapps.net \
+            --env VERIFICATION_SECRET \
+            --env VERIFICATION_METRICS_TOKEN \
             lpr-verification-test:${{ github.sha }})
           cleanup() {
             docker logs "$container_id" || true
             docker stop "$container_id" >/dev/null || true
+            docker rm "$container_id" >/dev/null || true
           }
           trap cleanup EXIT
           for attempt in $(seq 1 30); do
@@ -42,5 +63,23 @@ jobs:
             sleep 2
           done
           node -e "const h=require('/tmp/verification-health.json'); if(h.ready!==true||h.maxSessions!==2) process.exit(1)"
-          curl --fail --silent --header 'Authorization: Bearer azure-test-metrics-token-not-for-production-123' \
+          curl --fail --silent --header "Authorization: Bearer $VERIFICATION_METRICS_TOKEN" \
             http://127.0.0.1:18081/metrics >/dev/null
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18081/metrics)" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --header 'Origin: https://panulut.github.io' http://127.0.0.1:18081/health)" = 403
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const {run}=require('./scripts/load-azure-verification.cjs');
+          (async()=>{
+            await run('http://127.0.0.1:18081',process.env.VERIFICATION_SECRET,2,
+              Array.from({length:120},()=>[0,0,0,false,false,true]));
+            const h=await fetch('http://127.0.0.1:18081/health').then(r=>r.json());
+            assert.equal(h.activeSessions,0);
+          })().catch(error=>{console.error(error);process.exitCode=1;});
+          NODE
+          docker stop --time 10 "$container_id" >/dev/null
+          test "$(docker inspect --format '{{.State.ExitCode}}' "$container_id")" = 0
+          docker logs "$container_id"
+          docker rm "$container_id" >/dev/null
+          trap - EXIT
+          echo 'Container health, isolated origins, metrics, driving sessions, and shutdown passed'

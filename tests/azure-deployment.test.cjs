@@ -1,0 +1,38 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const template=JSON.parse(fs.readFileSync(process.argv[2]||'artifacts/verification/azure-template.json','utf8'));
+const resources=template.resources;
+assert.equal(template.$schema.includes('deploymentTemplate'),true);
+assert.equal(resources.length,2,'Only the test environment and app may be provisioned');
+const environment=resources.find(r=>r.type==='Microsoft.App/managedEnvironments');
+const app=resources.find(r=>r.type==='Microsoft.App/containerApps');
+assert(environment&&app);
+for(const [name,value]of Object.entries({environmentName:'aca-lpr-test',containerAppName:'lpr-verification-test',location:'swedencentral'})){
+ assert.equal(template.parameters[name].defaultValue,value);
+ assert.deepEqual(template.parameters[name].allowedValues,[value]);
+}
+for(const name of ['verificationSecret','metricsToken','ghcrPullToken'])assert.equal(template.parameters[name].type.toLowerCase(),'securestring');
+for(const name of ['verificationSecret','metricsToken'])assert.equal(template.parameters[name].minLength,32);
+assert.deepEqual(environment.properties.workloadProfiles,[{name:'Consumption',workloadProfileType:'Consumption'}]);
+assert.equal(environment.properties.appLogsConfiguration.destination,'none');
+assert.equal(app.properties.workloadProfileName,'Consumption');
+assert.equal(app.properties.configuration.activeRevisionsMode,'Single');
+assert.deepEqual(app.properties.template.scale,{minReplicas:0,maxReplicas:1});
+assert.equal(app.properties.configuration.ingress.allowInsecure,false);
+assert.equal(app.properties.configuration.ingress.targetPort,8081);
+const container=app.properties.template.containers[0];
+assert.deepEqual(container.resources,{cpu:"[json('0.5')]",memory:'1Gi'});
+assert.equal(container.image,"[parameters('image')]");
+const env=Object.fromEntries(container.env.map(e=>[e.name,e]));
+assert.equal(env.VERIFICATION_ENVIRONMENT.value,'azure-test');
+assert.equal(env.VERIFICATION_SECRET.secretRef,'verification-secret');
+assert.equal(env.VERIFICATION_METRICS_TOKEN.secretRef,'metrics-token');
+assert.equal(env.GAME_ORIGINS.value,"[parameters('testGameOrigin')]");
+assert.equal(template.parameters.maxVerifiedSessions.defaultValue,2);
+assert.equal(template.parameters.maxVerifiedSessions.maxValue,100);
+assert.equal(template.parameters.maxVerifiedStartsPerMinute.defaultValue,100);
+for(const name of ['CAPACITY_REPORT_URL','CHAT_STORAGE_URL','DATABASE_URL','DB','VERIFICATION_LAP_LAG_MS'])assert.equal(env[name],undefined);
+assert.deepEqual(container.probes.map(p=>p.type).sort(),['Liveness','Readiness','Startup']);
+assert.deepEqual(Object.keys(template.outputs).sort(),['appFqdn','appName']);
+assert(!/onrender\.com|workers\.dev|github\.io|Microsoft\.DB|Microsoft\.Sql|Microsoft\.Storage/.test(JSON.stringify(template)));
+console.log('PASS: compiled Azure resource isolation, secure parameters, probes, admission and cost limits');

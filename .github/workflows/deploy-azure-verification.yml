@@ -2,58 +2,162 @@ name: Deploy Azure verification test
 
 on:
   workflow_dispatch:
+    inputs:
+      test_game_origin:
+        description: HTTPS origin of the separate Azure test game
+        required: true
+        type: string
+      max_sessions:
+        description: Simultaneous test sessions (1-100; start with 2)
+        required: true
+        default: '2'
+        type: string
+
+concurrency:
+  group: azure-verification-test
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 jobs:
+  verify:
+    if: github.ref == 'refs/heads/deploy/azure-test'
+    uses: ./.github/workflows/azure-verification.yml
   deploy:
+    needs: verify
     if: github.ref == 'refs/heads/deploy/azure-test'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: azure-test
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm run test:azure-verification
-      - run: npm run test:verified
-      - run: npm run test:replay-service
-      - name: Build and push isolated image
+      - name: Validate test deployment configuration
+        env:
+          VERIFICATION_ENVIRONMENT: azure-test
+          VERIFICATION_PUBLIC: '1'
+          PORT: '8081'
+          GAME_ORIGINS: ${{ inputs.test_game_origin }}
+          MAX_VERIFIED_SESSIONS: ${{ inputs.max_sessions }}
+          MAX_VERIFIED_STARTS_PER_MINUTE: '100'
+          VERIFICATION_SECRET: ${{ secrets.AZURE_VERIFICATION_SECRET }}
+          VERIFICATION_METRICS_TOKEN: ${{ secrets.AZURE_METRICS_TOKEN }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PULL_USER: ${{ vars.GHCR_PULL_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$GHCR_PULL_TOKEN"
+          test -n "$GHCR_PULL_USER"
+          node <<'NODE'
+          require('./verification/server.cjs').createServer().then(async server=>{
+            await server.sessions.close();await server.capacityReporter.close();
+          }).catch(error=>{console.error(error.message);process.exitCode=1;});
+          NODE
+          az bicep build --file infra/azure/verification.bicep --outfile "$RUNNER_TEMP/verification.json"
+      - name: Build isolated image
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/verification:${GITHUB_SHA}"
+          docker build --file Dockerfile.verification --tag "$image" .
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Scan deployment image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.1
+          image-ref: ${{ env.IMAGE }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
+      - name: Push isolated image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY,,}/verification:${GITHUB_SHA}"
+          image="$IMAGE"
           echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          docker build --file Dockerfile.verification --tag "$image" .
           docker push "$image"
+          image=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
           echo "IMAGE=$image" >> "$GITHUB_ENV"
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Confirm isolated Students subscription
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id --output tsv)" = 41128d20-bcb4-4799-80ce-ac23952b4bdd
+          test "$(az account show --query name --output tsv)" = 'Azure for Students'
+          test "$(az account show --query tenantId --output tsv)" = 9d97530e-8f27-4137-a2a9-5cb4dcf26f2e
+          test "$(az group show --name rg-lpr-test --query location --output tsv)" = swedencentral
       - name: Deploy Container Apps resources
         env:
+          GAME_ORIGINS: ${{ inputs.test_game_origin }}
+          MAX_VERIFIED_SESSIONS: ${{ inputs.max_sessions }}
+          MAX_VERIFIED_STARTS_PER_MINUTE: '100'
           AZURE_VERIFICATION_SECRET: ${{ secrets.AZURE_VERIFICATION_SECRET }}
           AZURE_METRICS_TOKEN: ${{ secrets.AZURE_METRICS_TOKEN }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PULL_USER: ${{ vars.GHCR_PULL_USER }}
         run: |
           set -euo pipefail
           test -n "$AZURE_VERIFICATION_SECRET"
           test -n "$AZURE_METRICS_TOKEN"
           test -n "$GHCR_PULL_TOKEN"
+          export AZURE_PARAMETERS_FILE=$(mktemp "$RUNNER_TEMP/lpr-parameters.XXXXXX.json")
+          trap 'rm -f "$AZURE_PARAMETERS_FILE"' EXIT
+          node <<'NODE'
+          const fs=require('node:fs'),e=process.env;
+          const values={image:e.IMAGE,ghcrUser:e.GHCR_PULL_USER,ghcrPullToken:e.GHCR_PULL_TOKEN,
+            verificationSecret:e.AZURE_VERIFICATION_SECRET,metricsToken:e.AZURE_METRICS_TOKEN,
+            testGameOrigin:e.GAME_ORIGINS,maxVerifiedSessions:Number(e.MAX_VERIFIED_SESSIONS),
+            maxVerifiedStartsPerMinute:Number(e.MAX_VERIFIED_STARTS_PER_MINUTE)};
+          fs.writeFileSync(e.AZURE_PARAMETERS_FILE,JSON.stringify({parameters:Object.fromEntries(
+            Object.entries(values).map(([key,value])=>[key,{value}]))}),{mode:0o600});
+          NODE
           az deployment group create \
+            --subscription 41128d20-bcb4-4799-80ce-ac23952b4bdd \
             --name "verification-${GITHUB_SHA}" \
             --resource-group rg-lpr-test \
             --template-file infra/azure/verification.bicep \
-            --parameters \
-              image="$IMAGE" \
-              ghcrUser="${GITHUB_REPOSITORY_OWNER,,}" \
-              ghcrPullToken="$GHCR_PULL_TOKEN" \
-              verificationSecret="$AZURE_VERIFICATION_SECRET" \
-              metricsToken="$AZURE_METRICS_TOKEN" \
+            --parameters "@$AZURE_PARAMETERS_FILE" \
             --only-show-errors \
             --output none
+      - name: Check deployed test service
+        env:
+          VERIFICATION_METRICS_TOKEN: ${{ secrets.AZURE_METRICS_TOKEN }}
+        run: |
+          set -euo pipefail
+          fqdn=$(az containerapp show --resource-group rg-lpr-test --name lpr-verification-test --query properties.configuration.ingress.fqdn --output tsv)
+          export AZURE_VERIFICATION_URL="https://$fqdn"
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const {setTimeout:sleep}=require('node:timers/promises');
+          const {targetURL}=require('./scripts/load-azure-verification.cjs');
+          const {revision}=require('./verification/world.cjs');
+          const {protocol}=require('./verification/protocol.mjs');
+          (async()=>{
+            const base=targetURL();let health,healthy=false;
+            for(let attempt=0;attempt<30;attempt++){
+              try{
+                const response=await fetch(base+'/health',{redirect:'error',signal:AbortSignal.timeout(10000)});
+                health=await response.json();
+                if(response.ok&&health.ready===true&&health.revision===revision&&health.protocol===protocol){healthy=true;break;}
+              }catch{}
+              await sleep(2000);
+            }
+            assert(healthy,'Azure test service did not become ready with the expected revision');
+            const response=await fetch(base+'/metrics',{redirect:'error',signal:AbortSignal.timeout(10000),
+              headers:{Authorization:'Bearer '+process.env.VERIFICATION_METRICS_TOKEN}});
+            assert.equal(response.status,200);
+            console.log('Azure test health, revision, and authenticated metrics passed');
+          })().catch(error=>{console.error(error.message);process.exitCode=1;});
+          NODE

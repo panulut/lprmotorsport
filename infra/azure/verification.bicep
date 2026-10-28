@@ -1,7 +1,13 @@
 @description('Azure Container Apps environment name.')
+@allowed([
+  'aca-lpr-test'
+])
 param environmentName string = 'aca-lpr-test'
 
 @description('Container Apps app name.')
+@allowed([
+  'lpr-verification-test'
+])
 param containerAppName string = 'lpr-verification-test'
 
 @description('Azure region for the isolated test deployment.')
@@ -10,7 +16,7 @@ param containerAppName string = 'lpr-verification-test'
 ])
 param location string = 'swedencentral'
 
-@description('Immutable GHCR image tag built by the deployment workflow.')
+@description('GHCR image digest built by the deployment workflow.')
 param image string
 
 @description('GitHub Container Registry username.')
@@ -21,10 +27,12 @@ param ghcrUser string
 param ghcrPullToken string
 
 @secure()
+@minLength(32)
 @description('Dedicated, test-only lap signing secret. Never use a production secret.')
 param verificationSecret string
 
 @secure()
+@minLength(32)
 @description('Dedicated token protecting the read-only metrics endpoint.')
 param metricsToken string
 
@@ -61,7 +69,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
   location: location
   properties: {
-    managedEnvironmentId: environment.id
+    environmentId: environment.id
+    workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
       secrets: [
@@ -145,7 +154,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
               }
               periodSeconds: 5
               timeoutSeconds: 3
-              failureThreshold: 30
+              failureThreshold: 10
             }
             {
               type: 'Readiness'
@@ -176,7 +185,6 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         minReplicas: 0
         maxReplicas: 1
       }
-      workloadProfileName: 'Consumption'
     }
   }
 }

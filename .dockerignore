@@ -1,5 +1,16 @@
 .git
 .github
+.azure
+.aws
+.codex
+.agents
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.log
 node_modules
 artifacts
 tests
