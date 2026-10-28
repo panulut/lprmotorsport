@@ -1,6 +1,7 @@
 name: Prepare isolated Azure test image
 
 on:
+  workflow_dispatch:
   push:
     branches: [deploy/azure-test]
     paths: [.github/workflows/publish-azure-test-image.yml]
@@ -42,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           revision=$(node -p "require('./verification/world.cjs').revision")
-          docker build --file Dockerfile.verification \
+          docker build --provenance=false --file Dockerfile.verification \
             --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
             --label org.opencontainers.image.source=https://github.com/panulut/lprmotorsport \
             --label "org.lpr.simulation-revision=$revision" \
