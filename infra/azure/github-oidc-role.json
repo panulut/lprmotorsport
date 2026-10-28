@@ -1,0 +1,25 @@
+{
+  "Name": "LPR Azure Test Verification Deployer",
+  "IsCustom": true,
+  "Description": "Deploy only the isolated LPR test Container Apps environment and verification API; no RBAC, production, database or deletion rights.",
+  "Actions": [
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Resources/deployments/read",
+    "Microsoft.Resources/deployments/write",
+    "Microsoft.Resources/deployments/validate/action",
+    "Microsoft.Resources/deployments/whatIf/action",
+    "Microsoft.Resources/deployments/operations/read",
+    "Microsoft.Resources/deployments/operationStatuses/read",
+    "Microsoft.App/managedEnvironments/read",
+    "Microsoft.App/managedEnvironments/write",
+    "Microsoft.App/managedEnvironments/join/action",
+    "Microsoft.App/containerApps/read",
+    "Microsoft.App/containerApps/write"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/41128d20-bcb4-4799-80ce-ac23952b4bdd/resourceGroups/rg-lpr-test"
+  ]
+}

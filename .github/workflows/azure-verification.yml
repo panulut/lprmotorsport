@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm run test:azure-verification
+      - run: node tests/azure-oidc.test.cjs
       - run: npm run test:verified
       - run: npm run test:replay-service
       - run: npm run test:verification-capacity

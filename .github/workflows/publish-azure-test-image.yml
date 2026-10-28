@@ -1,0 +1,98 @@
+name: Prepare isolated Azure test image
+
+on:
+  push:
+    branches: [deploy/azure-test]
+    paths: [.github/workflows/publish-azure-test-image.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-test-image-preparation
+  cancel-in-progress: false
+
+env:
+  SOURCE_COMMIT: 5ab897e510eb3e1e07cba3c4057c600f5124897f
+
+jobs:
+  publish-tested-image:
+    if: github.ref == 'refs/heads/deploy/azure-test'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify source and deployment configuration
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          npm run test:azure-verification
+          az bicep build --file infra/azure/verification.bicep --outfile "$RUNNER_TEMP/verification.json"
+          node tests/azure-deployment.test.cjs "$RUNNER_TEMP/verification.json"
+      - name: Build labeled source image
+        run: |
+          set -euo pipefail
+          revision=$(node -p "require('./verification/world.cjs').revision")
+          docker build --file Dockerfile.verification \
+            --label "org.opencontainers.image.revision=$SOURCE_COMMIT" \
+            --label org.opencontainers.image.source=https://github.com/panulut/lprmotorsport \
+            --label "org.lpr.simulation-revision=$revision" \
+            --tag "lpr-verification-test:$SOURCE_COMMIT" .
+      - name: Exercise source commit container smoke test
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os, pathlib, textwrap
+          workflow=pathlib.Path('.github/workflows/azure-verification.yml').read_text()
+          block=workflow.split('      - name: Smoke-test container and shutdown\n',1)[1].split('        run: |\n',1)[1]
+          lines=[]
+          for line in block.splitlines():
+              if line.strip() and not line.startswith('          '): break
+              lines.append(line)
+          script=textwrap.dedent('\n'.join(lines))+'\n'
+          assert 'docker stop --time 10' in script and 'assert.equal(h.activeSessions,0)' in script
+          script=script.replace('${{ github.sha }}',os.environ['SOURCE_COMMIT'])
+          pathlib.Path(os.environ['RUNNER_TEMP'],'container-smoke.sh').write_text(script)
+          PY
+          bash "$RUNNER_TEMP/container-smoke.sh"
+      - name: Scan the image that will be published
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.1
+          image-ref: lpr-verification-test:${{ env.SOURCE_COMMIT }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
+      - name: Publish tested digest without deploying Azure
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/panulut/lprmotorsport/verification:$SOURCE_COMMIT"
+          test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "lpr-verification-test:$SOURCE_COMMIT")" = "$SOURCE_COMMIT"
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker tag "lpr-verification-test:$SOURCE_COMMIT" "$image"
+          docker push "$image"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
+          [[ "$digest" =~ ^ghcr.io/panulut/lprmotorsport/verification@sha256:[a-f0-9]{64}$ ]]
+          docker manifest inspect "$digest" > "$RUNNER_TEMP/published-manifest.json"
+          config_digest=$(node -p "require(process.env.RUNNER_TEMP+'/published-manifest.json').config.digest")
+          test "$config_digest" = "$(docker inspect --format '{{.Id}}' "lpr-verification-test:$SOURCE_COMMIT")"
+          {
+            echo "Source commit: $SOURCE_COMMIT"
+            echo "Simulation revision: $(node -p "require('./verification/world.cjs').revision")"
+            echo "Published image: $digest"
+            echo "Verified registry config digest: $config_digest"
+            echo 'The published image passed container HTTP/session/shutdown tests and the HIGH/CRITICAL vulnerability gate. No Azure login or deployment is performed.'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          docker logout ghcr.io
