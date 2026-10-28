@@ -60,7 +60,8 @@ jobs:
               lines.append(line)
           script=textwrap.dedent('\n'.join(lines))+'\n'
           assert 'docker stop --time 10' in script and 'assert.equal(h.activeSessions,0)' in script
-          script=script.replace('${{ github.sha }}',os.environ['SOURCE_COMMIT'])
+          script=script.replace('${'+'{ github.sha }}',os.environ['SOURCE_COMMIT'])
+          assert '${'+'{' not in script
           pathlib.Path(os.environ['RUNNER_TEMP'],'container-smoke.sh').write_text(script)
           PY
           bash "$RUNNER_TEMP/container-smoke.sh"
@@ -85,7 +86,11 @@ jobs:
           docker push "$image"
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
           [[ "$digest" =~ ^ghcr.io/panulut/lprmotorsport/verification@sha256:[a-f0-9]{64}$ ]]
-          docker manifest inspect "$digest" > "$RUNNER_TEMP/published-manifest.json"
+          docker buildx imagetools inspect --raw "$digest" > "$RUNNER_TEMP/published-manifest.json"
+          platform_digest=$(node -p "require(process.env.RUNNER_TEMP+'/published-manifest.json').manifests?.find(m=>m.platform?.os==='linux'&&m.platform?.architecture==='amd64')?.digest||''")
+          if [ -n "$platform_digest" ]; then
+            docker buildx imagetools inspect --raw "ghcr.io/panulut/lprmotorsport/verification@$platform_digest" > "$RUNNER_TEMP/published-manifest.json"
+          fi
           config_digest=$(node -p "require(process.env.RUNNER_TEMP+'/published-manifest.json').config.digest")
           test "$config_digest" = "$(docker inspect --format '{{.Id}}' "lpr-verification-test:$SOURCE_COMMIT")"
           {
