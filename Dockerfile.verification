@@ -1,0 +1,18 @@
+FROM node:24-bookworm-slim
+
+ENV NODE_ENV=production
+ENV VERIFICATION_ENVIRONMENT=azure-test
+ENV VERIFICATION_PUBLIC=1
+ENV PORT=8081
+
+WORKDIR /app
+
+COPY verification/ ./verification/
+COPY shared/ ./shared/
+COPY data/track-objects.json ./data/track-objects.json
+COPY campus.js vehicle.js replay-pose.js ./
+
+USER node
+EXPOSE 8081
+
+CMD ["node", "verification/server.cjs"]

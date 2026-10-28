@@ -1,0 +1,46 @@
+name: Azure verification container
+
+on:
+  push:
+    branches: [deploy/azure-test]
+  pull_request:
+    branches: [deploy/azure-test]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run test:azure-verification
+      - run: npm run test:verified
+      - run: npm run test:replay-service
+      - run: docker build --file Dockerfile.verification --tag lpr-verification-test:${{ github.sha }} .
+      - name: Smoke-test container and shutdown
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id=$(docker run --detach --rm \
+            --publish 18081:8081 \
+            --env VERIFICATION_SECRET=azure-test-signing-secret-not-for-production-123 \
+            --env VERIFICATION_METRICS_TOKEN=azure-test-metrics-token-not-for-production-123 \
+            lpr-verification-test:${{ github.sha }})
+          cleanup() {
+            docker logs "$container_id" || true
+            docker stop "$container_id" >/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18081/health > /tmp/verification-health.json; then
+              break
+            fi
+            sleep 2
+          done
+          node -e "const h=require('/tmp/verification-health.json'); if(h.ready!==true||h.maxSessions!==2) process.exit(1)"
+          curl --fail --silent --header 'Authorization: Bearer azure-test-metrics-token-not-for-production-123' \
+            http://127.0.0.1:18081/metrics >/dev/null

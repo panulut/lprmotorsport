@@ -1,0 +1,59 @@
+name: Deploy Azure verification test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/deploy/azure-test'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run test:azure-verification
+      - run: npm run test:verified
+      - run: npm run test:replay-service
+      - name: Build and push isolated image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/verification:${GITHUB_SHA}"
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker build --file Dockerfile.verification --tag "$image" .
+          docker push "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy Container Apps resources
+        env:
+          AZURE_VERIFICATION_SECRET: ${{ secrets.AZURE_VERIFICATION_SECRET }}
+          AZURE_METRICS_TOKEN: ${{ secrets.AZURE_METRICS_TOKEN }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_VERIFICATION_SECRET"
+          test -n "$AZURE_METRICS_TOKEN"
+          test -n "$GHCR_PULL_TOKEN"
+          az deployment group create \
+            --name "verification-${GITHUB_SHA}" \
+            --resource-group rg-lpr-test \
+            --template-file infra/azure/verification.bicep \
+            --parameters \
+              image="$IMAGE" \
+              ghcrUser="${GITHUB_REPOSITORY_OWNER,,}" \
+              ghcrPullToken="$GHCR_PULL_TOKEN" \
+              verificationSecret="$AZURE_VERIFICATION_SECRET" \
+              metricsToken="$AZURE_METRICS_TOKEN" \
+            --only-show-errors \
+            --output none

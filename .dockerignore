@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+artifacts
+tests
+scripts
+*.md
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
