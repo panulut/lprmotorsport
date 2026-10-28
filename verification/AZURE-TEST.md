@@ -69,7 +69,9 @@ The Dockerfile runs Node directly as the non-root `node` user and copies an expl
 list of server modules, simulation sources, recording code and track data without
 credentials or npm dependencies. It excludes the production frontend configuration;
 Docker context excludes credential directories, environment files and private keys.
-The Node base tag and GitHub action major tags remain mutable;
+The image uses official Node 24.22.1 on Alpine 3.24, upgrades OS packages and removes
+unused npm/yarn/corepack payloads. The first Debian-based image failed the new
+vulnerability gate; its findings were not suppressed. The base tag and GitHub action major tags remain mutable;
 digest/SHA pinning is a follow-up for stronger build reproducibility.
 
 ## Azure load test
