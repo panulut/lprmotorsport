@@ -128,7 +128,7 @@ or secrets should be attached to this deployment.
   `41128d20-bcb4-4799-80ce-ac23952b4bdd`, tenant
   `9d97530e-8f27-4137-a2a9-5cb4dcf26f2e`. `rg-lpr-test` remains empty in Sweden Central.
 - OIDC application `lpr-github-azure-test` (`ec6819a3-6d38-4a72-a625-047ebeb9cdc9`)
-  trusts only `repo:panulut/lprmotorsport:environment:azure-test`, with issuer
+  trusts only `repo:panulut@328448267/lprmotorsport@1409734658:environment:azure-test`, with issuer
   `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`.
   Its service principal has only the custom `LPR Azure Test Verification Deployer`
   role on `rg-lpr-test`. Role and federation definitions are under `infra/azure/`.
@@ -198,7 +198,7 @@ retries and continued polling have separate considerations. No cost is guarantee
    identity/package setup above. For Actions use a dedicated OIDC identity with
    issuer `https://token.actions.githubusercontent.com`, audience
    `api://AzureADTokenExchange`, subject
-   `repo:panulut/lprmotorsport:environment:azure-test`, and Contributor only on
+   `repo:panulut@328448267/lprmotorsport@1409734658:environment:azure-test`, and Contributor only on
    `rg-lpr-test` (or a narrower equivalent). Grant no production access. Restrict
    the GitHub environment to `deploy/azure-test` and require deployment review.
 2. Choose the exact separate Azure frontend origin. API-only tests can use a

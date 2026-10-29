@@ -12,6 +12,6 @@ for(const action of role.Actions){
 }
 for(const action of ['Microsoft.App/containerApps/write','Microsoft.App/managedEnvironments/write','Microsoft.App/managedEnvironments/join/action','Microsoft.Resources/deployments/validate/action'])assert(role.Actions.includes(action));
 assert.equal(federation.issuer,'https://token.actions.githubusercontent.com');
-assert.equal(federation.subject,'repo:panulut/lprmotorsport:environment:azure-test');
+assert.equal(federation.subject,'repo:panulut@328448267/lprmotorsport@1409734658:environment:azure-test');
 assert.deepEqual(federation.audiences,['api://AzureADTokenExchange']);
 console.log('PASS: test-only OIDC subject, exact RG role scope, no RBAC/data/delete/secret-read permissions');

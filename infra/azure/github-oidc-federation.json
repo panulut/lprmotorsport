@@ -1,7 +1,7 @@
 {
   "name": "github-lpr-azure-test",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:panulut/lprmotorsport:environment:azure-test",
+  "subject": "repo:panulut@328448267/lprmotorsport@1409734658:environment:azure-test",
   "description": "Only jobs admitted by the protected azure-test GitHub environment.",
   "audiences": ["api://AzureADTokenExchange"]
 }
