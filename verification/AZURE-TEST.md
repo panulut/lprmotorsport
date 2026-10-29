@@ -1,5 +1,10 @@
 # Isolated Azure verification test
 
+Deployment completed on 2026-10-29 with explicit cost approval. The live app uses
+0.5 vCPU, 1 GiB, two sessions and 0–1 replicas. Health/security and concurrent
+standing/flying-lap verification passed; subsequent inspection confirmed scale to
+zero. See [deployment results and actual usage](AZURE-DEPLOYMENT-20261029.md).
+
 This branch prepares a manually deployed verification API in `rg-lpr-test`,
 `swedencentral`, with app name `lpr-verification-test`. It does not provision the
 test game, account service, or a production leaderboard. Production integrations
@@ -122,7 +127,7 @@ availability, private registry access, frontend integration, and remote load
 results require validation in the test subscription. No production configuration
 or secrets should be attached to this deployment.
 
-## Readiness observed on 2026-10-29
+## Pre-deployment readiness observed on 2026-10-29
 
 - Azure for Students is enabled and selected: subscription
   `41128d20-bcb4-4799-80ce-ac23952b4bdd`, tenant

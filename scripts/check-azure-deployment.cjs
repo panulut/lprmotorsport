@@ -60,7 +60,9 @@ async function main(){
   }
   return response;
  };
- const load=await run(base,secret,2,inputs,{fetchImpl});
+ // One-second batches are within the existing 120-tick protocol bound and keep
+ // this acknowledgement-gated checker sustainable on >500 ms network paths.
+ const load=await run(base,secret,2,inputs,{fetchImpl,batchTicks:120});
  assert.equal(load.ineligibleBatches,0);assert.equal(load.practiceLaps,0);
  assert.equal(receipts.size,2);for(const laps of receipts.values())assert.equal(laps.length,2,'Both players must receive standing/flying receipts');
  const after=await metrics();assert.equal(after.activeSessions,0,'All test sessions must be cleaned up');

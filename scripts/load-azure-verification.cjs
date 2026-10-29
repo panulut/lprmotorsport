@@ -59,7 +59,8 @@ async function cancelPlayer(request,session){
  }
  catch(error){console.error(JSON.stringify({event:'azure-load.cleanup-failed',sessionId:session.id,error:error.message}));return error;}
 }
-async function run(base,secret,count,inputs,{fetchImpl=fetch,wait=sleep}={}){
+async function run(base,secret,count,inputs,{fetchImpl=fetch,wait=sleep,batchTicks=60}={}){
+ if(![60,120].includes(batchTicks))throw Error('Azure load batch ticks must be 60 or 120');
  const request=client(base,fetchImpl);
  const healthResponse=await request('/health',{timeoutMs:60000});
  if(!healthResponse.ok)throw Error(`Azure health check failed: HTTP ${healthResponse.status}`);
@@ -73,8 +74,8 @@ async function run(base,secret,count,inputs,{fetchImpl=fetch,wait=sleep}={}){
   await allOrThrow(Array.from({length:count},async(_,i)=>{sessions.push(await createPlayer(request,secret,i));}));
   await allOrThrow(sessions.map((session,index)=>activatePlayer(request,session,index)));
   const started=performance.now(),latencies=[];let practiceLaps=0,ineligibleBatches=0,maxAckLagMs=0;
-  for(let fromTick=0,seq=0;fromTick<inputs.length;fromTick+=60,seq++){
-   const batch=inputs.slice(fromTick,fromTick+60);
+  for(let fromTick=0,seq=0;fromTick<inputs.length;fromTick+=batchTicks,seq++){
+   const batch=inputs.slice(fromTick,fromTick+batchTicks);
    await wait(Math.max(0,started+(fromTick+batch.length)*1000/120-performance.now()));
    await allOrThrow(sessions.map(async session=>{
     const before=performance.now();
@@ -95,7 +96,7 @@ async function run(base,secret,count,inputs,{fetchImpl=fetch,wait=sleep}={}){
   const finalResponse=await request('/health'),finalHealth=await finalResponse.json();
   if(!finalResponse.ok||finalHealth.ready!==true||finalHealth.revision!==revision||finalHealth.activeSessions!==count)
    throw Error('Azure test service lost sessions during the load point');
-  return {players:count,elapsedMs,batchP95Ms:latencies[Math.ceil(latencies.length*.95)-1]||0,
+  return {players:count,batchTicks,elapsedMs,batchP95Ms:latencies[Math.ceil(latencies.length*.95)-1]||0,
    clientEventLoopP99Ms:delay.percentile(99)/1e6,serviceActiveSessions:finalHealth.activeSessions,
    practiceLaps,ineligibleBatches,maxAckLagMs};
  }finally{

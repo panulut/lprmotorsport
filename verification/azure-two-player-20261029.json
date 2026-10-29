@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-10-29T11:25:17.933Z",
+  "endpoint": "https://lpr-verification-test.jollyflower-664bfb1f.swedencentral.azurecontainerapps.io",
+  "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+  "security": {
+    "anonymousMetrics": 401,
+    "wrongMetricsToken": 401,
+    "productionOrigin": 403,
+    "invalidTicket": 401,
+    "wrongSessionOwner": 401,
+    "thirdPlayer": 429,
+    "allowedTestOrigin": 200
+  },
+  "load": {
+    "players": 2,
+    "batchTicks": 120,
+    "elapsedMs": 216466.8028,
+    "batchP95Ms": 665.0481000000145,
+    "clientEventLoopP99Ms": 35.389439,
+    "serviceActiveSessions": 2,
+    "practiceLaps": 0,
+    "ineligibleBatches": 0,
+    "maxAckLagMs": 880.4351539999479
+  },
+  "simulationSeconds": 215.5,
+  "verifiedReceipts": 4,
+  "comparedBatches": 432,
+  "activeSessionsAfter": 0,
+  "usage": {
+    "cpuSeconds": 10.538806,
+    "averageCpuCores": 0.04868555299787519,
+    "rssBytesBefore": 111915008,
+    "rssBytesAfter": 173416448,
+    "workers": 1
+  },
+  "countersBefore": {
+    "starts": 12,
+    "capacityRejected": 3,
+    "startRateRejected": 0,
+    "batches": 522,
+    "ticks": 31320,
+    "verifiedLaps": 0,
+    "practiceLaps": 0,
+    "processingTimeouts": 0,
+    "lagTerminations": 2
+  },
+  "countersAfter": {
+    "starts": 14,
+    "capacityRejected": 3,
+    "startRateRejected": 0,
+    "batches": 954,
+    "ticks": 83040,
+    "verifiedLaps": 4,
+    "practiceLaps": 0,
+    "processingTimeouts": 0,
+    "lagTerminations": 2
+  }
+}

@@ -80,6 +80,12 @@ async function partialFailure(stage){
   assert.equal(result.serviceActiveSessions,2);
   assert.equal(server.sessions.activeCount,0);
   assert.equal(server.sessions.snapshotMetrics().counters.ticks,240);
+  const oneSecond=await run('http://127.0.0.1:'+server.address().port,secret,2,inputs,{batchTicks:120});
+  assert.equal(oneSecond.batchTicks,120);
+  assert(oneSecond.elapsedMs>=950,'One-second batches must still follow server time');
+  assert.equal(server.sessions.activeCount,0);
+  assert.equal(server.sessions.snapshotMetrics().counters.ticks,480);
+  await assert.rejects(run('http://127.0.0.1',secret,2,inputs,{batchTicks:121}),/60 or 120/);
  }finally{await server.sessions.close();await server.capacityReporter.close();await new Promise(resolve=>server.close(resolve));}
  console.log('Azure load target restrictions, pacing, admission preflight, and partial-failure cleanup passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});
