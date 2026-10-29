@@ -3,9 +3,13 @@
 Stopped safely at the user's checkpoint request. No load runner or browser remains
 running. Azure control-plane configuration and the live `/health` endpoint both
 report **2 sessions maximum**; live metrics report **0 active sessions**, 0 pending
-requests and 0 closing sessions. Final live check: 22:15:02 Helsinki / 20:15:02 UTC.
-Production and `main` were unchanged. Both local and origin/main remained at
-`5e6bb8f9f1a023038e9991edba7f04251ef3df94` during this work.
+requests and 0 closing sessions. Restored state was verified at 22:15:02 Helsinki
+and rechecked after the push at 22:18:17 Helsinki / 20:18:17 UTC.
+This work made no changes to production or `main`. Local `main` and the cached
+`origin/main` ref remained at `5e6bb8f9f1a023038e9991edba7f04251ef3df94`.
+The final remote check after pushing only `deploy/azure-test` observed remote
+`main` at `93b64c97fb895e99bb29d06fadcd95d9ed4292ef`; that advancement occurred
+outside this worktree. No push, merge or other write targeted `main`.
 
 The test image remains
 `ghcr.io/panulut/lprmotorsport/verification@sha256:165a925811cf7a6c69ae60f77cbdd302b4f6aeef88443edb84a89f2275b177a3`:

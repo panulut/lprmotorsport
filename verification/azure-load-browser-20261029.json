@@ -2,7 +2,6 @@
   "generatedAt": "2026-10-29T20:17:01.522Z",
   "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
   "scope": "Azure test app only; unchanged runtime image, 0.5 vCPU, 1 GiB, one worker; real server clocks and existing anti-cheat limits",
-  "mainRefBefore": "5e6bb8f9f1a023038e9991edba7f04251ef3df94",
   "previousFivePlayerRun": {
     "startedAt": "2026-10-29T14:59:57.957Z",
     "finishedAt": "2026-10-29T15:03:50.292Z",
@@ -188,7 +187,7 @@
     }
   ],
   "finalRestored": {
-    "checkedAt": "2026-10-29T20:15:02.568Z",
+    "checkedAt": "2026-10-29T20:18:17.515Z",
     "health": {
       "ready": true,
       "protocol": "driving-v1",
@@ -196,7 +195,7 @@
       "hz": 120,
       "streaming": true,
       "activeSessions": 0,
-      "activeConnections": 2,
+      "activeConnections": 1,
       "maxSessions": 2,
       "lapLagMs": 2000
     },
@@ -216,5 +215,7 @@
       "closingSessions": 0,
       "workerHeapMb": 256
     }
-  }
+  },
+  "localAndCachedOriginMainRef": "5e6bb8f9f1a023038e9991edba7f04251ef3df94",
+  "remoteMainObservedAfterTestBranchPush": "93b64c97fb895e99bb29d06fadcd95d9ed4292ef"
 }
