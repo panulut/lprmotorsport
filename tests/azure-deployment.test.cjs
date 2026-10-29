@@ -14,7 +14,7 @@ for(const [name,value]of Object.entries({environmentName:'aca-lpr-test',containe
 for(const name of ['verificationSecret','metricsToken','ghcrPullToken'])assert.equal(template.parameters[name].type.toLowerCase(),'securestring');
 for(const name of ['verificationSecret','metricsToken'])assert.equal(template.parameters[name].minLength,32);
 assert.deepEqual(environment.properties.workloadProfiles,[{name:'Consumption',workloadProfileType:'Consumption'}]);
-assert.equal(environment.properties.appLogsConfiguration.destination,'none');
+assert.equal(environment.properties.appLogsConfiguration,null);
 assert.equal(app.properties.workloadProfileName,'Consumption');
 assert.equal(app.properties.configuration.activeRevisionsMode,'Single');
 assert.deepEqual(app.properties.template.scale,{minReplicas:0,maxReplicas:1});

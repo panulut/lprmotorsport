@@ -2,6 +2,18 @@ name: Prepare isolated Azure test image
 
 on:
   workflow_dispatch:
+    inputs:
+      preflight_only:
+        description: Validate with test credentials; creates no Azure resources
+        type: boolean
+        default: false
+      image_digest:
+        description: Immutable GHCR digest required for preflight
+        type: string
+      test_game_origin:
+        description: Isolated Azure game origin (reserved default is API-only)
+        type: string
+        default: https://lpr-game-test.azurestaticapps.net
   push:
     branches: [deploy/azure-test]
     paths: [.github/workflows/publish-azure-test-image.yml]
@@ -18,7 +30,7 @@ env:
 
 jobs:
   publish-tested-image:
-    if: github.ref == 'refs/heads/deploy/azure-test'
+    if: github.ref == 'refs/heads/deploy/azure-test' && !inputs.preflight_only
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -85,7 +97,7 @@ jobs:
           echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           docker tag "lpr-verification-test:$SOURCE_COMMIT" "$image"
           docker push "$image"
-          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
+          digest="ghcr.io/panulut/lprmotorsport/verification@$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
           [[ "$digest" =~ ^ghcr.io/panulut/lprmotorsport/verification@sha256:[a-f0-9]{64}$ ]]
           docker buildx imagetools inspect --raw "$digest" > "$RUNNER_TEMP/published-manifest.json"
           platform_digest=$(node -p "require(process.env.RUNNER_TEMP+'/published-manifest.json').manifests?.find(m=>m.platform?.os==='linux'&&m.platform?.architecture==='amd64')?.digest||''")
@@ -93,7 +105,9 @@ jobs:
             docker buildx imagetools inspect --raw "ghcr.io/panulut/lprmotorsport/verification@$platform_digest" > "$RUNNER_TEMP/published-manifest.json"
           fi
           config_digest=$(node -p "require(process.env.RUNNER_TEMP+'/published-manifest.json').config.digest")
-          test "$config_digest" = "$(docker inspect --format '{{.Id}}' "lpr-verification-test:$SOURCE_COMMIT")"
+          docker image save "lpr-verification-test:$SOURCE_COMMIT" --output "$RUNNER_TEMP/tested-image.tar"
+          local_config_digest=$(tar --extract --to-stdout --file "$RUNNER_TEMP/tested-image.tar" manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log('sha256:'+JSON.parse(s)[0].Config.split('/').pop().replace(/\\.json$/,'')))")
+          test "$config_digest" = "$local_config_digest"
           {
             echo "Source commit: $SOURCE_COMMIT"
             echo "Simulation revision: $(node -p "require('./verification/world.cjs').revision")"
@@ -102,3 +116,82 @@ jobs:
             echo 'The published image passed container HTTP/session/shutdown tests and the HIGH/CRITICAL vulnerability gate. No Azure login or deployment is performed.'
           } | tee -a "$GITHUB_STEP_SUMMARY"
           docker logout ghcr.io
+
+  validate-with-test-credentials:
+    if: github.ref == 'refs/heads/deploy/azure-test' && inputs.preflight_only
+    name: Validate only - creates no Azure resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: azure-test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Validate subscription, private image, credentials and provider
+        env:
+          IMAGE: ${{ inputs.image_digest }}
+          GAME_ORIGINS: ${{ inputs.test_game_origin }}
+          VERIFICATION_ENVIRONMENT: azure-test
+          VERIFICATION_PUBLIC: '1'
+          PORT: '8081'
+          MAX_VERIFIED_SESSIONS: '2'
+          MAX_VERIFIED_STARTS_PER_MINUTE: '100'
+          VERIFICATION_SECRET: ${{ secrets.AZURE_VERIFICATION_SECRET }}
+          VERIFICATION_METRICS_TOKEN: ${{ secrets.AZURE_METRICS_TOKEN }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PULL_USER: ${{ vars.GHCR_PULL_USER }}
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id --output tsv)" = 41128d20-bcb4-4799-80ce-ac23952b4bdd
+          test "$(az account show --query name --output tsv)" = 'Azure for Students'
+          test "$(az account show --query tenantId --output tsv)" = 9d97530e-8f27-4137-a2a9-5cb4dcf26f2e
+          test "$(az group show --name rg-lpr-test --query location --output tsv)" = swedencentral
+          export PARAMETERS_FILE=$(mktemp "$RUNNER_TEMP/lpr-preflight.XXXXXX.json")
+          trap 'rm -f "$PARAMETERS_FILE"' EXIT
+          node <<'NODE'
+          const assert=require('node:assert/strict'),fs=require('node:fs'),{createHash}=require('node:crypto'),e=process.env;
+          const sha=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');
+          (async()=>{
+            assert(/^ghcr\.io\/panulut\/lprmotorsport\/verification@sha256:[a-f0-9]{64}$/.test(e.IMAGE),'Unexpected image repository/digest');
+            assert(e.GHCR_PULL_TOKEN&&e.GHCR_PULL_USER,'Missing registry credentials');
+            assert.notEqual(e.VERIFICATION_SECRET,e.VERIFICATION_METRICS_TOKEN,'Signing/metrics credentials must differ');
+            const server=await require('./verification/server.cjs').createServer();
+            await server.sessions.close();await server.capacityReporter.close();
+            const response=await fetch('https://ghcr.io/token?service=ghcr.io&scope=repository:panulut/lprmotorsport/verification:pull',{
+              headers:{Authorization:'Basic '+Buffer.from(e.GHCR_PULL_USER+':'+e.GHCR_PULL_TOKEN).toString('base64')},redirect:'error',signal:AbortSignal.timeout(20000)});
+            assert(response.ok,'Registry credential rejected: HTTP '+response.status);
+            const auth=await response.json(),headers={Authorization:'Bearer '+(auth.token||auth.access_token)};
+            const manifest=await fetch('https://ghcr.io/v2/panulut/lprmotorsport/verification/manifests/'+e.IMAGE.split('@')[1],{
+              headers:{...headers,Accept:'application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json'},redirect:'error',signal:AbortSignal.timeout(20000)});
+            assert(manifest.ok,'Private image pull rejected: HTTP '+manifest.status);
+            const bytes=Buffer.from(await manifest.arrayBuffer());assert.equal(sha(bytes),e.IMAGE.split('@')[1]);
+            const descriptor=JSON.parse(bytes);assert(descriptor.config?.digest,'Expected a single tested image manifest');
+            const blob=await fetch('https://ghcr.io/v2/panulut/lprmotorsport/verification/blobs/'+descriptor.config.digest,{headers,signal:AbortSignal.timeout(20000)});
+            assert(blob.ok,'Image configuration unavailable: HTTP '+blob.status);
+            const configBytes=Buffer.from(await blob.arrayBuffer());assert.equal(sha(configBytes),descriptor.config.digest);
+            const config=JSON.parse(configBytes),labels=config.config.Labels;
+            assert.equal(labels['org.opencontainers.image.revision'],'5ab897e510eb3e1e07cba3c4057c600f5124897f');
+            assert.equal(labels['org.lpr.simulation-revision'],require('./verification/world.cjs').revision);
+            const values={image:e.IMAGE,testGameOrigin:e.GAME_ORIGINS,maxVerifiedSessions:2,maxVerifiedStartsPerMinute:100,
+              ghcrUser:e.GHCR_PULL_USER,ghcrPullToken:e.GHCR_PULL_TOKEN,verificationSecret:e.VERIFICATION_SECRET,metricsToken:e.VERIFICATION_METRICS_TOKEN};
+            fs.writeFileSync(e.PARAMETERS_FILE,JSON.stringify({parameters:Object.fromEntries(Object.entries(values).map(([k,value])=>[k,{value}]))}),{mode:0o600});
+            console.log('PASS: private image credentials, immutable digest, source/revision and isolated two-session startup');
+          })().catch(error=>{console.error(error.message);process.exitCode=1;});
+          NODE
+          az bicep build --file infra/azure/verification.bicep --outfile "$RUNNER_TEMP/verification.json"
+          node tests/azure-deployment.test.cjs "$RUNNER_TEMP/verification.json"
+          az deployment group validate --subscription 41128d20-bcb4-4799-80ce-ac23952b4bdd \
+            --resource-group rg-lpr-test --template-file infra/azure/verification.bicep \
+            --parameters "@$PARAMETERS_FILE" --validation-level Provider --only-show-errors --output none
+          echo 'PASS: OIDC credential-backed provider preflight; no resources created' >> "$GITHUB_STEP_SUMMARY"

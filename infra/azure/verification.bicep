@@ -53,9 +53,8 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: environmentName
   location: location
   properties: {
-    appLogsConfiguration: {
-      destination: 'none'
-    }
+    // The provider requires an absent/null destination to disable saved logs.
+    appLogsConfiguration: null
     workloadProfiles: [
       {
         name: 'Consumption'

@@ -116,7 +116,7 @@ caches are in memory: restarts, revision changes, or routing to another replica
 can invalidate unfinished sessions. Do not treat this as durable or horizontally
 scalable verification. Test rollout and restart behavior before wider use.
 
-Log Analytics is disabled (`destination: none`); there is no durable application
+Log Analytics is disabled (`appLogsConfiguration: null`); there is no durable application
 log history or alerting configured. Azure identity permissions, quotas, region
 availability, private registry access, frontend integration, and remote load
 results require validation in the test subscription. No production configuration
