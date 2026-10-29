@@ -1,6 +1,14 @@
 name: Deploy Azure verification test
 
 on:
+  workflow_call:
+    inputs:
+      test_game_origin:
+        required: true
+        type: string
+      max_sessions:
+        default: '2'
+        type: string
   workflow_dispatch:
     inputs:
       test_game_origin:
