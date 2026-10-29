@@ -66,6 +66,27 @@ async function partialFailure(stage){
  assert.deepEqual(playerCounts(),[2,5,10,25,50,100]);
  assert.deepEqual(loadPoints,[2,5,10,25,50,100]);
  for(const stage of ['create','activate','batch','ack','cleanup'])await partialFailure(stage);
+ // One player's slow acknowledgement must not block another player's next batch.
+ let releaseSlow,created=0,fastAdvanced=false;const removed=[];
+ const slow=new Promise(resolve=>{releaseSlow=resolve;});
+ const independent=async(url,options)=>{
+  const path=new URL(url).pathname,id=path.split('/')[2];
+  if(path==='/health')return json({...health,activeSessions:created?2:0});
+  if(path==='/sessions')return json({id:String(++created),sessionToken:'test-token'},201);
+  if(options.method==='DELETE'){removed.push(id);return json({});}
+  if(path.endsWith('/start'))return json({});
+  const data=JSON.parse(options.body);
+  if(id==='1'&&data.seq===0)await slow;
+  if(id==='2'&&data.seq===1){fastAdvanced=true;releaseSlow();}
+  return json({ackTick:data.fromTick+data.inputs.length,result:{ticks:data.fromTick+data.inputs.length}});
+ };
+ let barrierTimedOut=false;
+ const deadline=setTimeout(()=>{barrierTimedOut=true;releaseSlow();},1000);
+ try{await run('https://test.invalid',secret,2,[...inputs,...inputs],{fetchImpl:independent,wait:async()=>{}});}
+ finally{clearTimeout(deadline);}
+ assert(fastAdvanced,'The second player must advance while the first acknowledgement is pending');
+ assert(!barrierTimedOut,'Independent players must advance before the slow response is released');
+ assert.deepEqual(removed.sort(),['1','2']);
  for(const h of [{...health,revision:'old'},{...health,maxSessions:1},{...health,activeSessions:1}]){
   let requests=0;
   await assert.rejects(run('https://test.invalid',secret,2,inputs,{fetchImpl:async()=>{requests++;return json(h);}}));

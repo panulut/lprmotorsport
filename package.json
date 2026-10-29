@@ -4,6 +4,8 @@
   "scripts": {
     "test:azure-verification": "node tests/azure-verification.test.cjs && node tests/azure-load.test.cjs",
     "load:azure-verification": "node scripts/load-azure-verification.cjs",
+    "measure:azure-load-stage": "node scripts/measure-azure-load-stage.cjs",
+    "test:azure-browser": "node scripts/check-azure-browser.cjs",
     "test:azure-deployment": "node tests/azure-deployment.test.cjs",
     "test:release-browser": "node scripts/check-release-browser.cjs",
     "test:dashboard-browser": "node scripts/check-dashboard-browser.cjs",

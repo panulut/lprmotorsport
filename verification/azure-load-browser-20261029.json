@@ -1,0 +1,220 @@
+{
+  "generatedAt": "2026-10-29T20:17:01.522Z",
+  "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+  "scope": "Azure test app only; unchanged runtime image, 0.5 vCPU, 1 GiB, one worker; real server clocks and existing anti-cheat limits",
+  "mainRefBefore": "5e6bb8f9f1a023038e9991edba7f04251ef3df94",
+  "previousFivePlayerRun": {
+    "startedAt": "2026-10-29T14:59:57.957Z",
+    "finishedAt": "2026-10-29T15:03:50.292Z",
+    "players": 5,
+    "phase": "load",
+    "passed": true,
+    "simulationSeconds": 215.5,
+    "receipts": 10,
+    "comparedBatches": 1080,
+    "httpFailures": 0,
+    "ineligibleBatches": 0,
+    "practiceLaps": 0,
+    "load": {
+      "players": 5,
+      "batchTicks": 120,
+      "elapsedMs": 216863.8676,
+      "batchP95Ms": 780.7897999999986,
+      "clientEventLoopP99Ms": 35.487743,
+      "serviceActiveSessions": 5,
+      "practiceLaps": 0,
+      "ineligibleBatches": 0,
+      "maxAckLagMs": 1214.372543000005
+    },
+    "peakRssBytes": 239116288,
+    "cpuSeconds": 28.604514,
+    "averageCpuCores": 0.13190078327275948,
+    "restarted": false,
+    "activeSessionsAfter": 0,
+    "countersDelta": {
+      "starts": 5,
+      "capacityRejected": 0,
+      "startRateRejected": 0,
+      "batches": 1080,
+      "ticks": 129300,
+      "verifiedLaps": 10,
+      "practiceLaps": 0,
+      "processingTimeouts": 0,
+      "lagTerminations": 0
+    },
+    "serverMaxTimingsMs": {
+      "initializationMs": 256.82202099999995,
+      "queueMs": 252.00685099998373,
+      "workerWallMs": 471.4467000000004,
+      "physicsMs": 141.39079699998547,
+      "replayMs": 464.861600000062,
+      "batchResponseMs": 500.2382759999891,
+      "arrivalLagMs": 861.1033389999939,
+      "ackLagMs": 1214.3771960000158
+    }
+  },
+  "originalTenPlayerFailure": {
+    "startedAt": "2026-10-29T15:09:56.709Z",
+    "finishedAt": "2026-10-29T15:11:46.044Z",
+    "players": 10,
+    "phase": "load",
+    "passed": false,
+    "error": "Lap eligibility lost under load\n\n4 !== 0\n",
+    "simulationSeconds": 215.5,
+    "receipts": 0,
+    "comparedBatches": 963,
+    "httpFailures": 0,
+    "ineligibleBatches": 6,
+    "practiceLaps": 0,
+    "peakRssBytes": 261410816,
+    "cpuSeconds": 26.6265,
+    "observedSeconds": 102.581548732,
+    "averageCpuCores": 0.2595642230900921,
+    "restarted": false,
+    "activeSessionsAfter": 0,
+    "countersDelta": {
+      "starts": 10,
+      "capacityRejected": 0,
+      "startRateRejected": 0,
+      "batches": 970,
+      "ticks": 116400,
+      "verifiedLaps": 0,
+      "practiceLaps": 0,
+      "processingTimeouts": 0,
+      "lagTerminations": 0
+    },
+    "serverMaxTimingsMs": {
+      "initializationMs": 315.7025620000004,
+      "queueMs": 964.5952229999966,
+      "workerWallMs": 561.7656040000002,
+      "physicsMs": 561.2584020000286,
+      "replayMs": 24.650789999956032,
+      "batchResponseMs": 1066.9287670000049,
+      "arrivalLagMs": 2014.4486180000094,
+      "ackLagMs": 2406.08464999999
+    }
+  },
+  "browserBaseline": {
+    "startedAt": "2026-10-29T20:05:02.288Z",
+    "finishedAt": "2026-10-29T20:08:56.208Z",
+    "passed": true,
+    "scope": "Actual Chrome 3D game with synthetic controls, normal animation/server clocks, real Azure HTTPS; browser-routed local test frontend and disposable SQLite accounts; no public frontend deployment",
+    "players": [
+      {
+        "addedRequestDelayMs": 0,
+        "responseP95Ms": 712.434,
+        "httpErrors": 0,
+        "eligibleAtEnd": true,
+        "physicsMismatch": null,
+        "averageFps": 24.67109566175887
+      }
+    ],
+    "savedLaps": 2,
+    "blockedOrigins": [],
+    "errors": [],
+    "activeSessionsAfter": 0,
+    "countersDelta": {
+      "starts": 1,
+      "capacityRejected": 0,
+      "startRateRejected": 0,
+      "batches": 305,
+      "ticks": 26036,
+      "verifiedLaps": 2,
+      "practiceLaps": 0,
+      "processingTimeouts": 0,
+      "lagTerminations": 0
+    }
+  },
+  "browserConcurrent": {
+    "startedAt": "2026-10-29T20:09:06.747Z",
+    "finishedAt": "2026-10-29T20:13:09.319Z",
+    "passed": true,
+    "scope": "Actual Chrome 3D game with synthetic controls, normal animation/server clocks, real Azure HTTPS; browser-routed local test frontend and disposable SQLite accounts; no public frontend deployment",
+    "players": [
+      {
+        "addedRequestDelayMs": 0,
+        "responseP95Ms": 701.503,
+        "httpErrors": 0,
+        "eligibleAtEnd": true,
+        "physicsMismatch": null,
+        "averageFps": 20.44735909669707,
+        "maxArrivalLagMs": 1233.627418666656,
+        "maxAckLagMs": 1293.3930136666604
+      },
+      {
+        "addedRequestDelayMs": 250,
+        "responseP95Ms": 968.904,
+        "httpErrors": 1,
+        "eligibleAtEnd": true,
+        "physicsMismatch": null,
+        "averageFps": 19.986478326795506,
+        "maxArrivalLagMs": 1935.7774696666602,
+        "maxAckLagMs": 1951.5968366666784
+      }
+    ],
+    "savedLaps": 4,
+    "blockedOrigins": [],
+    "errors": [],
+    "activeSessionsAfter": 0,
+    "countersDelta": {
+      "starts": 2,
+      "capacityRejected": 0,
+      "startRateRejected": 0,
+      "batches": 536,
+      "ticks": 52030,
+      "verifiedLaps": 4,
+      "practiceLaps": 0,
+      "processingTimeouts": 0,
+      "lagTerminations": 0
+    }
+  },
+  "independentLoadStages": [
+    {
+      "startedAt": "2026-10-29T20:13:26.281Z",
+      "finishedAt": "2026-10-29T20:14:45.405Z",
+      "players": 10,
+      "phase": "preflight",
+      "passed": false,
+      "error": "Expected idle test revision/admission not ready",
+      "receipts": 0,
+      "comparedBatches": 0,
+      "httpFailures": 0,
+      "ineligibleBatches": 0,
+      "practiceLaps": 0,
+      "responseP95Ms": null,
+      "maxResponseMs": null,
+      "peakRssBytes": 160067584,
+      "activeSessionsAfter": 0
+    }
+  ],
+  "finalRestored": {
+    "checkedAt": "2026-10-29T20:15:02.568Z",
+    "health": {
+      "ready": true,
+      "protocol": "driving-v1",
+      "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+      "hz": 120,
+      "streaming": true,
+      "activeSessions": 0,
+      "activeConnections": 2,
+      "maxSessions": 2,
+      "lapLagMs": 2000
+    },
+    "security": {
+      "anonymous": 401,
+      "wrongToken": 401,
+      "productionOrigin": 403,
+      "testOrigin": 200
+    },
+    "pool": {
+      "mode": "pooled",
+      "limit": 1,
+      "workers": 1,
+      "readyWorkers": 1,
+      "sessions": 0,
+      "pendingRequests": 0,
+      "closingSessions": 0,
+      "workerHeapMb": 256
+    }
+  }
+}

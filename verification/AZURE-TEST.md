@@ -94,7 +94,8 @@ Then run `npm run load:azure-verification`. Keep secrets out of shell history an
 tracked files. The CLI permits only the HTTPS Azure test app hostname, rejects
 custom ports and URL credentials/paths/query/fragment, and refuses redirects.
 It checks revision and idle admission capacity, creates every player armed before
-activation, paces 60-tick batches at 120 Hz, checks acknowledgements, and cancels
+activation, paces each player's independent 60-tick request chain at 120 Hz,
+checks acknowledgements, and cancels
 all known sessions even after partial initialization or batch failures. Failed
 cleanup makes the command fail. A creation response lost over the network can
 still leave an unknown session until the server's idle timeout.
@@ -111,6 +112,35 @@ measurements. Collect authenticated `/metrics` and Azure CPU/memory/restart
 metrics separately. Two admitted players are the initial configuration, not a
 measured capacity claim; 0.5 vCPU, 1 GiB, and one 256 MiB worker need measurement
 before raising admission to 100.
+
+### Full-lap and real browser checks
+
+`npm run measure:azure-load-stage` reuses the isolated endpoint and signing-secret
+variables above, plus `VERIFICATION_METRICS_TOKEN`. Set `AZURE_LOAD_PLAYERS` to one
+load point and temporarily set the test app's admission to exactly that count.
+It runs standing and flying laps with existing bounded 120-tick batches, compares
+every authoritative state to the reference simulation, validates signed receipts
+and replay hashes, samples metrics, and fails on lost eligibility, practice laps,
+restarts or incomplete cleanup. `AZURE_LOAD_REPORT` overrides its JSON report path.
+Run one stage at a time; stop increasing admission after a failure. Restore
+`MAX_VERIFIED_SESSIONS=2` in a control-plane `finally` block and verify `/health`
+reports both `maxSessions:2` and `activeSessions:0` after testing.
+
+`npm run test:azure-browser` uses the same secrets with admission fixed at two,
+Playwright and an installed Chrome/Chromium (see `scripts/browser.cjs`). It drives
+the real 3D game with synthetic controls and normal animation/server clocks over
+Azure HTTPS. Frontend files are routed inside the browser context; accounts and
+saved laps use a disposable local SQLite service. Analytics and optional web
+fonts are stubbed, and unexpected origins fail the test. No public game or account
+service is deployed. Registration uses a desktop viewport; driving uses 640×480.
+
+By default it tests two simultaneous browsers, baseline and an extra 250 ms delay
+on each input request. Set `AZURE_BROWSER_DELAYS=0` or `250` to test one renderer at
+a time and `AZURE_BROWSER_REPORT` to preserve separate JSON reports. Frame timing,
+HTTP timing, eligibility and physics mismatches are recorded. Local rendering
+stalls can invalidate a real-clock lap; a successful API load run does not prove
+browser capacity. These checks never replace server clocks or loosen anti-cheat
+limits. Credential values must stay in environment variables, never report files.
 
 ## Remaining operational limits
 

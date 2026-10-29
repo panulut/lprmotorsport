@@ -72,25 +72,33 @@ async function run(base,secret,count,inputs,{fetchImpl=fetch,wait=sleep,batchTic
  const sessions=[];
  try{
   await allOrThrow(Array.from({length:count},async(_,i)=>{sessions.push(await createPlayer(request,secret,i));}));
-  await allOrThrow(sessions.map((session,index)=>activatePlayer(request,session,index)));
   const started=performance.now(),latencies=[];let practiceLaps=0,ineligibleBatches=0,maxAckLagMs=0;
-  for(let fromTick=0,seq=0;fromTick<inputs.length;fromTick+=batchTicks,seq++){
-   const batch=inputs.slice(fromTick,fromTick+batchTicks);
-   await wait(Math.max(0,started+(fromTick+batch.length)*1000/120-performance.now()));
-   await allOrThrow(sessions.map(async session=>{
-    const before=performance.now();
-    const response=await request(`/sessions/${session.id}/inputs`,{method:'POST',
-     headers:{Authorization:'Bearer '+session.sessionToken,'Content-Type':'application/json'},
-     body:JSON.stringify({revision,seq,fromTick,inputs:batch})});
-    if(!response.ok)throw Error(`Player batch rejected at ${count} players: HTTP ${response.status} ${await response.text()}`);
-    const result=await response.json();
-    if(result.ackTick!==fromTick+batch.length||result.result?.ticks!==fromTick+batch.length)throw Error(`Unexpected acknowledgement at ${count} players`);
-    practiceLaps+=result.practiceLaps?.length||0;
-    if(result.eligibility?.eligible===false)ineligibleBatches++;
-    maxAckLagMs=Math.max(maxAckLagMs,(result.serverElapsedMs||0)-(fromTick+batch.length)*1000/120);
-    latencies.push(performance.now()-before);
-   }));
-  }
+  // Each player owns its clock and acknowledgement chain, like independent browsers.
+  // A slow response must not hold every other player's next input batch hostage.
+  let stopped=false;
+  await allOrThrow(sessions.map(async(session,index)=>{
+   try{
+    await activatePlayer(request,session,index);
+    const playerStarted=performance.now();
+    for(let fromTick=0,seq=0;fromTick<inputs.length;fromTick+=batchTicks,seq++){
+     if(stopped)return;
+     const batch=inputs.slice(fromTick,fromTick+batchTicks);
+     await wait(Math.max(0,playerStarted+(fromTick+batch.length)*1000/120-performance.now()));
+     if(stopped)return;
+     const before=performance.now();
+     const response=await request(`/sessions/${session.id}/inputs`,{method:'POST',
+      headers:{Authorization:'Bearer '+session.sessionToken,'Content-Type':'application/json'},
+      body:JSON.stringify({revision,seq,fromTick,inputs:batch})});
+     if(!response.ok)throw Error(`Player batch rejected at ${count} players: HTTP ${response.status} ${await response.text()}`);
+     const result=await response.json();
+     if(result.ackTick!==fromTick+batch.length||result.result?.ticks!==fromTick+batch.length)throw Error(`Unexpected acknowledgement at ${count} players`);
+     practiceLaps+=result.practiceLaps?.length||0;
+     if(result.eligibility?.eligible===false)ineligibleBatches++;
+     maxAckLagMs=Math.max(maxAckLagMs,(result.serverElapsedMs||0)-(fromTick+batch.length)*1000/120);
+     latencies.push(performance.now()-before);
+    }
+   }catch(error){stopped=true;throw error;}
+  }));
   const elapsedMs=performance.now()-started;
   latencies.sort((a,b)=>a-b);
   const finalResponse=await request('/health'),finalHealth=await finalResponse.json();
