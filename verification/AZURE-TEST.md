@@ -122,31 +122,52 @@ availability, private registry access, frontend integration, and remote load
 results require validation in the test subscription. No production configuration
 or secrets should be attached to this deployment.
 
-## Readiness observed on 2026-10-28
+## Readiness observed on 2026-10-29
 
-- Azure CLI 2.91.0; active subscription `Azure for Students`, enabled,
-  `41128d20-bcb4-4799-80ce-ac23952b4bdd`; tenant
-  `9d97530e-8f27-4137-a2a9-5cb4dcf26f2e`. Both deployment paths check this identity.
-- `rg-lpr-test` exists in `swedencentral`, provisioning succeeded. The subscription
-  resource inventory was empty: no app, environment, database, logging workspace,
-  registry or frontend. `Microsoft.App` is registered. Sweden Central environment
-  quota was 0 used / 1 allowed. Consumption core allocation is still unconfirmed.
-- The inherited/resource-group role listing showed the user's subscription Owner
-  role, but no deployment service principal with resource write permissions.
-- GitHub `azure-test` environment returned 404; repository Actions secret-name
-  listing was empty. Environment protections, OIDC federation, the Azure identity,
-  package credentials and dedicated signing/metrics secrets still need setup.
-  No secret values were requested from GitHub or printed.
-- Bicep builds locally. Azure `deployment group validate` using synthetic values
-  stopped at `AADSTS50076` (MFA required). Refresh with
-  `az login --tenant 9d97530e-8f27-4137-a2a9-5cb4dcf26f2e`, then
-  `az account set --subscription 41128d20-bcb4-4799-80ce-ac23952b4bdd`.
-  Provider validation and regional allocation have not succeeded yet.
-- The deployment workflow is absent from `main`. GitHub requires it on the default
-  branch for the normal manual trigger
-  ([documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)).
-  Do not merge it or change the default branch just to enable deployment. Use the
-  guarded local fallback after approval, or agree a separate workflow solution.
+- Azure for Students is enabled and selected: subscription
+  `41128d20-bcb4-4799-80ce-ac23952b4bdd`, tenant
+  `9d97530e-8f27-4137-a2a9-5cb4dcf26f2e`. `rg-lpr-test` remains empty in Sweden Central.
+- OIDC application `lpr-github-azure-test` (`ec6819a3-6d38-4a72-a625-047ebeb9cdc9`)
+  trusts only `repo:panulut/lprmotorsport:environment:azure-test`, with issuer
+  `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`.
+  Its service principal has only the custom `LPR Azure Test Verification Deployer`
+  role on `rg-lpr-test`. Role and federation definitions are under `infra/azure/`.
+- GitHub `azure-test` requires review by `panulut`, disables administrator bypass,
+  and permits only the `deploy/azure-test` branch. All six required secret names
+  exist, plus variable `GHCR_PULL_USER`; values were not displayed. Signing and
+  metrics keys were independently generated; local copies use Windows DPAPI.
+- The Bicep logging fix uses `appLogsConfiguration: null`. The provider rejects
+  the literal destination `'none'`, although local compilation accepts it.
+  Real provider validation passed using credential placeholders, initial admission
+  2, 0.5 vCPU, 1 GiB and scale 0..1. Credential-backed OIDC/private-image validation
+  is available through the protected preflight-only mode and requires GitHub review.
+- Image source commit: `5ab897e510eb3e1e07cba3c4057c600f5124897f`. Runtime files remain
+  unchanged on this branch. Publication passed HTTP/session/shutdown checks and
+  the HIGH/CRITICAL vulnerability gate in run
+  https://github.com/panulut/lprmotorsport/actions/runs/40813813555.
+- Verified image:
+  `ghcr.io/panulut/lprmotorsport/verification@sha256:165a925811cf7a6c69ae60f77cbdd302b4f6aeef88443edb84a89f2275b177a3`.
+  Registry config digest:
+  `sha256:0f5db12dfa9bea97b1334b595f91feac99c95972df28418e3f7f95b31b80a076`,
+  matched against the configuration in the tested image archive. Simulation revision:
+  `3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346`.
+  The `04c79c6` push succeeded but its workflow failed selecting a local alias digest;
+  publication now obtains the authoritative GHCR manifest digest directly.
+- To validate without deploying, dispatch `publish-azure-test-image.yml` on
+  `deploy/azure-test` with `preflight_only=true`, the verified `image_digest`, and an
+  isolated `test_game_origin`. The publication job is skipped. The protected job
+  tests package-read credentials, image/source/revision, isolated startup and real
+  Azure provider validation under OIDC. It contains no resource-creation command.
+  Required environment review authorizes validation only, not deployment costs.
+- `https://lpr-game-test.azurestaticapps.net` is a reserved origin for API-only
+  validation. A live browser game/account/database/analytics environment is not
+  provisioned or claimed ready. No production endpoints or databases are attached.
+- First actual deployment, only after successful credential-backed preflight and
+  separate explicit cost approval: load the test credentials locally from the
+  secret manager and use `scripts/deploy-azure-verification.ps1` with the exact
+  verified image above, the approved test origin and `-MaxSessions 2`. Validate
+  first, then add `-ApproveTestResourceCosts` only after approval. Never raise
+  `maxReplicas` beyond 1 until session-state handling is validated.
 
 ## Credit consumption
 
