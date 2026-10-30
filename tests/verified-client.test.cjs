@@ -18,11 +18,11 @@ function fixture(){
   async cancel(){this.active=false;}
   enqueue(){} async flush(){}
  }
- const document={get hidden(){return hidden;},querySelector:node,addEventListener(name,fn){this[name]=fn;}};
+ const document={get hidden(){return hidden;},querySelector:node,addEventListener(name,fn){this[name]=fn;},dispatchEvent(){}};
  const window={LPRVerificationConfig:{service:'service',leaderboard:'board'},LPRDrivingRevision:'rev',LPRLeaderboard:{get identity(){return {...identity};},signOut:message=>signOuts.push(message)},
   LPRLiveClient:Client,LPRDriving:{encode:i=>i},addEventListener(){}};
  const countdowns=[];let retry;
- const context={window,document,fetch,AbortSignal,console,setInterval(){},setTimeout(fn,ms){if(ms===3000){retry=fn;return null;}countdowns.push(ms);return setImmediate(fn);},clearTimeout(handle){if(handle)clearImmediate(handle);},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
+ const context={window,document,fetch,AbortSignal,console,Event:class{constructor(type){this.type=type;}},setInterval(){},setTimeout(fn,ms){if(ms===3000){retry=fn;return null;}countdowns.push(ms);return setImmediate(fn);},clearTimeout(handle){if(handle)clearImmediate(handle);},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../verified-driving.js'),'utf8'),context);
  let starts=0,prepares=0;window.LPRVerifiedDriving.attach({prepare(){prepares++;},start(){starts++;}});
  return {api:window.LPRVerifiedDriving,nodes,node,storage,requests,clients,identity,document,countdowns,signOuts,setLapStatus(value){lapStatus=value;},setStartStatus(value){startStatus=value;},

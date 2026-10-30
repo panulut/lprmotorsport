@@ -130,6 +130,32 @@ export default {
      WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND ${seriesOf('l.player_hash')}=? AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap) ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10`).bind(revision,series).all();
     return reply({protocol,revision:revision,series,results:rows.results.map(row=>({...row,lap_ms:row.lap_ticks*1000/120}))});
    }
+   if(url.pathname==='/api/verified/timing-panel'&&request.method==='GET'){
+    const series=url.searchParams.get('series')||'human';
+    if(!SERIES.includes(series))return reply({error:'Invalid series'},400);
+    const credential=request.headers.get('Authorization')?.replace(/^Bearer\s+/i,'');
+    const owner=await sessionOwner(env.DB,credential,env.VERIFICATION_SECRET,Date.now());
+    if(!owner)return reply({error:'Sign in required'},401);
+    const rows=await env.DB.prepare(`WITH ranked AS (
+     SELECT l.player_hash,${guestNameSQL} AS nickname,l.lap_ticks,l.issued_ms,l.session_id,l.lap,l.sector1,l.sector2,l.sector3,
+      ROW_NUMBER() OVER (PARTITION BY l.player_hash ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap) AS best_order
+     FROM verified_laps l JOIN verified_replays r USING(session_id,lap) ${principalJoins}
+     WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND ${seriesOf('l.player_hash')}=?
+      AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap)
+    ) SELECT player_hash,nickname,lap_ticks,session_id,lap,sector1,sector2,sector3 FROM ranked WHERE best_order=1
+     ORDER BY lap_ticks,nickname COLLATE NOCASE,player_hash`).bind(revision,series).all();
+    const standings=rows.results||[], personal=standings.find(row=>row.player_hash===owner.player_hash)||null;
+    const track=standings[0]||null;
+    const rank=personal?1+standings.filter(row=>row.lap_ticks<personal.lap_ticks).length:null;
+    const next=personal?standings.find(row=>row.lap_ticks>personal.lap_ticks)||null:null;
+    const timing=row=>row?{nickname:row.nickname,lap_ms:row.lap_ticks*1000/120}:null;
+    const personalBest=timing(personal);
+    if(personalBest){
+     personalBest.sectors=[personal.sector1,personal.sector2,personal.sector3].map(ticks=>ticks*1000/120);
+     personalBest.replay={sessionId:personal.session_id,lap:personal.lap};
+    }
+    return reply({protocol,revision,series,fieldSize:standings.length,rank,trackBest:timing(track),personalBest,next:timing(next)});
+   }
    if(url.pathname==='/api/verified/championship'&&request.method==='GET'){
     const credential=request.headers.get('Authorization')?.replace(/^Bearer /,'');
     let playerHash=null;
