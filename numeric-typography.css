@@ -1,0 +1,25 @@
+/* Stack Sans supports OpenType tnum; tabular figures keep time columns steady. */
+#lap-count,
+#lap-time,
+#speed,
+#best-time,
+#personal-best-time,
+#next-time,
+.sector-chip-time,
+.sector-panel-lap strong,
+#sector-current-time,
+.sector-panel-delta strong,
+.sector-time,
+#daily-race-countdown,
+#daily-race-time,
+#verified-list .standing-time,
+#leaderboard-list .standing-time,
+#championship-fastest .standing-time,
+#championship-clock,
+#settings-dialog #championship-clock,
+.record-banner span,
+.crash-notice-detail {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-variant-numeric: lining-nums tabular-nums;
+}

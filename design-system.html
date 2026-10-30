@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#171717" />
+  <title>LPR Motorsport · Design system</title>
+  <link rel="stylesheet" href="design-tokens.css" />
+  <link rel="stylesheet" href="components.css" />
+  <link rel="stylesheet" href="design-system.css" />
+</head>
+<body>
+  <main class="ds-shell">
+    <header class="ds-header">
+      <a class="ds-brand" href="/" aria-label="LPR Motorsport home"><img src="assets/lpr-logo-transparent.png" alt="LPR Motorsport" /><span>UI FOUNDATIONS</span></a>
+      <span class="ds-version">DESIGN SYSTEM · ENGLISH REFERENCE</span>
+    </header>
+    <section class="ds-hero">
+      <p class="ds-eyebrow">LPR MOTORSPORT · SKINNARILA GRAND PRIX</p>
+      <h1>Made for the<br /><em>next lap.</em></h1>
+      <p class="ds-intro">A focused visual foundation for the LPR Motorsport experience: crisp type, purposeful contrast, and a track inspired green at the center. This reference is English-only; the game UI supports Finnish and English.</p>
+      <div class="ds-actions"><button class="primary">Primary action <svg class="ph-icon ds-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg#arrow-up-right"></use></svg></button><button class="secondary">Secondary action</button><span class="ds-inline"><i></i> Systems online</span></div>
+    </section>
+    <section class="ds-section">
+      <div class="ds-section-heading"><div><p class="ds-eyebrow">01 / TYPOGRAPHY</p><h2>One voice, two jobs.</h2></div><p>Stack Sans Headline gives titles a confident motorsport character. Inter keeps controls, body copy, and data clear at every size.</p></div>
+      <div class="type-specimen"><div><span>DISPLAY / FLUID 56–108 · REGULAR</span><strong class="display">Built for the<br />fast line.</strong><span class="number-sample">0123456789</span></div><div><span>HEADING / 28</span><strong class="heading-sample">Skinnarila Grand Prix</strong><p>BODY / 16 · Inter. Precise, readable interface copy for drivers on every device.</p><code class="lap-data">LAP 01&nbsp;&nbsp; 01:24.508&nbsp;&nbsp; +0.184</code></div></div>
+      <div class="type-ramp" aria-label="Shared type scale"><div><span>12 / CAPTION</span><small>Timing labels</small></div><div><span>14 / UI</span><small>Controls and dense lists</small></div><div><span>16 / BODY</span><small>Default reading size</small></div><div><span>20 / TITLE S</span><small>Panels and cards</small></div><div><span>24 / TITLE M</span><small>Section headings</small></div><div><span>32 / TITLE L</span><small>Dialog headings</small></div><div><span>40–48 / LARGE</span><small>Feature headings</small></div><div><span>56–108 / FLUID</span><small>Responsive display</small></div></div><div class="keycap-specimen"><span>REUSABLE KEYCAP</span><kbd class="keycap">⌘</kbd><kbd class="keycap">⇧</kbd><kbd class="keycap">7</kbd></div>
+    </section>
+    <section class="ds-section">
+      <div class="ds-section-heading"><div><p class="ds-eyebrow">02 / COLOR</p><h2>Color with intent.</h2></div><p>Neutral surfaces are based on Vercel Geist’s dark gray system. The LPR brand ramp starts at the logo’s <code>#03BC7E</code>. Semantic ramps carry feedback and status.</p></div>
+      <div id="color-scales" class="color-scales" aria-live="polite"></div>
+    </section>
+    <section class="ds-section">
+      <div class="ds-section-heading"><div><p class="ds-eyebrow">03 / SEMANTIC COLOR</p><h2>Meaning at a glance.</h2></div><p>Use semantic roles in components so the meaning stays consistent as screens grow.</p></div>
+      <div class="semantic-grid"><div class="semantic-card success"><span class="semantic-mark"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg#check-circle"></use></svg></span><div><strong>Lap verified</strong><small>Your time is on the board.</small></div><b>SUCCESS</b></div><div class="semantic-card warning"><span class="semantic-mark"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg#warning"></use></svg></span><div><strong>Connection unstable</strong><small>Keep driving while we reconnect.</small></div><b>WARNING</b></div><div class="semantic-card danger"><span class="semantic-mark"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg#x"></use></svg></span><div><strong>Could not save lap</strong><small>Check your connection and retry.</small></div><b>ERROR</b></div><div class="semantic-card info"><span class="semantic-mark"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg#info"></use></svg></span><div><strong>Practice mode</strong><small>This lap will not appear in standings.</small></div><b>INFO</b></div></div>
+    </section>
+    <section class="ds-section demo-section" aria-labelledby="demo-title">
+      <div class="ds-section-heading"><div><p class="ds-eyebrow">04 / LOCAL PREVIEW DATA</p><h2 id="demo-title">A demo, not live results.</h2></div><p>This panel is populated only by the development server. Optional local <code>DEMO_*</code> values customize the sample driver and lap.</p></div>
+      <div class="demo-board"><div class="demo-board-head"><span>SKINNARILA · PRACTICE SESSION</span><span class="demo-badge">DEMO DATA</span></div><div id="demo-drivers" class="demo-drivers" aria-live="polite"><p class="demo-loading">Loading local demo data…</p></div><div id="demo-stats" class="demo-stats"></div></div>
+    </section>
+    <footer class="ds-footer"><span>LPR MOTORSPORT · UI FOUNDATIONS</span><span>STACK SANS HEADLINE + INTER · SELF HOSTED</span></footer>
+  </main>
+  <script>
+    fetch('/api/dev/design-preview').then(response => response.ok ? response.json() : null).then(data => {
+      const drivers = document.getElementById('demo-drivers');
+      const stats = document.getElementById('demo-stats');
+      if (!data) { drivers.innerHTML = '<p class="demo-loading">Run <code>npm run dev</code> to load local demo data.</p>'; return; }
+      drivers.replaceChildren();
+      for (const driver of data.drivers) {
+        const row = document.createElement('div'); row.className = 'demo-driver';
+        const place = document.createElement('span'); place.className = 'demo-place'; place.textContent = String(driver.position).padStart(2, '0');
+        const name = document.createElement('strong'); name.textContent = driver.name;
+        const state = document.createElement('small'); state.textContent = driver.status === 'verified' ? 'VERIFIED' : 'PRACTICE';
+        const time = document.createElement('code'); time.textContent = driver.time;
+        row.append(place, name, state, time); drivers.append(row);
+      }
+      stats.replaceChildren();
+      for (const item of data.sessions) {
+        const stat = document.createElement('div'); stat.className = 'demo-stat';
+        const label = document.createElement('small'); label.textContent = item.label;
+        const value = document.createElement('strong'); value.textContent = item.value;
+        stat.append(label, value); stats.append(stat);
+      }
+    }).catch(() => { document.getElementById('demo-drivers').innerHTML = '<p class="demo-loading">Local demo data is unavailable.</p>'; });
+    const ramps = [
+      ['Gray', 'gray', 'Geist dark neutral'], ['Gray alpha', 'gray-alpha', 'Overlays and translucent edges'],
+      ['LPR green', 'green', 'Primary brand · #03BC7E'], ['Purple', 'purple', 'Accent and category'],
+      ['Amber', 'amber', 'Caution and attention'], ['Red', 'red', 'Error and destructive'], ['Blue', 'blue', 'Information and links']
+    ];
+    const steps = [50,100,200,300,400,500,600,700,800,900,950];
+    const rootStyle = getComputedStyle(document.documentElement);
+    const host = document.getElementById('color-scales');
+    for (const [label, prefix, note] of ramps) {
+      const row = document.createElement('article'); row.className = 'scale-row';
+      const heading = document.createElement('div'); heading.className = 'scale-label';
+      heading.innerHTML = `<strong>${label}</strong><small>${note}</small>`; row.append(heading);
+      const chips = document.createElement('div'); chips.className = 'scale-chips';
+      for (const step of steps) {
+        const color = rootStyle.getPropertyValue(`--${prefix}-${step}`).trim();
+        const chip = document.createElement('div'); chip.className = 'color-chip'; chip.title = `${label} ${step} · ${color}`; chip.style.background = color;
+        chip.innerHTML = `<span>${step}</span><code>${color}</code>`; chips.append(chip);
+      }
+      row.append(chips); host.append(row);
+      // Choose label contrast from the rendered swatch, including alpha over its surface.
+      const luminance = rgb => rgb.map(v => {v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+      for (const chip of chips.children) {
+        const rgba = getComputedStyle(chip).backgroundColor.match(/[\d.]+/g).map(Number);
+        const alpha = rgba[3] ?? 1;
+        const light = luminance(rgba.slice(0,3).map(v=>v*alpha+23*(1-alpha)));
+        chip.style.color = (light + .05) / .05 >= 1.05 / (light + .05) ? '#000' : '#fff';
+      }
+    }
+  </script>
+</body>
+</html>
