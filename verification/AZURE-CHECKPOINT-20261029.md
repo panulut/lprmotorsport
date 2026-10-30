@@ -1,5 +1,12 @@
 # Azure load/browser checkpoint — 29 October 2026
 
+> Superseded by the [single final ten-player test on 30 October](AZURE-FINAL-TEN-20261030.md).
+> The environment is Express: revision suffixes are unsupported, and app-level
+> stop/start resolved the saved/live admission mismatch. The final test failed on
+> lap-finish replay latency, was cleaned up, and admission was restored to 2.
+> The historical resume instructions below are not authorization for more tests;
+> the user explicitly requested stopping after that final run, with no 25+ test.
+
 Stopped safely at the user's checkpoint request. No load runner or browser remains
 running. Azure control-plane configuration and the live `/health` endpoint both
 report **2 sessions maximum**; live metrics report **0 active sessions**, 0 pending

@@ -1,0 +1,1153 @@
+{
+  "generatedAt": "2026-10-30T03:44:45.906Z",
+  "scope": "One final 10-player Azure API load test; no browser or 25+ test; fixed 0.5 vCPU, 1 GiB, one maximum replica; unchanged runtime image and anti-cheat",
+  "endpoint": "https://lpr-verification-test.jollyflower-664bfb1f.swedencentral.azurecontainerapps.io",
+  "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+  "environmentMode": "Express",
+  "revisionRepair": {
+    "before": {
+      "ingress": {
+        "additionalPortMappings": null,
+        "allowInsecure": false,
+        "clientCertificateMode": null,
+        "corsPolicy": null,
+        "customDomains": null,
+        "exposedPort": null,
+        "external": true,
+        "fqdn": "lpr-verification-test.jollyflower-664bfb1f.swedencentral.azurecontainerapps.io",
+        "ipSecurityRestrictions": null,
+        "stickySessions": null,
+        "targetPort": 8081,
+        "traffic": null,
+        "transport": "Http"
+      },
+      "mode": "Single",
+      "name": "lpr-verification-test",
+      "provisioning": "Succeeded",
+      "ready": null,
+      "revision": "lpr-verification-test--latest",
+      "template": {
+        "containers": [
+          {
+            "admission": [
+              "2"
+            ],
+            "image": "ghcr.io/panulut/lprmotorsport/verification@sha256:165a925811cf7a6c69ae60f77cbdd302b4f6aeef88443edb84a89f2275b177a3",
+            "name": "verification",
+            "resources": {
+              "cpu": 0.5,
+              "ephemeralStorage": "2Gi",
+              "memory": "1Gi"
+            }
+          }
+        ],
+        "scale": {
+          "cooldownPeriod": null,
+          "maxReplicas": 1,
+          "minReplicas": 0,
+          "pollingInterval": null,
+          "rules": [
+            {
+              "http": {
+                "metadata": {
+                  "concurrentRequests": "10"
+                }
+              },
+              "name": "http-scaler"
+            }
+          ]
+        },
+        "suffix": null
+      }
+    },
+    "configured": {
+      "ingress": {
+        "additionalPortMappings": null,
+        "allowInsecure": false,
+        "clientCertificateMode": null,
+        "corsPolicy": null,
+        "customDomains": null,
+        "exposedPort": null,
+        "external": true,
+        "fqdn": "lpr-verification-test.jollyflower-664bfb1f.swedencentral.azurecontainerapps.io",
+        "ipSecurityRestrictions": null,
+        "stickySessions": null,
+        "targetPort": 8081,
+        "traffic": null,
+        "transport": "Http"
+      },
+      "mode": "Single",
+      "name": "lpr-verification-test",
+      "provisioning": "Succeeded",
+      "ready": null,
+      "revision": "lpr-verification-test--latest",
+      "template": {
+        "containers": [
+          {
+            "admission": [
+              "10"
+            ],
+            "image": "ghcr.io/panulut/lprmotorsport/verification@sha256:165a925811cf7a6c69ae60f77cbdd302b4f6aeef88443edb84a89f2275b177a3",
+            "name": "verification",
+            "resources": {
+              "cpu": 0.5,
+              "ephemeralStorage": "2Gi",
+              "memory": "1Gi"
+            }
+          }
+        ],
+        "scale": {
+          "cooldownPeriod": null,
+          "maxReplicas": 1,
+          "minReplicas": 0,
+          "pollingInterval": null,
+          "rules": [
+            {
+              "http": {
+                "metadata": {
+                  "concurrentRequests": "10"
+                }
+              },
+              "name": "http-scaler"
+            }
+          ]
+        },
+        "suffix": null
+      }
+    },
+    "healthBeforeRestart": {
+      "source": "Observed live health during readiness polls after ten-configured.json was saved and before the app stop/start; recorded from tool output, not a full raw response",
+      "maxSessions": 2,
+      "activeSessions": 0,
+      "lapLagMs": 2000,
+      "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346"
+    },
+    "healthReady": {
+      "ready": true,
+      "protocol": "driving-v1",
+      "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+      "hz": 120,
+      "streaming": true,
+      "activeSessions": 0,
+      "activeConnections": 1,
+      "maxSessions": 10,
+      "lapLagMs": 2000
+    },
+    "revisionsReady": [
+      {
+        "active": true,
+        "admission": [
+          "10"
+        ],
+        "name": "lpr-verification-test--latest",
+        "replicas": 1,
+        "state": "Running",
+        "traffic": 100
+      }
+    ],
+    "method": "Update only the test app environment, then app-level stop/start through API 2026-07-01; no revision suffix or revision restart",
+    "rejectedActions": [
+      {
+        "action": "Custom revision suffix",
+        "code": "ExpressEnvironmentFeatureNotSupported"
+      },
+      {
+        "action": "Revision restart",
+        "code": "InternalServerError",
+        "correlationId": "3ba89edf-6e90-4225-b3ee-1dc9739c62c6"
+      }
+    ]
+  },
+  "test": {
+    "startedAt": "2026-10-30T03:41:04.448Z",
+    "finishedAt": "2026-10-30T03:43:17.424Z",
+    "phase": "load",
+    "passed": false,
+    "error": "Lap eligibility lost under load: {\"at\":\"2026-10-30T03:43:15.320Z\",\"player\":1,\"seq\":119,\"ackTick\":14400,\"arrivalLagMs\":2052.772258000012,\"ackLagMs\":2136.5738969999948,\"responseMs\":639.3031000000046,\"headersMs\":636.735400000005,\"sendIntervalMs\":2491.8892999999953,\"sendBehindScheduleMs\":1494.806500000006,\"workerWallMs\":15.751345999975456,\"eligible\":false,\"serverProcessingMs\":83.80163899998297}",
+    "players": 10,
+    "simulationSeconds": 215.5,
+    "receipts": 10,
+    "comparedBatches": 1194,
+    "httpFailures": 0,
+    "ineligibleBatches": 8,
+    "practiceLaps": 0,
+    "firstIneligibleBatch": {
+      "at": "2026-10-30T03:43:15.248Z",
+      "player": 9,
+      "seq": 119,
+      "ackTick": 14400,
+      "arrivalLagMs": 2032.8007539999962,
+      "ackLagMs": 2060.3253879999975,
+      "responseMs": 584.0044999999955,
+      "headersMs": 582.1006999999954,
+      "sendIntervalMs": 2474.3301999999967,
+      "sendBehindScheduleMs": 1475.6522000000114,
+      "workerWallMs": 26.612908000010066,
+      "eligible": false,
+      "serverProcessingMs": 27.524634000001242
+    },
+    "failureTrace": [
+      {
+        "at": "2026-10-30T03:43:02.914Z",
+        "player": 9,
+        "seq": 108,
+        "ackTick": 13080,
+        "arrivalLagMs": 585.0441139999893,
+        "ackLagMs": 720.8757010000118,
+        "responseMs": 712.0263999999879,
+        "headersMs": 711.799399999989,
+        "sendIntervalMs": 1006.1631000000052,
+        "sendBehindScheduleMs": 13.92280000000028,
+        "workerWallMs": 111.72366999999213,
+        "eligible": true,
+        "serverProcessingMs": 135.8315870000224
+      },
+      {
+        "at": "2026-10-30T03:43:03.825Z",
+        "player": 9,
+        "seq": 109,
+        "ackTick": 13200,
+        "arrivalLagMs": 595.3496140000061,
+        "ackLagMs": 636.9478050000034,
+        "responseMs": 636.7351000000053,
+        "headersMs": 633.2906000000075,
+        "sendIntervalMs": 987.0576999999903,
+        "sendBehindScheduleMs": 0.9805000000051223,
+        "workerWallMs": 12.661476000008406,
+        "eligible": true,
+        "serverProcessingMs": 41.598190999997314
+      },
+      {
+        "at": "2026-10-30T03:43:04.876Z",
+        "player": 9,
+        "seq": 110,
+        "ackTick": 13320,
+        "arrivalLagMs": 602.3384549999901,
+        "ackLagMs": 688.4167010000092,
+        "responseMs": 687.2846999999892,
+        "headersMs": 686.5243999999948,
+        "sendIntervalMs": 999.863200000007,
+        "sendBehindScheduleMs": 0.8436999999976251,
+        "workerWallMs": 11.854299999991781,
+        "eligible": true,
+        "serverProcessingMs": 86.07824600001913
+      },
+      {
+        "at": "2026-10-30T03:43:05.874Z",
+        "player": 9,
+        "seq": 111,
+        "ackTick": 13440,
+        "arrivalLagMs": 610.2564119999879,
+        "ackLagMs": 685.215796000004,
+        "responseMs": 685.0368000000017,
+        "headersMs": 682.1137000000017,
+        "sendIntervalMs": 999.6679999999906,
+        "sendBehindScheduleMs": 0.5117000000027474,
+        "workerWallMs": 13.901421999995364,
+        "eligible": true,
+        "serverProcessingMs": 74.95938400001614
+      },
+      {
+        "at": "2026-10-30T03:43:06.869Z",
+        "player": 9,
+        "seq": 112,
+        "ackTick": 13560,
+        "arrivalLagMs": 601.9502210000064,
+        "ackLagMs": 682.2550479999918,
+        "responseMs": 674.8380000000034,
+        "headersMs": 672.3190000000031,
+        "sendIntervalMs": 1005.9556000000011,
+        "sendBehindScheduleMs": 6.467299999989336,
+        "workerWallMs": 13.794728000008035,
+        "eligible": true,
+        "serverProcessingMs": 80.30482699998538
+      },
+      {
+        "at": "2026-10-30T03:43:07.799Z",
+        "player": 9,
+        "seq": 113,
+        "ackTick": 13680,
+        "arrivalLagMs": 574.1497960000124,
+        "ackLagMs": 612.9549420000112,
+        "responseMs": 610.965400000001,
+        "headersMs": 610.4018999999971,
+        "sendIntervalMs": 994.0369000000064,
+        "sendBehindScheduleMs": 0.5041999999957625,
+        "workerWallMs": 18.303020000021206,
+        "eligible": true,
+        "serverProcessingMs": 38.805145999998786
+      },
+      {
+        "at": "2026-10-30T03:43:08.834Z",
+        "player": 9,
+        "seq": 114,
+        "ackTick": 13800,
+        "arrivalLagMs": 597.7002650000213,
+        "ackLagMs": 643.7783780000173,
+        "responseMs": 631.8220000000001,
+        "headersMs": 629.1555999999982,
+        "sendIntervalMs": 1013.4214999999967,
+        "sendBehindScheduleMs": 13.925699999992503,
+        "workerWallMs": 15.675595999986399,
+        "eligible": true,
+        "serverProcessingMs": 46.07811299999594
+      },
+      {
+        "at": "2026-10-30T03:43:09.784Z",
+        "player": 9,
+        "seq": 115,
+        "ackTick": 13920,
+        "arrivalLagMs": 568.2801380000019,
+        "ackLagMs": 592.8744240000087,
+        "responseMs": 595.1726000000053,
+        "headersMs": 594.9613000000099,
+        "sendIntervalMs": 986.4514999999956,
+        "sendBehindScheduleMs": 0.37719999998807907,
+        "workerWallMs": 20.325224999978673,
+        "eligible": true,
+        "serverProcessingMs": 24.594286000006832
+      },
+      {
+        "at": "2026-10-30T03:43:10.908Z",
+        "player": 9,
+        "seq": 116,
+        "ackTick": 14040,
+        "arrivalLagMs": 607.6465130000142,
+        "ackLagMs": 720.837709000014,
+        "responseMs": 714.005600000004,
+        "headersMs": 711.9962000000087,
+        "sendIntervalMs": 1005.6837999999989,
+        "sendBehindScheduleMs": 6.0609999999869615,
+        "workerWallMs": 15.055930999980774,
+        "eligible": true,
+        "serverProcessingMs": 113.19119599999976
+      },
+      {
+        "at": "2026-10-30T03:43:11.830Z",
+        "player": 9,
+        "seq": 117,
+        "ackTick": 14160,
+        "arrivalLagMs": 594.0769950000104,
+        "ackLagMs": 642.8090610000072,
+        "responseMs": 634.1465999999928,
+        "headersMs": 632.2287000000069,
+        "sendIntervalMs": 1001.4597000000067,
+        "sendBehindScheduleMs": 7.520699999993667,
+        "workerWallMs": 14.628555000002962,
+        "eligible": true,
+        "serverProcessingMs": 48.73206599999685
+      },
+      {
+        "at": "2026-10-30T03:43:14.650Z",
+        "player": 9,
+        "seq": 118,
+        "ackTick": 14280,
+        "arrivalLagMs": 585.4549200000183,
+        "ackLagMs": 2278.0300810000044,
+        "responseMs": 2460.8160999999964,
+        "headersMs": 2283.843599999993,
+        "sendIntervalMs": 993.8013000000064,
+        "sendBehindScheduleMs": 1.3220000000146683,
+        "workerWallMs": 1602.3093360000057,
+        "eligible": true,
+        "serverProcessingMs": 1692.575160999986
+      },
+      {
+        "at": "2026-10-30T03:43:15.248Z",
+        "player": 9,
+        "seq": 119,
+        "ackTick": 14400,
+        "arrivalLagMs": 2032.8007539999962,
+        "ackLagMs": 2060.3253879999975,
+        "responseMs": 584.0044999999955,
+        "headersMs": 582.1006999999954,
+        "sendIntervalMs": 2474.3301999999967,
+        "sendBehindScheduleMs": 1475.6522000000114,
+        "workerWallMs": 26.612908000010066,
+        "eligible": false,
+        "serverProcessingMs": 27.524634000001242
+      }
+    ],
+    "playerResults": [
+      {
+        "player": 1,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.320Z",
+          "player": 1,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2052.772258000012,
+          "ackLagMs": 2136.5738969999948,
+          "responseMs": 639.3031000000046,
+          "headersMs": 636.735400000005,
+          "sendIntervalMs": 2491.8892999999953,
+          "sendBehindScheduleMs": 1494.806500000006,
+          "workerWallMs": 15.751345999975456,
+          "eligible": false,
+          "serverProcessingMs": 83.80163899998297
+        }
+      },
+      {
+        "player": 2,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.284Z",
+          "player": 2,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2033.7100939999946,
+          "ackLagMs": 2092.871969999993,
+          "responseMs": 612.597099999999,
+          "headersMs": 609.5817999999999,
+          "sendIntervalMs": 2474.876500000013,
+          "sendBehindScheduleMs": 1478.9891000000061,
+          "workerWallMs": 14.775393000018084,
+          "eligible": false,
+          "serverProcessingMs": 59.1618759999983
+        }
+      },
+      {
+        "player": 3,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.345Z",
+          "player": 3,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2067.741347000003,
+          "ackLagMs": 2158.5269299999927,
+          "responseMs": 641.130799999999,
+          "headersMs": 639.1472000000067,
+          "sendIntervalMs": 2514.2332999999926,
+          "sendBehindScheduleMs": 1515.4530999999988,
+          "workerWallMs": 12.995269000006374,
+          "eligible": false,
+          "serverProcessingMs": 90.78558299998986
+        }
+      },
+      {
+        "player": 4,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.334Z",
+          "player": 4,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2050.7382589999906,
+          "ackLagMs": 2146.2376829999994,
+          "responseMs": 655.7234000000026,
+          "headersMs": 652.6790000000037,
+          "sendIntervalMs": 2488.8772000000026,
+          "sendBehindScheduleMs": 1489.7681000000011,
+          "workerWallMs": 12.732300000003306,
+          "eligible": false,
+          "serverProcessingMs": 95.49942400000873
+        }
+      },
+      {
+        "player": 5,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.302Z",
+          "player": 5,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2036.5281829999876,
+          "ackLagMs": 2110.892139000003,
+          "responseMs": 624.0356999999931,
+          "headersMs": 620.9978999999876,
+          "sendIntervalMs": 2481.2706000000035,
+          "sendBehindScheduleMs": 1485.8810999999987,
+          "workerWallMs": 17.87748699999065,
+          "eligible": false,
+          "serverProcessingMs": 74.3639560000156
+        }
+      },
+      {
+        "player": 6,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.276Z",
+          "player": 6,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2032.6299709999876,
+          "ackLagMs": 2081.7314609999885,
+          "responseMs": 627.3824999999924,
+          "headersMs": 626.6967000000004,
+          "sendIntervalMs": 2458.6814000000013,
+          "sendBehindScheduleMs": 1459.8894,
+          "workerWallMs": 18.50182199999108,
+          "eligible": false,
+          "serverProcessingMs": 49.10149000000092
+        }
+      },
+      {
+        "player": 7,
+        "receipts": 1,
+        "comparedBatches": 121,
+        "last": {
+          "at": "2026-10-30T03:43:15.765Z",
+          "player": 7,
+          "seq": 120,
+          "ackTick": 14520,
+          "arrivalLagMs": 1566.554146999988,
+          "ackLagMs": 1579.7389029999904,
+          "responseMs": 583.1489000000147,
+          "headersMs": 581.74010000001,
+          "sendIntervalMs": 583.1343999999954,
+          "sendBehindScheduleMs": 994.6794999999984,
+          "workerWallMs": 12.607366999989608,
+          "eligible": true,
+          "serverProcessingMs": 13.18475600000238
+        }
+      },
+      {
+        "player": 8,
+        "receipts": 1,
+        "comparedBatches": 121,
+        "last": {
+          "at": "2026-10-30T03:43:15.747Z",
+          "player": 8,
+          "seq": 120,
+          "ackTick": 14520,
+          "arrivalLagMs": 1543.6755200000043,
+          "ackLagMs": 1557.0798919999943,
+          "responseMs": 587.627800000002,
+          "headersMs": 587.4164000000019,
+          "sendIntervalMs": 652.1810000000114,
+          "sendBehindScheduleMs": 972.6312000000034,
+          "workerWallMs": 12.80158300002222,
+          "eligible": true,
+          "serverProcessingMs": 13.404371999989962
+        }
+      },
+      {
+        "player": 9,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.248Z",
+          "player": 9,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2032.8007539999962,
+          "ackLagMs": 2060.3253879999975,
+          "responseMs": 584.0044999999955,
+          "headersMs": 582.1006999999954,
+          "sendIntervalMs": 2474.3301999999967,
+          "sendBehindScheduleMs": 1475.6522000000114,
+          "workerWallMs": 26.612908000010066,
+          "eligible": false,
+          "serverProcessingMs": 27.524634000001242
+        }
+      },
+      {
+        "player": 10,
+        "receipts": 1,
+        "comparedBatches": 119,
+        "last": {
+          "at": "2026-10-30T03:43:15.363Z",
+          "player": 10,
+          "seq": 119,
+          "ackTick": 14400,
+          "arrivalLagMs": 2078.2056799999846,
+          "ackLagMs": 2124.443778999994,
+          "responseMs": 617.8606999999902,
+          "headersMs": 616.4190999999992,
+          "sendIntervalMs": 2509.633500000011,
+          "sendBehindScheduleMs": 1511.232600000003,
+          "workerWallMs": 12.14790599999833,
+          "eligible": false,
+          "serverProcessingMs": 46.23809900000924
+        }
+      }
+    ],
+    "counters": {
+      "starts": 10,
+      "capacityRejected": 0,
+      "startRateRejected": 0,
+      "batches": 1202,
+      "ticks": 144240,
+      "verifiedLaps": 10,
+      "practiceLaps": 0,
+      "processingTimeouts": 0,
+      "lagTerminations": 0
+    },
+    "serverTimings": {
+      "initializationMs": {
+        "count": 10,
+        "meanMs": 267.64343119999955,
+        "p50UpperBoundMs": 512,
+        "p95UpperBoundMs": 512,
+        "p99UpperBoundMs": 512,
+        "maxMs": 279.4612240000006,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          7,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "queueMs": {
+        "count": 1202,
+        "meanMs": 71.34178715141441,
+        "p50UpperBoundMs": 64,
+        "p95UpperBoundMs": 256,
+        "p99UpperBoundMs": 512,
+        "maxMs": 671.0753170000098,
+        "maxScope": "test",
+        "buckets": [
+          265,
+          0,
+          1,
+          1,
+          34,
+          140,
+          247,
+          319,
+          149,
+          42,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "workerWallMs": {
+        "count": 1202,
+        "meanMs": 32.273633577371044,
+        "p50UpperBoundMs": 16,
+        "p95UpperBoundMs": 64,
+        "p99UpperBoundMs": 256,
+        "maxMs": 1602.3093360000057,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          670,
+          331,
+          162,
+          21,
+          8,
+          0,
+          1,
+          9,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "physicsMs": {
+        "count": 1202,
+        "meanMs": 21.591420516641474,
+        "p50UpperBoundMs": 16,
+        "p95UpperBoundMs": 64,
+        "p99UpperBoundMs": 128,
+        "maxMs": 197.89243100002932,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          696,
+          317,
+          158,
+          23,
+          8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "replayMs": {
+        "count": 1202,
+        "meanMs": 10.706006613143387,
+        "p50UpperBoundMs": 1,
+        "p95UpperBoundMs": 1,
+        "p99UpperBoundMs": 8,
+        "maxMs": 1523.9445440001145,
+        "maxScope": "test",
+        "buckets": [
+          1167,
+          14,
+          4,
+          5,
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          9,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "batchResponseMs": {
+        "count": 1202,
+        "meanMs": 119.0647558169717,
+        "p50UpperBoundMs": 128,
+        "p95UpperBoundMs": 512,
+        "p99UpperBoundMs": 1024,
+        "maxMs": 1713.2780769999954,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          26,
+          154,
+          265,
+          442,
+          228,
+          72,
+          5,
+          10,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "arrivalLagMs": {
+        "count": 1202,
+        "meanMs": 608.7446781214637,
+        "p50UpperBoundMs": 1024,
+        "p95UpperBoundMs": 1024,
+        "p99UpperBoundMs": 1024,
+        "maxMs": 2078.2056799999846,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1190,
+          8,
+          4,
+          0,
+          0,
+          0
+        ]
+      },
+      "ackLagMs": {
+        "count": 1202,
+        "meanMs": 727.8128084559067,
+        "p50UpperBoundMs": 1024,
+        "p95UpperBoundMs": 1024,
+        "p99UpperBoundMs": 4096,
+        "maxMs": 2302.605819000004,
+        "maxScope": "test",
+        "buckets": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1168,
+          16,
+          18,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "latency": {
+      "p50Ms": 675.9495000000024,
+      "p95Ms": 905.301999999996,
+      "p99Ms": 1174.572199999995,
+      "maxMs": 2510.546300000002,
+      "maxArrivalLagMs": 2078.2056799999846,
+      "maxAckLagMs": 2302.6020090000093,
+      "clientEventLoopP99Ms": 38.961151,
+      "clientEventLoopMaxMs": 49.872895
+    },
+    "resources": {
+      "cpuSeconds": 28.842282,
+      "observedSeconds": 126.311948271,
+      "averageCpuCores": 0.22834167626105653,
+      "averageAllocatedCpuPercent": 45.66833525221131,
+      "maxSampleIntervalCpuCores": 0.41584983946749493,
+      "peakRssBytes": 287264768,
+      "peakRssMiB": 273.95703125,
+      "cpuIntervals": [
+        {
+          "seconds": 5.564677734000001,
+          "cores": 0.2173940806326665
+        },
+        {
+          "seconds": 5.031275632000001,
+          "cores": 0.2649431471259136
+        },
+        {
+          "seconds": 4.999822969999998,
+          "cores": 0.20502785921638353
+        },
+        {
+          "seconds": 5.0084740799999965,
+          "cores": 0.22356429964792807
+        },
+        {
+          "seconds": 5.0253797410000045,
+          "cores": 0.1899022659350509
+        },
+        {
+          "seconds": 4.986389161999999,
+          "cores": 0.17413342035496748
+        },
+        {
+          "seconds": 5.014888854999997,
+          "cores": 0.2657490601553922
+        },
+        {
+          "seconds": 4.969912084000003,
+          "cores": 0.18105008394349686
+        },
+        {
+          "seconds": 5.034041651,
+          "cores": 0.17865287225451287
+        },
+        {
+          "seconds": 4.9876580059999975,
+          "cores": 0.18826491288504763
+        },
+        {
+          "seconds": 5.003503194000005,
+          "cores": 0.41584983946749493
+        },
+        {
+          "seconds": 5.00595582599999,
+          "cores": 0.2377480028526329
+        },
+        {
+          "seconds": 4.995187481000001,
+          "cores": 0.20064251918715917
+        },
+        {
+          "seconds": 5.060526206000009,
+          "cores": 0.1721532434644996
+        },
+        {
+          "seconds": 5.028793317999996,
+          "cores": 0.1710794112218872
+        },
+        {
+          "seconds": 4.965578918999992,
+          "cores": 0.20360123491977503
+        },
+        {
+          "seconds": 4.999381792,
+          "cores": 0.21945713403118303
+        },
+        {
+          "seconds": 5.074304124000002,
+          "cores": 0.20189073712681546
+        },
+        {
+          "seconds": 5.006776769000004,
+          "cores": 0.33096143016796814
+        },
+        {
+          "seconds": 5.038760672999997,
+          "cores": 0.389097265624388
+        },
+        {
+          "seconds": 5.0027687799999985,
+          "cores": 0.2690066359612967
+        },
+        {
+          "seconds": 4.999459159000005,
+          "cores": 0.17806526099876457
+        },
+        {
+          "seconds": 4.977779013999999,
+          "cores": 0.1759559830873601
+        },
+        {
+          "seconds": 5.002115115000023,
+          "cores": 0.19492134378838574
+        },
+        {
+          "seconds": 4.959784109999979,
+          "cores": 0.2860396679645006
+        },
+        {
+          "seconds": 0.5687538760000025,
+          "cores": 0.0014452648758740002
+        }
+      ]
+    },
+    "restarted": false,
+    "activeSessionsAfter": 0,
+    "poolAfter": {
+      "mode": "pooled",
+      "limit": 1,
+      "workers": 1,
+      "readyWorkers": 1,
+      "sessions": 0,
+      "pendingRequests": 0,
+      "closingSessions": 0,
+      "workerHeapMb": 256
+    }
+  },
+  "restored": {
+    "checkedAt": "2026-10-30T03:44:17.024Z",
+    "health": {
+      "ready": true,
+      "protocol": "driving-v1",
+      "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+      "hz": 120,
+      "streaming": true,
+      "activeSessions": 0,
+      "activeConnections": 2,
+      "maxSessions": 2,
+      "lapLagMs": 2000
+    },
+    "pool": {
+      "mode": "pooled",
+      "limit": 1,
+      "workers": 0,
+      "readyWorkers": 0,
+      "sessions": 0,
+      "pendingRequests": 0,
+      "closingSessions": 0,
+      "workerHeapMb": 256
+    },
+    "security": {
+      "anonymous": 401,
+      "wrongToken": 401,
+      "productionOrigin": 403,
+      "testOrigin": 200
+    },
+    "control": {
+      "ingress": {
+        "additionalPortMappings": null,
+        "allowInsecure": false,
+        "clientCertificateMode": null,
+        "corsPolicy": null,
+        "customDomains": null,
+        "exposedPort": null,
+        "external": true,
+        "fqdn": "lpr-verification-test.jollyflower-664bfb1f.swedencentral.azurecontainerapps.io",
+        "ipSecurityRestrictions": null,
+        "stickySessions": null,
+        "targetPort": 8081,
+        "traffic": null,
+        "transport": "Http"
+      },
+      "mode": "Single",
+      "name": "lpr-verification-test",
+      "provisioning": "Succeeded",
+      "ready": null,
+      "revision": "lpr-verification-test--latest",
+      "template": {
+        "containers": [
+          {
+            "admission": [
+              "2"
+            ],
+            "image": "ghcr.io/panulut/lprmotorsport/verification@sha256:165a925811cf7a6c69ae60f77cbdd302b4f6aeef88443edb84a89f2275b177a3",
+            "name": "verification",
+            "resources": {
+              "cpu": 0.5,
+              "ephemeralStorage": "2Gi",
+              "memory": "1Gi"
+            }
+          }
+        ],
+        "scale": {
+          "cooldownPeriod": null,
+          "maxReplicas": 1,
+          "minReplicas": 0,
+          "pollingInterval": null,
+          "rules": [
+            {
+              "http": {
+                "metadata": {
+                  "concurrentRequests": "10"
+                }
+              },
+              "name": "http-scaler"
+            }
+          ]
+        },
+        "suffix": null
+      }
+    }
+  },
+  "azureMonitor": {
+    "window": "2026-10-30T03:41:00Z/2026-10-30T03:44:00Z",
+    "interval": "PT1M",
+    "scope": "Minute-aligned 03:41-03:44 UTC, including warmup and cleanup outside the exact load interval",
+    "units": {
+      "UsageNanoCores": "1e9 = 1 CPU core",
+      "WorkingSetBytes": "bytes",
+      "Replicas": "count",
+      "RestartCount": "cumulative count per replica"
+    },
+    "metrics": [
+      {
+        "name": "UsageNanoCores",
+        "description": "CPU consumed by the container app, in nano cores. 1,000,000,000 nano cores = 1 core",
+        "series": [
+          {
+            "data": [
+              {
+                "average": 2250000,
+                "maximum": 3000000,
+                "timeStamp": "2026-10-30T03:41:00Z"
+              },
+              {
+                "average": 164500000,
+                "maximum": 241000000,
+                "timeStamp": "2026-10-30T03:42:00Z"
+              },
+              {
+                "average": 251250000,
+                "maximum": 331000000,
+                "timeStamp": "2026-10-30T03:43:00Z"
+              }
+            ],
+            "metadatavalues": []
+          }
+        ]
+      },
+      {
+        "name": "WorkingSetBytes",
+        "description": "Container App working set memory used in bytes.",
+        "series": [
+          {
+            "data": [
+              {
+                "average": 178844672,
+                "maximum": 179167232,
+                "timeStamp": "2026-10-30T03:41:00Z"
+              },
+              {
+                "average": 285241344,
+                "maximum": 329756672,
+                "timeStamp": "2026-10-30T03:42:00Z"
+              },
+              {
+                "average": 356840448,
+                "maximum": 374956032,
+                "timeStamp": "2026-10-30T03:43:00Z"
+              }
+            ],
+            "metadatavalues": []
+          }
+        ]
+      },
+      {
+        "name": "Replicas",
+        "description": "Number of replicas count of container app",
+        "series": [
+          {
+            "data": [
+              {
+                "average": 1,
+                "maximum": 1,
+                "timeStamp": "2026-10-30T03:41:00Z"
+              },
+              {
+                "average": 1,
+                "maximum": 1,
+                "timeStamp": "2026-10-30T03:42:00Z"
+              },
+              {
+                "average": 1,
+                "maximum": 1,
+                "timeStamp": "2026-10-30T03:43:00Z"
+              }
+            ],
+            "metadatavalues": []
+          }
+        ]
+      },
+      {
+        "name": "RestartCount",
+        "description": "The cumulative number of times the replica has restarted since it was created.",
+        "series": [
+          {
+            "data": [
+              {
+                "average": 0,
+                "maximum": 0,
+                "timeStamp": "2026-10-30T03:41:00Z"
+              },
+              {
+                "average": 0,
+                "maximum": 0,
+                "timeStamp": "2026-10-30T03:42:00Z"
+              },
+              {
+                "average": 0,
+                "maximum": 0,
+                "timeStamp": "2026-10-30T03:43:00Z"
+              }
+            ],
+            "metadatavalues": []
+          }
+        ]
+      }
+    ],
+    "maximumCpuCores": 0.331,
+    "maximumWorkingSetBytes": 374956032
+  },
+  "processAudit": {
+    "checkedAt": "2026-10-30T03:44:45.5107464Z",
+    "runningLoadOrBrowserProcesses": 0,
+    "processes": []
+  },
+  "mainRefsUnmodified": {
+    "local": "5e6bb8f9f1a023038e9991edba7f04251ef3df94",
+    "cachedOrigin": "5e6bb8f9f1a023038e9991edba7f04251ef3df94"
+  }
+}
