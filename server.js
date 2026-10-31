@@ -15,6 +15,17 @@ function createServer({production=false}={}) {
   return http.createServer(async(request,response)=>{
     const pathname=new URL(request.url,'http://localhost').pathname;
     const reply=(code,text)=>{response.writeHead(code,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});response.end(text);};
+    if(pathname==='/api/dev/design-preview') {
+      if(production)return reply(404,'Not found');
+      if(!['GET','HEAD'].includes(request.method))return reply(405,'Method not allowed');
+      // Local, synthetic data only. Never expose credentials or call live APIs.
+      const payload=JSON.stringify({
+        drivers:[{position:1,name:'Demo Driver',status:'verified',time:'01:24.508'},{position:2,name:'Practice Driver',status:'practice',time:'01:26.120'}],
+        sessions:[{label:'Session',value:'Local preview'},{label:'Verified laps',value:'1'},{label:'Mode',value:'Demo'}]
+      });
+      response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});
+      return response.end(request.method==='HEAD'?undefined:payload);
+    }
     if(pathname==='/api/dev/track-objects') {
       if(production)return reply(404,'Not found');
       if(request.method!=='PUT')return reply(405,'Method not allowed');
