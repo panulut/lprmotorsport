@@ -598,7 +598,7 @@
   }
 
   function reset({verified=false}={}) {
-    if(!verified && window.LPRVerifiedDriving && window.LPRLeaderboard?.identity){
+    if(!verified && window.LPRVerifiedDriving && window.LPRLeaderboard?.identity && window.LPRVerificationConfig?.demo!==true){
       void window.LPRVerifiedDriving.start({replace:true});return;
     }
     if(!verified) window.LPRVerifiedDriving?.cancel();
