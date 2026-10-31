@@ -17,7 +17,11 @@
     <link rel="stylesheet" href="3d.css?v=verified-guests-20261029" />
     <link rel="stylesheet" href="dashboard.css?v=viewport-chat-20261027" />
     <link rel="stylesheet" href="release-notes.css?v=20261027-language-switch" />
+    <link rel="stylesheet" href="language-selector.css?v=20261030" />
+    <script src="icons.js?v=phosphor-regular-2.1.1" defer></script>
     <script src="i18n.js?v=track-record-20261027" defer></script>
+    <script src="language-selector.js?v=20261030" defer></script>
+    <script src="keycap-press.js?v=pressed-key-feedback-20261030" defer></script>
     <script src="shared/dmath.js?v=deterministic-math-20261024" defer></script>
     <script src="shared/vehicle-spec.js?v=deterministic-math-20261024" defer></script>
     <script src="campus.js?v=collision-cache-20261026" defer></script>
@@ -59,9 +63,12 @@
         <button id="sound-button" class="icon-button" type="button" aria-label="Äänet: päällä" aria-pressed="true">♫<span>Äänet: päällä</span></button>
         <button id="leaderboard-button" class="icon-button" type="button" aria-label="Tuloslista">🏆</button>
         <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺ <span>Aloita uudelleen</span></button>
-        <div class="language-switcher" role="group" aria-label="Kieli / Language">
-          <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-          <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
+        <div id="topbar-language-selector" class="language-selector" data-language-selector>
+          <button class="language-selector__trigger" type="button" aria-label="Vaihda kieltä" title="Vaihda kieltä" aria-haspopup="menu" aria-expanded="false"><img class="language-selector__flag" src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"></button>
+          <div class="language-selector__menu" role="menu" aria-label="Kieli">
+            <button class="language-selector__option" type="button" role="menuitemradio" data-language="fi" aria-checked="true" lang="fi"><img src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"><span>Suomi</span><span class="language-selector__code">FI</span></button>
+            <button class="language-selector__option" type="button" role="menuitemradio" data-language="en" aria-checked="false" lang="en"><img src="assets/circle-flags-gb.svg" alt="" aria-hidden="true"><span>English</span><span class="language-selector__code">EN</span></button>
+          </div>
         </div>
       </header>
 
@@ -122,9 +129,12 @@
         <div class="race-heading"><h2 id="leaderboard-title">SKINNARILA<br>GRAND PRIX</h2><p class="race-eyebrow">LPR MOTORSPORT · TIME ATTACK</p></div>
         <div class="dialog-actions">
         <button id="release-notes-open" type="button">Mitä uutta?</button>
-        <div class="language-switcher" role="group" aria-label="Kieli / Language">
-          <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-          <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
+        <div id="dialog-language-selector" class="language-selector" data-language-selector>
+          <button class="language-selector__trigger" type="button" aria-label="Vaihda kieltä" title="Vaihda kieltä" aria-haspopup="menu" aria-expanded="false"><img class="language-selector__flag" src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"></button>
+          <div class="language-selector__menu" role="menu" aria-label="Kieli">
+            <button class="language-selector__option" type="button" role="menuitemradio" data-language="fi" aria-checked="true" lang="fi"><img src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"><span>Suomi</span><span class="language-selector__code">FI</span></button>
+            <button class="language-selector__option" type="button" role="menuitemradio" data-language="en" aria-checked="false" lang="en"><img src="assets/circle-flags-gb.svg" alt="" aria-hidden="true"><span>English</span><span class="language-selector__code">EN</span></button>
+          </div>
         </div>
         <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><span aria-hidden="true">×</span> Takaisin peliin</button>
         </div>
@@ -247,9 +257,12 @@
           <div class="release-notes-heading">
             <div><h2 id="release-notes-title">Mitä uutta?</h2><p id="release-notes-meta"></p></div>
             <div class="release-notes-actions">
-              <div class="language-switcher" role="group" aria-label="Kieli / Language">
-                <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-                <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
+              <div id="release-notes-language-selector" class="language-selector" data-language-selector>
+                <button class="language-selector__trigger" type="button" aria-label="Vaihda kieltä" title="Vaihda kieltä" aria-haspopup="menu" aria-expanded="false"><img class="language-selector__flag" src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"></button>
+                <div class="language-selector__menu" role="menu" aria-label="Kieli">
+                  <button class="language-selector__option" type="button" role="menuitemradio" data-language="fi" aria-checked="true" lang="fi"><img src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"><span>Suomi</span><span class="language-selector__code">FI</span></button>
+                  <button class="language-selector__option" type="button" role="menuitemradio" data-language="en" aria-checked="false" lang="en"><img src="assets/circle-flags-gb.svg" alt="" aria-hidden="true"><span>English</span><span class="language-selector__code">EN</span></button>
+                </div>
               </div>
               <button id="release-notes-close" type="button">Sulje</button>
             </div>
