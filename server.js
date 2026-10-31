@@ -4,6 +4,8 @@ const path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {root,gameFiles,readDocument,dataScript}=require('./scripts/build.cjs');
 const {validate,maxDocumentBytes}=require('./shared/track-document.js');
+const {createDesignDemoData,isLocalPreviewRequest}=require('./scripts/design-demo-data.cjs');
+const {handleLocalDemoApi}=require('./scripts/local-demo-api.cjs');
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.woff2':'font/woff2'};
 function createServer({production=false}={}) {
   const base=production?path.join(root,'dist'):root;
@@ -15,6 +17,25 @@ function createServer({production=false}={}) {
   return http.createServer(async(request,response)=>{
     const pathname=new URL(request.url,'http://localhost').pathname;
     const reply=(code,text)=>{response.writeHead(code,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});response.end(text);};
+    if(!production&&(/^\/api\/verified\//.test(pathname)||pathname.startsWith('/api/chat')||pathname==='/health'||pathname==='/spectate'||pathname.startsWith('/spectate/'))){
+      if(!isLocalPreviewRequest(request))return reply(403,'Local preview only');
+      let demoReferer;
+      try{demoReferer=new URL(request.headers.referer||'');}catch{return reply(404,'Not found');}
+      if(demoReferer.searchParams.get('demo')!=='1')return reply(404,'Not found');
+      const demo=await handleLocalDemoApi(request,path.join(root,'.env'));
+      if(demo){response.writeHead(demo.status,demo.headers);return response.end(JSON.stringify(demo.body));}
+      return reply(404,'Not found');
+    }
+    if(pathname==='/api/dev/design-preview'){
+      if(production)return reply(404,'Not found');
+      if(request.method!=='GET')return reply(405,'Method not allowed');
+      if(!isLocalPreviewRequest(request))return reply(403,'Local preview only');
+      try{
+        const data=await createDesignDemoData(path.join(root,'.env'));
+        response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+        return response.end(JSON.stringify(data));
+      }catch{return reply(500,'Preview data unavailable');}
+    }
     if(pathname==='/api/dev/track-objects') {
       if(production)return reply(404,'Not found');
       if(request.method!=='PUT')return reply(405,'Method not allowed');
