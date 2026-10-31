@@ -132,7 +132,15 @@ function setup(storage=new Map(),options={}){
   withdrawn.node('#analytics-consent').checked=true;withdrawn.node('#analytics-consent').trigger('change');
   const withdrawalIdentity=withdrawn.board.identity.token;withdrawn.node('#analytics-consent').checked=false;withdrawn.node('#analytics-consent').trigger('change');
   assert(!withdrawn.board.requiresName);assert.equal(withdrawn.board.identity.token,withdrawalIdentity);assert(withdrawn.node('#settings-dialog').open,'Analytics withdrawal keeps the player in the lobby');
-  const guest=setup();const beforeGuestCalls=accountCalls.length;
+  const offlineGuest=setup(new Map(),{accountOffline:true});
+   offlineGuest.board.beginSession();
+   offlineGuest.node('#leaderboard-practice').trigger('click');
+   offlineGuest.node('#leaderboard-guest-name').value='Offline Guest';
+   await offlineGuest.node('#leaderboard-guest-start').trigger('click');
+   assert(offlineGuest.board.requiresName,'Guest does not start without an authorized session');
+   assert.match(offlineGuest.node('#leaderboard-guest-status').textContent,/Kirjautuminen ei onnistunut/,'Guest errors must appear inside the visible guest form');
+   assert.equal(offlineGuest.node('#leaderboard-guest-start').disabled,false,'Failed guest start can be retried');
+   const guest=setup();const beforeGuestCalls=accountCalls.length;
   await guest.node('#leaderboard-practice').trigger('click');
   assert(guest.board.requiresName);guest.node('#leaderboard-guest-name').value='Practice Guest';assert.equal(guest.node('#leaderboard-guest-series-human').checked,true,'Guest defaults to the visible human series option');
   await guest.node('#leaderboard-guest-start').trigger('click');
