@@ -47,9 +47,10 @@
 }
 html{font-family:var(--font-body);font-synthesis:none;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 h1,h2,h3,h4,h5,h6,.topbar-title strong,.hud-item strong,.dialog-head h2,.chat-heading h2,.calibration-step>span{font-family:var(--font-heading)}
-body :where(h1,h2,h3,h4,h5,h6,strong,b,th,button,summary,legend){font-weight:400}
+/* The preview opts into regular weights; existing controls retain their authored emphasis. */
+.ds-shell :where(h1,h2,h3,h4,h5,h6,strong,b,th,button,summary,legend){font-weight:400}
 /* Route legacy component font declarations through the shared type tokens. */
 body{font-family:var(--font-body)}
-h1,h2,h3,h4,h5,h6,.topbar-title strong,.hud-item strong,.dialog-head h2,.chat-heading h2,.telemetry strong,.record-banner strong,.calibration-step>span{font-family:var(--font-heading)!important;font-weight:400!important}
+h1,h2,h3,h4,h5,h6,.topbar-title strong,.hud-item strong,.dialog-head h2,.chat-heading h2,.telemetry strong,.record-banner strong,.calibration-step>span{font-family:var(--font-heading)}
 .ds-shell h1,.ds-shell h2,.ds-shell h3,.display,.heading-sample,.number-sample,.demo-place,.demo-stat strong{font-family:var(--font-heading);font-weight:400}
 .chat-compose input,.chat-restore,#spectate-label,#spectate-connection{font-family:var(--font-body)!important}
