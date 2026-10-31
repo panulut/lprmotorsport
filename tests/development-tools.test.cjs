@@ -78,6 +78,14 @@ async function check(production){
     for(const match of html.matchAll(/(?:src|href)="([^"?#]+)(?:[^" ]*)"/g)) {
       if(match[1].startsWith('assets/')||match[1].endsWith('.js')||match[1].endsWith('.css'))assert.equal((await fetch(base+'/'+match[1])).status,200,match[1]);
     }
+    const demo=await fetch(base+'/api/dev/design-preview');
+    assert.equal(demo.status,production?404:200);
+    if(!production) {
+      const data=await demo.json();
+      assert.ok(Array.isArray(data.drivers) && data.drivers.length>0);
+      assert.ok(Array.isArray(data.sessions) && data.sessions.length>0);
+      assert.equal((await fetch(base+'/api/dev/design-preview',{method:'POST'})).status,405);
+    }
     const api=base+'/api/dev/track-objects';
     assert.equal((await fetch(api,{method:'PUT',headers:{'Content-Type':'application/json',Origin:'https://example.com'},body:'{}'})).status,production?404:403);
     if(!production){const port=new URL(base).port;assert.equal((await fetch(api,{method:'PUT',headers:{'Content-Type':'application/json',Host:`attacker.example:${port}`,Origin:`http://attacker.example:${port}`},body:'{}'})).status,403);}

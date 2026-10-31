@@ -4,17 +4,28 @@ const path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {root,gameFiles,readDocument,dataScript}=require('./scripts/build.cjs');
 const {validate,maxDocumentBytes}=require('./shared/track-document.js');
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.woff2':'font/woff2'};
 function createServer({production=false}={}) {
   const base=production?path.join(root,'dist'):root;
   let allowed=new Set([...gameFiles,'shared/track-document.js','shared/track-objects.js','data/track-objects.json']);
   let manifestStamp=fs.statSync(path.join(root,'scripts/build.cjs')).mtimeMs;
   // Development-only helpers: the track editor and the browser side of the determinism check.
-  const devFiles=['editor.html','editor.js','editor.css'].map(name=>`tools/track-editor/${name}`).concat('tests/determinism-scenario.js');
+  const devFiles=['editor.html','editor.js','editor.css'].map(name=>`tools/track-editor/${name}`).concat('tests/determinism-scenario.js','design-system.html','design-system.css');
   if(!production)for(const name of devFiles)allowed.add(name);
   return http.createServer(async(request,response)=>{
     const pathname=new URL(request.url,'http://localhost').pathname;
     const reply=(code,text)=>{response.writeHead(code,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});response.end(text);};
+    if(pathname==='/api/dev/design-preview') {
+      if(production)return reply(404,'Not found');
+      if(!['GET','HEAD'].includes(request.method))return reply(405,'Method not allowed');
+      // Local, synthetic data only. Never expose credentials or call live APIs.
+      const payload=JSON.stringify({
+        drivers:[{position:1,name:'Demo Driver',status:'verified',time:'01:24.508'},{position:2,name:'Practice Driver',status:'practice',time:'01:26.120'}],
+        sessions:[{label:'Session',value:'Local preview'},{label:'Verified laps',value:'1'},{label:'Mode',value:'Demo'}]
+      });
+      response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});
+      return response.end(request.method==='HEAD'?undefined:payload);
+    }
     if(pathname==='/api/dev/track-objects') {
       if(production)return reply(404,'Not found');
       if(request.method!=='PUT')return reply(405,'Method not allowed');
@@ -65,7 +76,7 @@ function createServer({production=false}={}) {
         manifestStamp=stamp;
       }
     }
-    const asset=/^assets\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(name);
+    const asset=/^assets\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(name)||/^assets\/fonts\/[a-zA-Z0-9_-]+\.(ttf|woff2)$/.test(name)||/^assets\/circle-flags-(fi|gb)\.svg$/.test(name)||name==='assets/phosphor-icons.svg';
     if(!allowed.has(name)&&!asset&&!(production&&name==='data/track-data.js'))return reply(404,'Not found');
     const file=path.join(base,name);
     if(!fs.existsSync(file)||!fs.statSync(file).isFile())return reply(404,'Not found');
