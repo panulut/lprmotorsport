@@ -11,9 +11,54 @@
     grip: document.querySelector('#grip-state'),
     tc: document.querySelector('#tc-status'),
     notice: document.querySelector('#notice'),
+    noticeMessage: document.querySelector('.notice-message'),
+    crashNotice: document.querySelector('.crash-notice'),
+    crashTitle: document.querySelector('.crash-notice-title'),
+    crashDetail: document.querySelector('.crash-notice-detail'),
+    crashIconUse: document.querySelector('.crash-notice-icon use'),
+    crashKeyboard: document.querySelector('.crash-notice-keyboard'),
+    crashInstructionBefore: document.querySelector('.crash-notice-instruction-before'),
+    crashInstructionAfter: document.querySelector('.crash-notice-instruction-after'),
+    crashRestart: document.querySelector('.crash-notice-restart'),
     input: document.querySelector('#input-status'),
     dialog: document.querySelector('#settings-dialog')
   };
+  const driveHud = {
+    speed: document.querySelector('#drive-speed-value'),
+    meters: [...document.querySelectorAll('.drive-input-meter')]
+  };
+  const driveHudReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const driveHudInput = { target: [0, 0], visual: [0, 0], lastFrame: performance.now() };
+  function updateDriveHud(speed, brake = 0, throttle = 0) {
+    if (!driveHud.speed) return;
+    driveHud.speed.textContent = String(Math.round(speed * 3.6));
+    [throttle, brake].forEach((input, meterIndex) => {
+      const meter = driveHud.meters[meterIndex];
+      if (!meter) return;
+      const value = Math.round(Math.max(0, Math.min(1, Number(input) || 0)) * 100);
+      driveHudInput.target[meterIndex] = value / 100;
+      meter.setAttribute('aria-valuenow', String(value));
+    });
+  }
+  function renderDriveHud(now) {
+    const frameTime = Number.isFinite(now) ? now : performance.now();
+    const elapsed = Math.max(0, Math.min(64, frameTime - driveHudInput.lastFrame));
+    driveHudInput.lastFrame = frameTime;
+    const blend = driveHudReducedMotion.matches ? 1 : 1 - Math.exp(-elapsed / 80);
+    driveHud.meters.forEach((meter, meterIndex) => {
+      const target = driveHudInput.target[meterIndex] || 0;
+      let value = driveHudReducedMotion.matches
+        ? target
+        : driveHudInput.visual[meterIndex] + (target - driveHudInput.visual[meterIndex]) * blend;
+      if (Math.abs(target - value) < 0.003) value = target;
+      driveHudInput.visual[meterIndex] = value;
+      meter.style?.setProperty('--input-level', `${Math.max(0, Math.min(1, value)) * 100}%`);
+      const lit = Math.ceil(value * 10);
+      meter.querySelectorAll('.drive-input-segment').forEach((segment, index) => {
+        segment.classList.toggle('is-active', index >= 10 - lit);
+      });
+    });
+  }
   const WORLD = LPRCampus.bounds;
   const { halfWidth: ROAD_HALF, kerbOuter: KERB_OUTER, shoulderOuter: SHOULDER_OUTER } = LPRCampus.road;
   const track = LPRCampus.track;
@@ -21,6 +66,11 @@
   const trackDistances=[0];
   for(let i=0;i<POINTS;i++) trackDistances.push(trackDistances[i]+Math.hypot(
     track[(i+1)%POINTS].x-track[i].x,track[(i+1)%POINTS].y-track[i].y));
+  const trackLength=trackDistances[POINTS];
+  // Legacy split detection is centered on track indices 70 and 130. Stored
+  // PBs carry the exact progress sampled at their gates; these landmarks are
+  // the geometry-based fallback for older sector-only records.
+  const defaultSectorProgress = [0, trackDistances[70] / trackLength, trackDistances[130] / trackLength, 1];
   const renderer = new LPRRenderer3D(canvas, document.querySelector('#cockpit'), track);
   const dynamics = new VehicleDynamics();
   const audio = new LPRGameAudio();
@@ -28,9 +78,12 @@
   let audioFocused = true;
   function updateSoundButton() {
     const label = t(audio.enabled ? 'Äänet: päällä' : 'Äänet: pois');
-    soundButton.querySelector('span').textContent = label;
     soundButton.setAttribute('aria-label', label);
+    soundButton.setAttribute('title', label);
+    soundButton.querySelector('.ph-icon use')?.setAttribute('href', `assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#${audio.enabled ? 'speaker-high' : 'speaker-slash'}`);
     soundButton.setAttribute('aria-pressed', String(audio.enabled));
+    const state = soundButton.querySelector('.sidebar-setting-value');
+    if (state) state.textContent = window.LPRI18n?.language === 'en' ? (audio.enabled ? 'On' : 'Off') : (audio.enabled ? 'Päällä' : 'Pois');
   }
   function syncAudio() {
     const paused = document.hidden || !audioFocused || (ui.dialog.open && !window.LPRSpectator?.active);
@@ -47,13 +100,237 @@
   let best = Number(localStorage.getItem('lpr-best-time-lut-20261011-v3')) || 0;
   let storedSectors = null;
   try { storedSectors = JSON.parse(localStorage.getItem('lpr-best-sectors-lut-20261011-v3')); } catch {}
-  const timing = new LPRLapTiming(storedSectors?.lapTime === best ? storedSectors.sectors : null);
+  if (!storedSectors || storedSectors.lapTime !== best || storedSectors.revision !== window.LPRDrivingRevision) best = 0;
+  let demoBest = 0;
+  const storedBestSectorsCandidate = window.LPRLapTiming.validSectors(storedSectors?.sectors);
+  const storedBestSectors = storedSectors?.lapTime === best && best > 0 && storedBestSectorsCandidate &&
+    Math.abs(storedSectors.sectors.reduce((sum, value) => sum + value, 0) - best) <= 25
+      ? storedSectors.sectors : null;
+  const storedPBTrace = storedSectors?.lapTime === best && storedSectors?.revision === window.LPRDrivingRevision
+    ? window.LPRLapTiming.validSamples(storedSectors.trace, best, 10) : null;
+  const storedReferenceTrace = storedSectors && storedSectors.referenceRevision === window.LPRDrivingRevision
+    ? window.LPRLapTiming.validSamples(storedSectors.referenceTrace, storedSectors.referenceLapTime, 10) : null;
+  const storedTraceIsPersonalBest = Array.isArray(storedPBTrace);
+  const storedTrace = storedPBTrace || storedReferenceTrace;
+  const storedTraceTime = storedPBTrace ? best : storedSectors?.referenceLapTime;
+  const timing = new LPRLapTiming(storedBestSectors,
+    storedBestSectors ? storedSectors.checkpoints : null, storedTrace,
+    storedPBTrace ? storedSectors?.revision : storedSectors?.referenceRevision,
+    storedTraceTime, storedTraceIsPersonalBest, defaultSectorProgress);
+  let localReferenceSnapshot = null;
+  function rememberLocalReference() {
+    localReferenceSnapshot = {
+      trace: timing.bestTrace?.map(sample => sample.slice()) || null,
+      lapTime: timing.referenceLapTime,
+      isPersonalBest: timing.traceIsPersonalBest,
+      sectors: timing.best?.slice() || null,
+      progress: timing.bestProgress?.slice() || null,
+      fromDemo: timing.bestFromDemo
+    };
+  }
+  rememberLocalReference();
   const sectorUI = document.querySelector('#sector-time');
+  let sectorPanelInvalid = false;
+  const emitSectorPanel = (name, detail) => document.dispatchEvent(new CustomEvent(`lpr-sector-${name}`, { detail }));
+  function emitLapCompleted(lapMs, personalBest = false, verifiedPending = false) {
+    const time = Math.round(lapMs), nickname = window.LPRLeaderboard?.identity?.nickname || null;
+    const detail = { lapMs: time, lapTime: time, nickname, personalBest: !!personalBest, verifiedPending: !!verifiedPending };
+    document.dispatchEvent(new CustomEvent('lpr-lap-completed', { detail }));
+    document.dispatchEvent(new CustomEvent('lpr-sector-lap-completed', { detail }));
+  }
+  const sectorBaseline = () => timing.best ? timing.best.slice() : null;
+  const pendingVerifiedPB = new Map();
+  function referenceLapTime() {
+    return timing.lapBestTraceTime || best || demoBest || 0;
+  }
+  function promotePersonalBest(lapTime, sectors, checkpoints, trace, serverAccepted = false) {
+    const personalBestThreshold = best || demoBest;
+    if (!Array.isArray(sectors) || sectors.length !== 3 || (!serverAccepted && personalBestThreshold && lapTime >= personalBestThreshold)) return false;
+    best = Math.round(lapTime);
+    const total = sectors.reduce((sum, value) => sum + value, 0);
+    const denseTrace = window.LPRLapTiming.validSamples(trace, lapTime || total, 10);
+    const previousReference = !denseTrace && timing.bestTrace ? {
+      referenceTrace: timing.bestTrace,
+      referenceLapTime: timing.referenceLapTime,
+      referenceRevision: window.LPRDrivingRevision
+    } : null;
+    timing.setBest(sectors, checkpoints, denseTrace, window.LPRDrivingRevision, lapTime || total, defaultSectorProgress);
+    rememberLocalReference();
+    localStorage.setItem('lpr-best-time-lut-20261011-v3', String(best));
+    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify({
+      lapTime: best, sectors: timing.best, revision: window.LPRDrivingRevision,
+      ...(denseTrace ? { trace: denseTrace } : previousReference || {})
+    }));
+    return true;
+  }
+  function persistReferenceLap(lapTime, sectors, trace) {
+    if (timing.bestTrace && (timing.traceIsPersonalBest || lapTime >= timing.referenceLapTime)) return false;
+    const hasPersonalBestSectors = !!best && !!timing.best && !timing.bestFromDemo;
+    const hasDemoSectors = !hasPersonalBestSectors && timing.bestFromDemo && !!demoBest && !!timing.best;
+    const record = window.LPRLapTiming.referenceRecord({
+      lapTime: hasPersonalBestSectors ? best : hasDemoSectors ? demoBest : Math.round(lapTime),
+      sectors: hasPersonalBestSectors || hasDemoSectors ? timing.best : sectors,
+      revision: hasPersonalBestSectors ? (storedSectors?.revision || window.LPRDrivingRevision) : window.LPRDrivingRevision,
+      ...((hasPersonalBestSectors ? storedSectors?.checkpoints : hasDemoSectors ? null : timing.checkpoints) ?
+        { checkpoints: hasPersonalBestSectors ? storedSectors.checkpoints : timing.checkpoints } : {})
+    }, lapTime, sectors, trace, window.LPRDrivingRevision);
+    if (!record || !timing.setReferenceTrace(trace, window.LPRDrivingRevision, lapTime)) return false;
+    rememberLocalReference();
+    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify(record));
+    return true;
+  }
+  let lastLiveDeltaAt = 0, lastLiveDelta = undefined;
+  function resetLiveDelta() { lastLiveDeltaAt = 0; lastLiveDelta = undefined; }
+  function syncLiveDelta(elapsed, progress, now) {
+    if (progress !== null) timing.capture(elapsed, progress, now);
+    else timing.invalidateTrace();
+    // Sector-only references have no honest same-position comparison between
+    // gates. Keep the last exact cumulative split delta visible until the next
+    // gate instead of clearing it with a periodic null live update.
+    if (!timing.lapBestTrace) return;
+    if (now - lastLiveDeltaAt < 75) return;
+    lastLiveDeltaAt = now;
+    const delta = progress === null ? null : timing.liveDelta(elapsed, progress);
+    const value = delta === null ? null : Math.round(delta);
+    if (value === lastLiveDelta) return;
+    lastLiveDelta = value;
+    emitSectorPanel('live-delta', { delta: value, source: 'mini-sector' });
+  }
+  const demoSectorBaseline = fixture => {
+    const localPreview = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+    const sectors = fixture?.sectors;
+    if (!localPreview || !window.LPRVerificationConfig?.demo || fixture?.revision !== window.LPRDrivingRevision || fixture?.series !== 'human' || !Number.isSafeInteger(fixture?.lapMs) || best || timing.best || timing.sectors.length || !Array.isArray(sectors) || sectors.length !== 3 || !sectors.every(time => Number.isSafeInteger(time) && time > 0) || sectors.reduce((sum, time) => sum + time, 0) !== fixture.lapMs) return;
+    demoBest = fixture.lapMs;
+    timing.best = sectors.slice();
+    timing.bestFromDemo = true;
+    timing.bestProgress = window.LPRLapTiming.validCheckpointProgress(null, timing.best, defaultSectorProgress);
+    timing.bestTrace = null;
+    resetSectorPanel();
+    rememberLocalReference();
+  };
+  if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
+    window.LPRSetDemoSectorBaseline = demoSectorBaseline;
+    if (window.LPRDemoSectorBaseline) demoSectorBaseline(window.LPRDemoSectorBaseline);
+  }
+  let officialReferenceKey = '';
+  function verifiedReplayTrace(recording, lapMs) {
+    if (recording?.format !== 'lpr-replay-v1' || recording.sceneRevision !== window.LPRDrivingRevision || recording.hz !== 120 ||
+      !Number.isFinite(lapMs) || !Array.isArray(recording.track) || recording.track.length !== track.length ||
+      !recording.track.every((point, index) => Array.isArray(point) && point.length === 2 &&
+        Number.isFinite(point[0]) && Number.isFinite(point[1]) && Math.abs(point[0] - track[index].x) < .00002 &&
+        Math.abs(point[1] - track[index].y) < .00002) || !Array.isArray(recording.frames) ||
+      recording.frames.length < 10 || recording.frames.length > 12002 || !Number.isSafeInteger(recording.startTick) ||
+      !Number.isSafeInteger(recording.endTick) || recording.endTick <= recording.startTick ||
+      Math.abs((recording.endTick - recording.startTick) * 1000 / 120 - lapMs) > 10) return null;
+    const frames = recording.frames;
+    if (frames[0]?.[0] !== recording.startTick || frames.at(-1)?.[0] !== recording.endTick) return null;
+    const trace = [[0, 0]];
+    let previousProgress = 0, previousTick = recording.startTick - 1;
+    for (let index = 0; index < frames.length; index++) {
+      const frame = frames[index];
+      if (!Array.isArray(frame) || (frame.length !== 6 && frame.length !== 7) ||
+        !frame.slice(0, 6).every(Number.isFinite) || !Number.isSafeInteger(frame[0]) ||
+        frame[0] <= previousTick || frame[0] > recording.endTick) return null;
+      previousTick = frame[0];
+      const nearest = nearestTrack(frame[1], frame[2]);
+      if (nearest.distance >= ROAD_HALF) return null;
+      let progress = nearest.along / trackLength;
+      if (index === 0 && progress > .98) progress = 0;
+      if (index === frames.length - 1 && progress < .02) progress = 1;
+      if (index === 0 && progress > .01) return null;
+      if (progress < previousProgress - .001) return null;
+      if (progress > previousProgress + .00005) {
+        trace.push([progress, (frame[0] - recording.startTick) * 1000 / 120]);
+        previousProgress = progress;
+      }
+    }
+    if (trace.at(-1)[0] < .998) return null;
+    return window.LPRLapTiming.validSamples(trace, lapMs, 10);
+  }
+  function clearVerifiedReference() {
+    if (!officialReferenceKey) return;
+    officialReferenceKey = '';
+    timing.setReferenceTrace(null, null, null);
+    timing.best = localReferenceSnapshot.sectors?.slice() || null;
+    timing.bestProgress = localReferenceSnapshot.progress?.slice() || null;
+    timing.bestFromDemo = localReferenceSnapshot.fromDemo;
+    if (localReferenceSnapshot.trace) timing.setReferenceTrace(localReferenceSnapshot.trace,
+      window.LPRDrivingRevision, localReferenceSnapshot.lapTime, localReferenceSnapshot.isPersonalBest);
+    const activeLap = !!car?.lapTimingArmed || !!drivingWorld?.result().started;
+    if (activeLap) {
+      timing.lapBestTrace = null;
+      timing.lapBestTraceTime = null;
+      timing.lapBestTraceIsPersonalBest = false;
+      timing.liveHighWater = 0;
+      timing.liveSuspendedAt = null;
+      resetLiveDelta();
+      emitSectorPanel('live-delta', { delta: null });
+    } else resetSectorPanel();
+  }
+  document.addEventListener('lpr-verified-reference-clear', clearVerifiedReference);
+  function acceptVerifiedReference(detail) {
+    const identity = window.LPRLeaderboard?.identity;
+    if (!identity?.token || detail.identityToken !== identity.token || detail.series !== (identity.series === 'bot' ? 'bot' : 'human')) return;
+    const sectors = window.LPRLapTiming.validSectors(detail.sectors);
+    if (!sectors || !Number.isFinite(detail.lapMs) || Math.abs(sectors.reduce((sum, value) => sum + value, 0) - detail.lapMs) > 25) return;
+    const trace = detail.recording ? verifiedReplayTrace(detail.recording, detail.lapMs) : null;
+    if (trace) {
+      // A stored dense trace stays in place unless this official lap is faster.
+      if (timing.bestTrace && timing.referenceLapTime <= detail.lapMs) return;
+      timing.setBest(sectors, null, trace, window.LPRDrivingRevision, detail.lapMs, defaultSectorProgress);
+    } else if (!timing.bestTrace) {
+      // Older laps have sector times and no position samples. Use those exact
+      // gates until a dense reference exists, and never replace a faster local PB.
+      const localMs = timing.best && !timing.bestFromDemo ? timing.best.reduce((sum, value) => sum + value, 0) : Infinity;
+      if (localMs <= detail.lapMs + 25) return;
+      timing.setBest(sectors, null, null, null, detail.lapMs, defaultSectorProgress);
+    } else return;
+    officialReferenceKey = `${detail.identityToken}:${detail.series}`;
+    const activeLap = !!car?.lapTimingArmed || !!drivingWorld?.result().started;
+    if (!activeLap) resetSectorPanel();
+  }
+  window.LPRAcceptVerifiedReference = acceptVerifiedReference;
+  document.addEventListener('lpr-verified-reference-replay', event => acceptVerifiedReference(event.detail || {}));
+  if (window.LPRPendingVerifiedReference) {
+    const pendingReference = window.LPRPendingVerifiedReference;
+    delete window.LPRPendingVerifiedReference;
+    acceptVerifiedReference(pendingReference);
+  }
+  function startSectorPanel() {
+    timing.reset();
+    sectorPanelInvalid = false;
+    resetLiveDelta();
+    const reference = timing.lapBestTrace ? (timing.lapBestTraceIsPersonalBest ? 'personal-best' : 'reference-lap') : 'none';
+    emitSectorPanel('lap-started', { best: sectorBaseline(), reference });
+  }
+  function resetSectorPanel() {
+    timing.reset();
+    sectorPanelInvalid = false;
+    resetLiveDelta();
+    const reference = timing.lapBestTrace ? (timing.lapBestTraceIsPersonalBest ? 'personal-best' : 'reference-lap') : 'none';
+    emitSectorPanel('lap-reset', { best: sectorBaseline(), reference });
+  }
+  function invalidateSectorPanel() {
+    if (sectorPanelInvalid) return;
+    sectorPanelInvalid = true;
+    timing.reset();
+    emitSectorPanel('lap-reset', { best: sectorBaseline(), invalid: true });
+  }
 
   let sectorTimeout = 0;
-  function showSector(elapsed) {
-    const result = timing.split(elapsed);
+  function showSector(elapsed, progress, now) {
+    const result = timing.split(elapsed, progress, now);
     if (!result) return;
+    emitSectorPanel('split', {
+      sector: result.sector,
+      time: result.time,
+      sectorDelta: result.delta,
+      elapsed: timing.elapsed,
+      progress: result.progress,
+      delta: result.lapDelta,
+      deltaSource: timing.lapBestTrace ? 'mini-sector' : result.lapDelta !== null ? 'sector-boundary' : null,
+      best: sectorBaseline()
+    });
     const difference = result.delta === null ? '' : ` (${result.delta > 0 ? '+' : result.delta < 0 ? '-' : ''}${(Math.abs(result.delta) / 1000).toFixed(3)} s)`;
     sectorUI.textContent = `S${result.sector} · ${formatTime(result.time)}${difference}`;
     clearTimeout(sectorTimeout);
@@ -62,11 +339,15 @@
     sectorUI.classList.toggle('faster', result.delta !== null && result.delta < 0);
     sectorUI.classList.toggle('slower', result.delta !== null && result.delta > 0);
   }
+  const tcPreferenceKey = 'lpr-traction-control';
+  let tractionControlEnabled = true;
+  try { tractionControlEnabled = localStorage.getItem(tcPreferenceKey) !== 'false'; } catch {}
   let car;
   let drivingWorld = null;
   let lastFrame = performance.now();
   let lastDeviceUpdate = 0;
   let noticeTimeout = 0;
+  let noticePriority = 0;
   const saleEnter = document.querySelector('#sale-enter');
   const saunaEnter = document.querySelector('#sauna-enter');
   const poolEnter = document.querySelector('#pool-enter');
@@ -204,6 +485,7 @@
       car.saleX=35; car.saleZ=130;
       car.saunaYaw=-Math.PI/2; car.saunaPitch=0;
       ui.speed.textContent='0';
+      updateDriveHud(0);
       ui.lateralG.textContent='0.0 G';
       ui.grip.textContent=t('KAUPPATAUKO');
       ui.tc.textContent=t('AUTO PARKISSA');
@@ -255,6 +537,7 @@
       car.poolX = renderer.poolStop?.x ?? renderer.saunaStop.x;
       car.poolZ = renderer.poolStop?.y ?? renderer.saunaStop.y;
       ui.speed.textContent = '0';
+      updateDriveHud(0);
       ui.lateralG.textContent = '0.0 G';
       ui.grip.textContent = t('PALJUTAUKO');
       ui.tc.textContent = t('AUTO PARKISSA');
@@ -280,6 +563,7 @@
       car.saunaLife = saunaLife;
       saunaLife.enter();
       ui.speed.textContent = '0';
+      updateDriveHud(0);
       ui.lateralG.textContent = '0.0 G';
       ui.grip.textContent = t("SAUNATAUKO");
       ui.tc.textContent = t("AUTO PARKISSA");
@@ -318,6 +602,7 @@
       void window.LPRVerifiedDriving.start({replace:true});return;
     }
     if(!verified) window.LPRVerifiedDriving?.cancel();
+    const lapNumber = car?.lap || 1;
     drivingWorld=null;
     window.LPRLeaderboard?.cancelLap?.();
     if (car) window.LPRAnalytics?.event('restart');
@@ -326,13 +611,14 @@
     timing.reset();
     clearTimeout(sectorTimeout);
     sectorUI.hidden = true;
+    resetSectorPanel();
     window.LPRRaceEffects?.clear();
     clearInput();
     saunaLife.leave();
-    car = { x: LPRCampus.launchPosition.x, y: LPRCampus.launchPosition.y, angle: startAngle, speed: 0, lap: 1, lapStart: 0, lapTimingArmed:false, stage: 0, started: false, offroad: false, damage:0, crashed:false, pool:false, poolX:0, poolZ:0 };
+    car = { x: LPRCampus.launchPosition.x, y: LPRCampus.launchPosition.y, angle: startAngle, speed: 0, lap: lapNumber, lapStart: 0, lapTimingArmed:false, stage: 0, started: false, offroad: false, damage:0, crashed:false, pool:false, poolX:0, poolZ:0 };
     dynamics.reset(car);
-    dynamics.parameters.tractionControlEnabled=true;
-    car.tcEnabled=true;
+    dynamics.parameters.tractionControlEnabled=tractionControlEnabled;
+    car.tcEnabled=tractionControlEnabled;
     car.wheelPage=0;
     car.wheelDim=false;
     car.lapElapsedMs=0;
@@ -340,13 +626,14 @@
     car.brakeInput=0;
     updateWheelControls();
     updateSaunaUI();
-    ui.lap.textContent = '1';
+    ui.lap.textContent = String(lapNumber);
     ui.time.textContent = '00:00.000';
     ui.speed.textContent = '0';
+    updateDriveHud(0);
     ui.lateralG.textContent = '0.0 G';
     ui.grip.textContent = t("PITO OK");
     ui.tc.textContent = t("TC P\u00c4\u00c4LL\u00c4");
-    showNotice(t("Paina kaasua ja l\u00e4hde ajamaan!"), 0);
+    clearNotice();
   }
 
   function formatTime(ms) {
@@ -357,14 +644,159 @@
   }
 
   function showNotice(message, duration) {
-    ui.notice.textContent = message;
+    if (!acceptNoticePriority(0)) return;
+    ui.notice.classList.remove('notice-crashed');
+    ui.notice.classList.remove('notice-event');
+    document.querySelector('.game-shell').classList.remove('notice-priority');
+    ui.crashNotice.hidden = true;
+    ui.noticeMessage.hidden = false;
+    ui.noticeMessage.textContent = message;
     ui.notice.classList.remove('hidden');
     clearTimeout(noticeTimeout);
-    if (duration) noticeTimeout = setTimeout(() => ui.notice.classList.add('hidden'), duration);
+    positionNotice();
+    if (duration) noticeTimeout = setTimeout(hideNotice, duration);
+  }
+
+  function acceptNoticePriority(priority) {
+    if (!ui.notice.classList.contains('hidden') && priority < noticePriority) return false;
+    noticePriority = priority;
+    return true;
+  }
+
+  function clearNotice() {
+    clearTimeout(noticeTimeout);
+    noticePriority = 0;
+    document.querySelector('.game-shell').classList.remove('notice-priority');
+    document.querySelector('.game-shell').classList.remove('notice-priority-sector');
+    ui.notice.classList.remove('notice-crashed');
+    ui.notice.classList.remove('notice-event');
+    ui.noticeMessage.hidden = false;
+    ui.noticeMessage.textContent = '';
+    ui.crashNotice.hidden = true;
+    ui.notice.classList.add('hidden');
+  }
+
+  function hideNotice() {
+    noticePriority = 0;
+    ui.notice.classList.add('hidden');
+    document.querySelector('.game-shell').classList.remove('notice-priority');
+    document.querySelector('.game-shell').classList.remove('notice-priority-sector');
+  }
+
+  function showCrashNotice() {
+    if (ui.notice.classList.contains('notice-crashed') && !ui.notice.classList.contains('hidden')) return;
+    window.LPRVerifiedDriving?.cancel();
+    const instruction = t('Paina R käynnistääksesi uudelleen');
+    const keyIndex = instruction.indexOf('R');
+    ui.crashInstructionBefore.textContent = instruction.slice(0, keyIndex).trim();
+    ui.crashInstructionAfter.textContent = instruction.slice(keyIndex + 1).trim();
+    ui.crashRestart.textContent = t('Aloita uudelleen');
+    showEventNotice('crash');
+  }
+
+  function showEventNotice(kind, lapMs = null) {
+    const noticeKinds = {
+      crash: { priority: 3, title: 'Auto hajosi', icon: 'warning' },
+      'track-record': { priority: 2, title: 'Uusi rataennätys!', icon: 'trophy' },
+      'personal-best': { priority: 1, title: 'Uusi oma ennätys', icon: 'medal' },
+      damage: { priority: 0, title: 'Auto vaurioitui.', icon: 'warning' },
+      lap: { priority: 0, title: 'Uusi kierros', icon: 'arrow-counter-clockwise' }
+    };
+    const variant = noticeKinds[kind];
+    if (!variant || !acceptNoticePriority(variant.priority)) return false;
+    clearTimeout(noticeTimeout);
+    const isCrash = kind === 'crash';
+    ui.noticeMessage.hidden = true;
+    ui.crashNotice.hidden = false;
+    ui.crashNotice.dataset.kind = kind;
+    ui.crashTitle.textContent = t(variant.title);
+    ui.crashIconUse.setAttribute('href', `assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#${variant.icon}`);
+    ui.crashDetail.hidden = isCrash || !Number.isFinite(lapMs);
+    ui.crashDetail.textContent = Number.isFinite(lapMs) ? formatTime(lapMs) : '';
+    ui.crashKeyboard.hidden = !isCrash;
+    ui.crashRestart.hidden = !isCrash;
+    document.querySelector('.game-shell').classList.remove('notice-priority');
+    ui.notice.classList.remove('notice-event', 'notice-crashed');
+    ui.notice.classList.add(isCrash ? 'notice-crashed' : 'notice-event');
+    ui.notice.classList.remove('hidden');
+    positionNotice();
+    if (!isCrash) noticeTimeout = setTimeout(hideNotice, 3500);
+    return true;
+  }
+
+  document.addEventListener('lpr-track-record', event => {
+    const lapMs = event.detail?.lapMs;
+    if (Number.isSafeInteger(lapMs) && lapMs > 5000) showEventNotice('track-record', lapMs);
+  });
+
+  const noticeShell = document.querySelector('.game-shell');
+  const noticeBlockerSelectors = [
+    '.lap-panel', '.sector-panel', '.daily-race-hud', '.verification-state', '.hud',
+    '.drive-telemetry', '.telemetry', '.game-footer', '.controls', '.sidebar-settings', '#drive-settings-panel',
+    '.sauna-actions', '.sauna-dialogue', '.start-lights', '.sector-time'
+  ];
+  function positionNotice() {
+    if (!noticeShell || typeof noticeShell.getBoundingClientRect !== 'function' || typeof ui.notice.getBoundingClientRect !== 'function' || ui.notice.classList.contains('hidden')) return;
+    if (ui.notice.classList.contains('notice-crashed')) {
+      ui.notice.style.cssText = '';
+      return;
+    }
+    noticeShell.classList.remove('notice-priority-sector');
+    noticeShell.classList.remove('notice-priority');
+    const shell = noticeShell.getBoundingClientRect();
+    const card = ui.notice.getBoundingClientRect();
+    if (!shell.width || !shell.height || !card.width || !card.height) return;
+    const margin = 8, gap = 10;
+    const width = Math.min(card.width, shell.width - margin * 2);
+    const height = Math.min(card.height, shell.height - margin * 2);
+    const x = Math.max(margin, (shell.width - width) / 2);
+    const blockers = (ignoreDrive, ignoreSector) => noticeBlockerSelectors.flatMap(selector => {
+      if (ignoreDrive && selector === '.drive-telemetry') return [];
+      if (ignoreSector && selector === '.sector-panel') return [];
+      const element = document.querySelector(selector);
+      if (!element || element === ui.notice || element.hidden) return [];
+      const style = window.getComputedStyle?.(element);
+      if (style?.display === 'none' || style?.visibility === 'hidden') return [];
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1 || rect.right <= shell.left || rect.left >= shell.right || rect.bottom <= shell.top || rect.top >= shell.bottom) return [];
+      return [{left:rect.left-shell.left,right:rect.right-shell.left,top:rect.top-shell.top,bottom:rect.bottom-shell.top}];
+    });
+    function choose(blockingRects) {
+      const upperBottom = blockingRects.reduce((bottom, rect) => (rect.top + rect.bottom) / 2 < shell.height * .5 ? Math.max(bottom, rect.bottom) : bottom, margin);
+      const ideal = Math.min(shell.height-height-margin, upperBottom+gap);
+      for (let distance = 0; distance <= shell.height; distance += 4) {
+        for (const top of distance === 0 ? [ideal] : [ideal+distance, ideal-distance]) {
+          if (top < margin || top+height > shell.height-margin) continue;
+          const overlaps = blockingRects.some(rect => x < rect.right+gap && x+width > rect.left-gap && top < rect.bottom+gap && top+height > rect.top-gap);
+          if (!overlaps) return Math.round(top);
+        }
+      }
+      return null;
+    }
+    let top = choose(blockers(false, false));
+    if (top === null) {
+      noticeShell.classList.add('notice-priority');
+      top = choose(blockers(true, false));
+    }
+    if (top === null) {
+      noticeShell.classList.add('notice-priority-sector');
+      top = choose(blockers(true, true));
+    }
+    if (top === null) top = Math.max(margin, Math.min(shell.height-height-margin, (shell.height-height)/2));
+    ui.notice.style.left = `${Math.round(x)}px`;
+    ui.notice.style.right = 'auto';
+    ui.notice.style.top = `${top}px`;
+    ui.notice.style.bottom = 'auto';
+    ui.notice.style.transform = 'none';
+  }
+  if (typeof ResizeObserver === 'function') {
+    const noticeLayoutObserver = new ResizeObserver(positionNotice);
+    for (const element of [noticeShell, ...noticeBlockerSelectors.map(selector => document.querySelector(selector)).filter(Boolean)]) noticeLayoutObserver.observe(element);
   }
 
   function resize() {
     renderer.resize();
+    positionNotice();
   }
 
   function currentPad() {
@@ -445,6 +877,7 @@
   }
 
   function update(dt, now, wallNow = now) {
+    if (car.crashed) { showCrashNotice(); return; }
     if(window.LPRVerifiedDriving?.waitingForStart)return;
     if(window.LPRVerifiedDriving?.active && (ui.dialog.open || car.sauna || car.sale || car.pool || car.crashed))window.LPRVerifiedDriving.cancel();
     if(drivingWorld && !ui.dialog.open && !car.sauna && !car.sale && !car.pool){
@@ -464,7 +897,7 @@
     if(car.crashed) {
       car.throttleInput=0;
       car.brakeInput=0;
-      showNotice(t("Auto hajosi! Aloita uudelleen."),0);
+      showCrashNotice();
       return;
     }
     if (now - lastDeviceUpdate > 1000) {
@@ -475,6 +908,7 @@
       if (car.lapTimingArmed) {
         car.lapElapsedMs = Math.max(0, now - car.lapStart);
         ui.time.textContent = formatTime(car.lapElapsedMs);
+        syncLiveDelta(car.lapElapsedMs, null, now);
       }
       if (car.sauna && !ui.dialog.open) {
         saunaLife.update(dt,car,wallNow);
@@ -511,12 +945,12 @@
       const collision=window.LPRCampus.resolveObstacleCollision(car, previous, contact=>{
         const damage=dynamics.applyImpact(car,contact.normal,contact.impactMaterial,contact);
         audio.impact(car.impactSpeed);
-        if(damage>0) showNotice(t("Auto vaurioitui."),2500);
+        if(damage>0) showEventNotice('damage');
       });
       crossedFinishLine ||= window.LPRCampus.crossesFinishLine(previous,car);
       if(collision && car.crashed) {
         car.crashedAt=now;
-        showNotice(t("Auto hajosi! Aloita uudelleen."),0);
+        showCrashNotice();
         break;
       }
     }
@@ -527,56 +961,67 @@
     car.y = boundedY;
 
     const nearest = nearestTrack(car.x, car.y);
+    const lapProgress = trackLength > 0 ? Math.max(0, Math.min(1, nearest.along / trackLength)) : null;
     car.grassFraction = grassContact(car);
     car.offroad = car.grassFraction > .5;
+    let completedLap = false;
+    if (car.crashed) return;
     if (!car.crashed && nearest.distance < ROAD_HALF && car.speed > 2.2) {
       if (!car.lapTimingArmed && crossedFinishLine) {
         car.lapTimingArmed=true;
         car.lapStart=now;
         car.stage=0;
         timing.reset();
+        startSectorPanel();
         window.LPRAnalytics?.event('lap_start');
         if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
       }
       else if (car.lapTimingArmed && car.stage === 0 && nearest.index > 55 && nearest.index < 85) {
         car.stage = 1;
-        showSector(now - car.lapStart);
+        showSector(now - car.lapStart, lapProgress, now);
       }
       else if (car.lapTimingArmed && car.stage === 1 && nearest.index > 115 && nearest.index < 145) {
         car.stage = 2;
-        showSector(now - car.lapStart);
+        showSector(now - car.lapStart, lapProgress, now);
       }
       else if (car.lapTimingArmed && car.stage === 2 && nearest.index > 175 && nearest.index < 205) car.stage = 3;
       else if (car.lapTimingArmed && car.stage === 3 && crossedFinishLine) {
         const lapTime = now - car.lapStart;
         if (lapTime > 5000) {
           window.LPRAnalytics?.event('lap_complete', { lapMs: Math.round(lapTime) });
-          audio.lap(!best || lapTime < best);
-          showSector(lapTime);
+          audio.lap(!referenceLapTime() || lapTime < referenceLapTime());
+          showSector(lapTime, 1, now);
           if (!window.LPRVerifiedDriving && timing.sectors.length === 3) window.LPRLeaderboard?.submit(lapTime, timing.sectors.slice());
-          if (!best || lapTime < best) {
-            best = lapTime;
-            localStorage.setItem('lpr-best-time-lut-20261011-v3', String(best));
-            timing.best = timing.sectors.slice();
-            localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify({ lapTime: best, sectors: timing.best }));
-            showNotice(t("record", { time: formatTime(lapTime) }), 3500);
-          } else showNotice(t("lapResult", { time: formatTime(lapTime) }), 2500);
+          const trace = timing.completeTrace();
+          const promoted = (!referenceLapTime() || lapTime < referenceLapTime()) &&
+            promotePersonalBest(lapTime, timing.sectors.slice(), timing.checkpoints.slice(), trace);
+          if (!promoted) persistReferenceLap(lapTime, timing.sectors.slice(), trace);
+          emitLapCompleted(lapTime,promoted,false);
+          if (promoted) {
+            showEventNotice('personal-best', lapTime);
+          } else showEventNotice('lap', lapTime);
           car.lap++;
           window.LPRAnalytics?.event('lap_start');
           if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
           car.lapStart = now;
           car.stage = 0;
           timing.reset();
+          startSectorPanel();
+          completedLap = true;
           ui.lap.textContent = String(car.lap);
-          if(window.LPRVerifiedDriving && !window.LPRVerifiedDriving.active)void window.LPRVerifiedDriving.start();
         }
       }
     }
     if (car.lapTimingArmed) ui.time.textContent = formatTime(now - car.lapStart);
     car.lapElapsedMs=car.lapTimingArmed ? Math.max(0,now-car.lapStart) : 0;
+    if (car.lapTimingArmed && !completedLap) {
+      const onTrack = nearest.distance < ROAD_HALF && !car.crashed && !sectorPanelInvalid;
+      syncLiveDelta(car.lapElapsedMs, onTrack ? lapProgress : null, now);
+    }
     car.throttleInput=input.gas;
     car.brakeInput=input.brake;
     ui.speed.textContent = String(Math.round(car.speed * 3.6));
+    updateDriveHud(car.speed, car.brakeInput, car.throttleInput);
     ui.lateralG.textContent = `${Math.abs(car.lateralG).toFixed(1)} G`;
     ui.grip.textContent = car.damage>0 ? `${t("VAURIO")} ${Math.round(car.damage*100)} %` : car.offroad ? t("RADAN ULKOPUOLELLA") : (car.tireUse > .97 || Math.abs(car.bodySlip) > .12) ? t("PITO RAJALLA") : t("PITO OK");
     ui.tc.textContent = car.tcActive ? t("TC RAJOITTAA TEHOA") : t(car.tcEnabled ? "TC P\u00c4\u00c4LL\u00c4" : "TC POIS");
@@ -584,25 +1029,41 @@
   }
 
   function updateDriving(now) {
-    if(car.crashed){window.LPRVerifiedDriving.cancel();showNotice(t("Auto hajosi! Aloita uudelleen."),0);return;}
+    if(car.crashed){window.LPRVerifiedDriving.cancel();showCrashNotice();return;}
     const input=readInput();input.steer=Math.abs(input.steer)<.04?0:input.steer;input.tc=car.tcEnabled;
     const event=drivingWorld.step(input),result=drivingWorld.result();
+    if(car.crashed){window.LPRVerifiedDriving.cancel();showCrashNotice();return;}
+    const nearest=nearestTrack(car.x,car.y);
+    const lapProgress=trackLength>0?Math.max(0,Math.min(1,nearest.along/trackLength)):null;
     renderer.peopleTime=result.ticks*1000/120;
     window.LPRVerifiedDriving.step(input,result,event);
     car.stage=result.stage;car.lap=result.lap;
     car.started=result.started;
     car.lapElapsedMs=result.started?(result.ticks-result.lapStartTick)*1000/120:0;
-    if(event.split!==null)showSector(event.split*1000/120);
+    if(event.started)startSectorPanel();
+    if(event.split!==null)showSector(event.split*1000/120,event.completed?1:lapProgress,now);
     if(event.completed){
       const lapMs=event.completed.lapTicks*1000/120;
+      let verifiedPending=false;
+      const trace=timing.completeTrace();
+      if(timing.sectors.length===3&&(!referenceLapTime()||lapMs<referenceLapTime())){
+        const key=Math.round(lapMs),queue=pendingVerifiedPB.get(key)||[];
+        queue.push({lapMs,sectors:timing.sectors.slice(),checkpoints:timing.checkpoints.slice(),trace});
+        pendingVerifiedPB.set(key,queue);
+        while(pendingVerifiedPB.size>5)pendingVerifiedPB.delete(pendingVerifiedPB.keys().next().value);
+        verifiedPending=true;
+      }
+      persistReferenceLap(lapMs, timing.sectors.slice(), timing.completeTrace());
+      emitLapCompleted(lapMs,false,verifiedPending);
       window.LPRAnalytics?.event('lap_complete',{lapMs:Math.round(lapMs)});
-      audio.lap(false);timing.reset();ui.lap.textContent=String(car.lap);
-      showNotice('Kierros '+formatTime(lapMs)+(window.LPRVerifiedDriving.lapEligible?' · tarkistetaan':' · harjoittelu'),3000);
+      audio.lap(false);timing.reset();startSectorPanel();ui.lap.textContent=String(car.lap);
+      showEventNotice('lap', lapMs);
       // Do not reset a flying lap after verification was lost: stay in practice until the player explicitly restarts.
-    }
+    } else if(result.started) syncLiveDelta(car.lapElapsedMs,nearest.distance<ROAD_HALF&&!car.crashed?lapProgress:null,now);
     car.throttleInput=input.gas;car.brakeInput=input.brake;
     ui.time.textContent=formatTime(car.lapElapsedMs);
     ui.speed.textContent=String(Math.round(car.speed*3.6));
+    updateDriveHud(car.speed, car.brakeInput, car.throttleInput);
     ui.lateralG.textContent=`${Math.abs(car.lateralG).toFixed(1)} G`;
     ui.grip.textContent=car.damage>0?`${t("VAURIO")} ${Math.round(car.damage*100)} %`:car.offroad?t("RADAN ULKOPUOLELLA"):t("PITO OK");
     ui.tc.textContent=car.tcActive?t("TC RAJOITTAA TEHOA"):t(car.tcEnabled?"TC PÄÄLLÄ":"TC POIS");
@@ -610,11 +1071,20 @@
   }
   window.LPRVerifiedDriving?.attach({prepare(){reset({verified:true});ui.notice.classList.add('hidden');},start(){
     reset({verified:true});
-    drivingWorld=window.LPRDriving.create({car,dynamics,onImpact:(contact,damage)=>{audio.impact(car.impactSpeed);if(damage>0)showNotice(t("Auto vaurioitui."),2500);}});
+    drivingWorld=window.LPRDriving.create({car,dynamics,onImpact:(contact,damage)=>{audio.impact(car.impactSpeed);if(damage>0)showEventNotice('damage');}});
+    dynamics.parameters.tractionControlEnabled=tractionControlEnabled;
+    car.tcEnabled=tractionControlEnabled;
+    updateWheelControls();
     car.started=false;car.lapTimingArmed=false;car.lapStart=0;
     accumulator=0;lastFrame=performance.now();
     ui.dialog.close();ui.notice.classList.add('hidden');
-  },saved(lapMs){showNotice('Kierrosaika '+formatTime(lapMs)+' tallennettu',3500);}});
+  },saved(lapMs){
+    const key=Math.round(lapMs),queue=pendingVerifiedPB.get(key),candidate=queue?.shift();
+    if(queue&&!queue.length)pendingVerifiedPB.delete(key);
+    const promoted=candidate?promotePersonalBest(candidate.lapMs,candidate.sectors,candidate.checkpoints,candidate.trace,true):false;
+    if(promoted)showEventNotice('personal-best',lapMs);
+    else showEventNotice('lap', lapMs);
+  }});
 
   let lastPresentation = null;
   // Fixed physics step; existing timed-v1 scoring remains on the wall clock.
@@ -638,6 +1108,7 @@
       resetSpectatorPresentation();syncAudio();resize();
       ui.lap.textContent=String(car.lap);ui.time.textContent=formatTime(car.lapElapsedMs||0);
       ui.speed.textContent=String(Math.round(car.speed*3.6));
+      updateDriveHud(car.speed, car.brakeInput, car.throttleInput);
     }
   });
   function frame(now) {
@@ -648,6 +1119,14 @@
     const elapsed = lastPresentation === null ? interval : now - lastPresentation;
     if (elapsed < interval - .01) return;
     lastPresentation = now - (elapsed >= interval ? elapsed % interval : 0);
+    if (car.crashed && !window.LPRSpectator?.active) {
+      lastFrame = now;
+      accumulator = 0;
+      showCrashNotice();
+      audio.setPaused(true);
+      return;
+    }
+    renderDriveHud(now);
     if(window.LPRSpectator?.active){
       // Spectating uses this exact renderer, camera, resolution and game HUD.
       // Never simulate local inputs or submit laps while watching another driver.
@@ -657,6 +1136,7 @@
         const observed=remote.car;
         ui.lap.textContent=String(observed.lap);ui.time.textContent=formatTime(observed.lapElapsedMs);
         ui.speed.textContent=String(Math.round(observed.speed*3.6));
+        updateDriveHud(observed.speed, observed.brakeInput, observed.throttleInput);
         ui.lateralG.textContent=`${Math.abs(observed.lateralG).toFixed(1)} G`;
         ui.grip.textContent=observed.damage>0?`${t('VAURIO')} ${Math.round(observed.damage*100)} %`:observed.offroad?t('RADAN ULKOPUOLELLA'):t('PITO OK');
         ui.tc.textContent=observed.tcActive?t('TC RAJOITTAA TEHOA'):t(observed.tcEnabled?'TC PÄÄLLÄ':'TC POIS');
@@ -682,16 +1162,30 @@
 
   const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
   function updateWheelControls() {
-    document.querySelector('#wheel-page').textContent=t(car.wheelPage===1 ? 'Ratti: pito (P)' : 'Ratti: nopeus (P)');
-    document.querySelector('#wheel-dim').setAttribute('aria-pressed',String(car.wheelDim));
-    document.querySelector('#wheel-tc').setAttribute('aria-pressed',String(car.tcEnabled));
+    const page = document.querySelector('#wheel-page');
+    const dim = document.querySelector('#wheel-dim');
+    const tc = document.querySelector('#wheel-tc');
+    const english = window.LPRI18n?.language === 'en';
+    const pageState = page?.querySelector('.sidebar-setting-value');
+    const dimState = dim?.querySelector('.sidebar-setting-value');
+    const tcState = tc?.querySelector('.sidebar-setting-value');
+    if (pageState) pageState.textContent = english ? (car.wheelPage === 1 ? 'Grip' : 'Speed') : (car.wheelPage === 1 ? 'Pito' : 'Nopeus');
+    if (dimState) dimState.textContent = english ? (car.wheelDim ? 'On' : 'Off') : (car.wheelDim ? 'Päällä' : 'Pois');
+    if (tcState) tcState.textContent = english ? (car.tcEnabled ? 'On' : 'Off') : (car.tcEnabled ? 'Päällä' : 'Pois');
+    page?.setAttribute('aria-label', english ? `Display: ${car.wheelPage === 1 ? 'grip' : 'speed'}` : `Näyttö: ${car.wheelPage === 1 ? 'pito' : 'nopeus'}`);
+    dim?.setAttribute('aria-label', english ? `Display dimming: ${car.wheelDim ? 'on' : 'off'}` : `Näytön himmennys: ${car.wheelDim ? 'päällä' : 'pois'}`);
+    tc?.setAttribute('aria-label', english ? `Traction control: ${car.tcEnabled ? 'on' : 'off'}` : `Luistonesto: ${car.tcEnabled ? 'päällä' : 'pois'}`);
+    dim?.setAttribute('aria-pressed',String(car.wheelDim));
+    tc?.setAttribute('aria-pressed',String(car.tcEnabled));
   }
   function operateWheel(action) {
     if(ui.dialog.open || car.sauna || car.sale || car.crashed) return;
     if(action==='page') car.wheelPage=car.wheelPage===1 ? 0 : 1;
     else if(action==='brightness') car.wheelDim=!car.wheelDim;
     else if(action==='tc') {
-      car.tcEnabled=!car.tcEnabled;
+      tractionControlEnabled = !car.tcEnabled;
+      car.tcEnabled = tractionControlEnabled;
+      try { localStorage.setItem(tcPreferenceKey, String(tractionControlEnabled)); } catch {}
       dynamics.parameters.tractionControlEnabled=car.tcEnabled;
       if(!car.tcEnabled) { car.tcActive=false; car.torqueScale=1; }
       ui.tc.textContent=t(car.tcEnabled ? 'TC P\u00c4\u00c4LL\u00c4' : 'TC POIS');
@@ -701,6 +1195,7 @@
   for(const [id,action] of [['#wheel-page','page'],['#wheel-dim','brightness'],['#wheel-tc','tc']]) {
     document.querySelector(id).addEventListener('click',()=>operateWheel(action));
   }
+  window.addEventListener('lpr-language-changed', () => { updateWheelControls(); updateSoundButton(); });
   window.addEventListener('keydown',event=>{
     const action={KeyP:'page',KeyB:'brightness',KeyT:'tc'}[event.code];
     if(!action || event.repeat || event.ctrlKey || event.altKey || event.metaKey || ui.dialog.open || car.sauna || car.sale) return;
@@ -723,6 +1218,15 @@
     syncHeld();
   }
   window.addEventListener('keydown', event => {
+    if(event.code==='KeyR'){
+      const target=event.target;
+      if(event.repeat||event.isComposing||event.keyCode===229||event.ctrlKey||event.metaKey||event.altKey||ui.dialog.open||
+         ['INPUT','SELECT','TEXTAREA'].includes(target?.tagName)||target?.isContentEditable)return;
+      event.preventDefault();document.querySelector('#restart-button').click();return;
+    }
+    if (!['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName) && !event.target.isContentEditable) {
+      document.documentElement.classList.add('keyboard-active');
+    }
     if (!ui.dialog.open && !event.repeat && !['BUTTON','INPUT','SELECT','TEXTAREA'].includes(event.target.tagName)) {
       if (event.code === 'KeyE') {
         event.preventDefault();
@@ -779,6 +1283,7 @@
   });
   window.addEventListener('resize', clearInput);
   document.querySelector('#restart-button').addEventListener('click', reset);
+  ui.crashRestart.addEventListener('click', () => document.querySelector('#restart-button').click());
   saleEnter.addEventListener('click', () => toggleSale(true));
   saunaEnter.addEventListener('click', toggleSauna);
   poolEnter.addEventListener('click', togglePool);

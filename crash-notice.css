@@ -1,0 +1,142 @@
+.notice.notice-crashed,
+.notice.notice-event {
+  width: max-content;
+  max-width: min(400px, calc(100% - 24px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background-2) 96%, transparent);
+  color: var(--text-primary);
+  text-align: left;
+  white-space: normal;
+  transition: opacity 160ms ease-out;
+}
+.notice.notice-crashed { pointer-events: auto; }
+.notice.notice-event { pointer-events: none; }
+
+/* In a short driving viewport, reserve the only clear lane for the notice. */
+.game-shell.notice-priority .drive-telemetry { visibility: hidden; }
+.game-shell.notice-priority-sector .sector-panel { visibility: hidden; }
+
+.notice-message[hidden] { display: none; }
+.crash-notice[hidden],
+.crash-notice [hidden] { display: none !important; }
+.crash-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.crash-notice-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--amber-400);
+}
+.crash-notice-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.crash-notice-title {
+  font: 400 var(--text-body) / 1.2 var(--font-body);
+  color: var(--text-primary);
+}
+.crash-notice-detail {
+  color: var(--text-secondary);
+  font: 400 var(--text-label) / 1.2 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+}
+.crash-notice-keyboard {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font: 400 var(--text-caption) / 1.2 var(--font-body);
+}
+.crash-notice-keyboard .keycap {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+.crash-notice-restart { display: none; }
+.crash-notice[data-kind="damage"] .crash-notice-icon,
+.crash-notice[data-kind="crash"] .crash-notice-icon { color: var(--amber-400); }
+.crash-notice[data-kind="personal-best"] .crash-notice-icon { color: var(--brand); }
+.crash-notice[data-kind="track-record"] .crash-notice-icon { color: var(--purple-400); }
+
+@media (pointer: coarse) {
+  .crash-notice-keyboard { display: none; }
+  .crash-notice-restart {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border: 1px solid var(--border-hover);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font: 400 var(--text-label) / 1.2 var(--font-body);
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice.notice-crashed,
+  .notice.notice-event { transition: none; }
+}
+
+/* A wreck pauses the race behind a full race-area scrim. */
+.notice.notice-crashed {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: inherit;
+  background: rgb(0 0 0 / 82%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+}
+.notice.notice-crashed .crash-notice {
+  padding: 24px;
+  text-align: center;
+}
+.notice.notice-crashed .crash-notice-icon { display: none; }
+.notice.notice-crashed .crash-notice-copy { align-items: center; gap: 12px; }
+.notice.notice-crashed .crash-notice-title {
+  font: 400 clamp(24px, 3vw, 32px)/1.2 var(--font-heading);
+}
+.notice.notice-crashed.hidden { display: none; }
+
+/* Keep the recovery action visible on narrow screens as well as touch devices. */
+@media (pointer: coarse), (max-width: 600px) {
+  .crash-notice-keyboard { display: none; }
+  .crash-notice-restart {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: 1px solid var(--border-hover);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font: 400 var(--text-label) / 1.2 var(--font-body);
+    touch-action: manipulation;
+  }
+  .notice.notice-crashed .crash-notice { flex-direction: column; gap: 16px; max-width: 100%; }
+}
+
+/* Override the HUD's ordinary notice offset for the full-area crash scrim. */
+body:not(.spectating) .game-shell .notice.notice-crashed { inset: 0; }

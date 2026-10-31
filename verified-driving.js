@@ -1,8 +1,10 @@
 (() => {
  'use strict';
  const config=window.LPRVerificationConfig,revision=window.LPRDrivingRevision;
+ const t=(text,values)=>window.LPRI18n?.t(text,values)??text;
  const status=document.querySelector('#verification-status');
  const list=document.querySelector('#verified-list');
+ const formatLapTime=ms=>window.LPRFormatLapTime?.(ms)??'--:--.---';
  const lights=document.querySelector('#start-lights'),lightsLabel=document.querySelector('#start-lights-label');
  let lightsTimer=null,finishLights=null,lightsReady=Promise.resolve();
  function clearLights(){
@@ -76,6 +78,7 @@
  function showSeries(value){
   if(!['human','bot'].includes(value)||series===value)return;
   series=value;for(const [option,tab]of seriesTabs)tab?.setAttribute?.('aria-pressed',String(option===value));
+  document.dispatchEvent(new Event('lpr-series-changed'));
   void refresh();
  }
  for(const [value,tab]of seriesTabs)tab?.addEventListener?.('click',()=>showSeries(value));
@@ -88,10 +91,10 @@
    for(const row of data.results){
     const li=document.createElement('li'),name=document.createElement('span'),time=document.createElement('span');
     name.className='standing-name';name.textContent=row.nickname;name.title=row.nickname;
-    time.className='standing-time';time.textContent=` · ${(row.lap_ms/1000).toFixed(3)} s`;
+    time.className='standing-time';time.textContent=` · ${formatLapTime(row.lap_ms)}`;
     li.append(name,time);
     if(row.replay_available&&/^[a-f0-9]{32}$/.test(row.session_id)&&Number.isSafeInteger(row.lap)){
-     const replay=document.createElement('a');replay.textContent='Katso uusinta';replay.className='replay-link';
+     const replay=document.createElement('a');replay.append(window.LPRIcon('play'),document.createTextNode(' '+t('Katso uusinta','Watch replay')));replay.className='replay-link';
      replay.href='replay.html?session='+row.session_id+'&lap='+row.lap;replay.target='_blank';replay.rel='noopener';li.append(replay);
     }
     list.append(li);
@@ -108,7 +111,7 @@
    try{const reply=await api('/api/verified/laps',(typeof pending[0]==='string'?{receipt:pending[0]}:pending[0]),login);
     if(identity?.token!==login.token)return;
     if(!reply.verified||reply.protocol!=='driving-v1')throw Error('Virheellinen tallennuskuittaus.');
-    pending.shift();persist();say(lapEligibility?.eligible===false?practiceMessage:`Kierrosaika ${(reply.lapMs/1000).toFixed(3)} s tallennettu.`);hooks?.saved?.(reply.lapMs);document.dispatchEvent(new Event('lpr-lap-saved'));
+    pending.shift();persist();say(lapEligibility?.eligible===false?practiceMessage:t('verifiedLapSaved',{time:formatLapTime(reply.lapMs)}));hooks?.saved?.(reply.lapMs);document.dispatchEvent(new Event('lpr-lap-saved'));
    }catch(error){if(identity?.token!==login.token)return;
     if(error.status===401){window.LPRLeaderboard.signOut?.('Kirjautuminen vanheni. Kirjaudu uudelleen nimimerkilläsi ja salasanallasi.');return;}
     if([400,403,409,413,415,422].includes(error.status)){pending.shift();persist();say('Kierrosaikaa ei voitu tallentaa tuloslistalle.');continue;}
@@ -165,7 +168,7 @@
       diagnostics.lastMismatch={...mismatch,seq:ack.seq,at:new Date().toISOString()};
       console.warn('LPR verified simulation mismatch',diagnostics.lastMismatch);
       autoRetryAllowed=false;
-      cancel('Harjoittelu käynnissä – varmennuksen fysiikkaero ('+mismatch.code+', tick '+ack.ackTick+'). Tarkemmat erot: F12 → Console.');
+      cancel('Harjoittelu käynnissä – varmennuksen fysiikkaero ('+mismatch.code+', tick '+ack.ackTick+'). Tarkemmat erot löytyvät F12:lla avattavasta Consolesta.');
       return;
      }
      for(const tick of snapshots.keys())if(tick<=ack.ackTick)snapshots.delete(tick);
@@ -215,7 +218,7 @@
  };
  function sync(){restore();return save();}
  setInterval(()=>{if(!document.hidden&&document.querySelector('#settings-dialog').open)void sync();},15000);
- window.LPRVerifiedDriving.identityCleared=()=>{cancel(null);identity=null;pending.length=0;};
+ window.LPRVerifiedDriving.identityCleared=()=>{cancel(null);identity=null;pending.length=0;document.dispatchEvent(new Event('lpr-identity-changed'));};
  window.LPRVerifiedDriving.identityPromoted=formerGuest=>{
   if(!identity&&formerGuest){identity={...formerGuest,guest:true};restoreGuestQueue();}
   const oldKey=key(),chosen=window.LPRLeaderboard.identity;

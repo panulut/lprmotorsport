@@ -33,7 +33,7 @@ for(const scene of ['sale','sauna','pool',null,'unknown']){
   const context={URLSearchParams,car,window:{LPRSale:{entrance}},renderer:{saunaStop,poolStop},
     ui:{dialog:{open:false},speed:node(),lateralG:node(),grip:node(),tc:node(),notice:node()},
     dynamics:{reset(car){car.speed=0;}},saunaLife:{enter(){saunaEntered=true;},leave(){}},
-    t:text=>text,clearInput(){},stopLooking(){},updateSaunaUI(){},
+    t:text=>text,clearInput(){},stopLooking(){},updateSaunaUI(){},updateDriveHud(){},
     nearSale:()=>Math.hypot(car.x-entrance.x,car.y-entrance.y)<40,
     nearSauna:()=>Math.hypot(car.x-saunaStop.x,car.y-saunaStop.y)<40,
     nearPool:()=>Math.hypot(car.x-poolStop.x,car.y-poolStop.y)<42};
@@ -72,7 +72,25 @@ async function check(production){
     assert.equal((await fetch(base+'/tools/track-editor/editor.css')).status,production?404:200);
     assert.equal((await fetch(base+'/editor.html')).status,404);
     assert.equal((await fetch(base+'/server.js')).status,404);
+    assert.equal((await fetch(base+'/.env')).status,404);
+    assert.equal((await fetch(base+'/design-system.html')).status,production?404:200);
+    if(production){
+      for(const route of ['/api/dev/design-preview','/api/verified/leaderboard','/api/chat','/health','/spectate'])
+        assert.equal((await fetch(base+route,{headers:{referer:base+'/?demo=1'}})).status,404,route);
+      const config=await(await fetch(base+'/verification/config.js')).text();
+      assert.doesNotMatch(config,/local-demo|Aino Korhonen|demo:true/);
+      assert.match(config,/lpr-verification\.onrender\.com/);
+    }else{
+      const preview=await(await fetch(base+'/api/dev/design-preview')).json();
+      assert.equal(preview.mode,'demo-only');
+      assert.equal(Object.hasOwn(preview,'accountPassword'),false);
+    }
     assert.equal((await fetch(base+'/data/track-data.js')).status,200);
+    assert.equal((await fetch(base+'/spectate-menu.js')).status,200,'the local API prefix must not swallow the static spectate menu module');
+    if(!production){
+      assert.equal((await fetch(base+'/spectate',{headers:{referer:base+'/'}})).status,404,'demo API requires an explicit opt-in');
+      assert.equal((await fetch(base+'/spectate',{headers:{referer:base+'/?demo=1'}})).status,200,'the local spectate API route remains available');
+    }
     const html=await(await fetch(base+'/')).text();
     assert.ok(!html.includes('editor'));
     for(const match of html.matchAll(/(?:src|href)="([^"?#]+)(?:[^" ]*)"/g)) {
@@ -123,6 +141,20 @@ async function check(production){
   assert.ok(!fs.existsSync(path.join(output,'tools')));
   assert.ok(!fs.existsSync(path.join(output,'server.js')));
   assert.ok(!fs.existsSync(path.join(output,'tests')));
+  assert.ok(!fs.existsSync(path.join(output,'design-system.html')));
+  assert.ok(!fs.existsSync(path.join(output,'.env')));
+  assert.ok(fs.existsSync(path.join(output,'assets/fonts/OFL.txt')));
+  assert.ok(fs.existsSync(path.join(output,'assets/fonts/STACK-SANS-OFL.txt')));
+  assert.ok(fs.existsSync(path.join(output,'assets/fonts/inter-400.woff2')));
+  const releaseFiles=[];
+  (function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())walk(file);else releaseFiles.push(file);}})(output);
+  assert.ok(!releaseFiles.some(file=>file.endsWith('.ttf')),'Desktop font files stay out of the player package');
+  const releaseText=releaseFiles.filter(file=>/\.(?:js|css|html|json|txt|md|svg)$/i.test(file)).map(file=>fs.readFileSync(file,'utf8')).join('\n');
+  assert.doesNotMatch(releaseText,/demo1234|local-demo|DEMO_ACCOUNT_PASSWORD|DEMO_DRIVER_NAME|Aino Korhonen/);
+  const releaseConfig=fs.readFileSync(path.join(output,'verification/config.js'),'utf8');
+  assert.equal(releaseConfig.includes('127.0.0.1'),false);
+  assert.equal(releaseConfig.includes('localhost'),false);
+  assert.match(releaseConfig,/"mode":"production"/);
   await check(false);await check(true);
   console.log('PASS: game build, separate editor, local write protection and project data save');
 })().catch(e=>{console.error(e);process.exitCode=1;});

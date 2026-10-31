@@ -11,11 +11,26 @@
     <meta name="theme-color" content="#07110f" />
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />
     <title>Skinnarila Grand Prix · LPR Motorsport</title>
-    <link rel="stylesheet" href="styles.css?v=track-record-20261027" />
+    <link rel="stylesheet" href="design-tokens.css?v=design-system-2" />
+    <link rel="stylesheet" href="components.css?v=keycaps-press-20261030" />
+    <link rel="stylesheet" href="styles.css?v=header-icons-brand-panel-20261030" />
     <link rel="stylesheet" href="3d.css?v=verified-guests-20261029" />
-    <link rel="stylesheet" href="dashboard.css?v=viewport-chat-20261027" />
+    <link rel="stylesheet" href="lap-panel.css?v=skinnarila-gp-branding-20261030" />
+    <link rel="stylesheet" href="sector-panel.css?v=sector-comparison-1" />
+    <link rel="stylesheet" href="dashboard.css?v=chat-typescale-20261030" />
+    <link rel="stylesheet" href="sidebar-compact.css?v=full-height-rail-20261030" />
+    <link rel="stylesheet" href="auth-feedback.css?v=chat-identity-gate-20261030" />
+    <link rel="stylesheet" href="series-controls.css?v=auth-series-unified-20261030" />
+    <link rel="stylesheet" href="sidebar-settings.css?v=figma-settings-20261030" />
     <link rel="stylesheet" href="release-notes.css?v=20261027-language-switch" />
+    <link rel="stylesheet" href="language-selector.css?v=20261030" />
+    <link rel="stylesheet" href="crash-notice.css?v=restart-r-notice-20261030" />
+    <link rel="stylesheet" href="numeric-typography.css?v=stack-tabular-times-20261030" />
+    <link rel="stylesheet" href="spectator-layout.css?v=20261030" />
+    <link rel="stylesheet" href="mobile-layout.css?v=20261030" />
+    <script src="icons.js?v=phosphor-regular-2.1.1" defer></script>
     <script src="i18n.js?v=track-record-20261027" defer></script>
+    <script src="language-selector.js?v=20261030" defer></script>
     <script src="shared/dmath.js?v=deterministic-math-20261024" defer></script>
     <script src="shared/vehicle-spec.js?v=deterministic-math-20261024" defer></script>
     <script src="campus.js?v=collision-cache-20261026" defer></script>
@@ -34,47 +49,122 @@
     <script src="renderer3d.js?v=verified-launch-20261025" defer></script>
     <script src="vehicle.js?v=deterministic-math-20261024" defer></script>
     <script src="sauna.js?v=sound-20261013" defer></script>
-    <script src="timing.js?v=sectors-20261009" defer></script>
+    <script src="timing.js?v=trace-delta-verified-20261030" defer></script>
     <script src="analytics.js?v=expiring-sessions-20261025" defer></script>
-    <script src="leaderboard.js?v=verified-guests-20261029" defer></script>
+    <script src="formatters.js?v=lap-duration-mmss-20261030" defer></script>
+    <script src="leaderboard.js?v=verified-reference-replay-20261030" defer></script>
     <script src="audio.js?v=warm-sound-20261013" defer></script>
     <script src="race-effects.js?v=skinnarila-20261015" defer></script>
     <script src="verified-driving.js?v=verified-guests-20261029" defer></script>
-    <script src="track-record.js?v=20261027" defer></script>
+    <script src="lap-panel.js?v=verified-reference-replay-20261030" defer></script>
+    <script src="sector-panel.js?v=sector-comparison-1" defer></script>
     <script src="championship.js?v=daily-hud-20261027" defer></script>
     <script src="dashboard.js?v=guest-entry-layout-20261029" defer></script>
-    <script src="chat.js?v=verified-guests-20261029" defer></script>
+    <script src="chat.js?v=account-chat-identity-20261030" defer></script>
+    <script src="sidebar.js?v=collapsible-paddock-20261030" defer></script>
+    <script src="keycap-press.js?v=pressed-key-feedback-20261030" defer></script>
     <script src="replay-pose.js" defer></script>
     <script src="spectate-menu.js?v=native-view-20261027" defer></script>
-    <script src="game.js?v=verified-guests-20261029" defer></script>
+    <script src="game.js?v=trace-delta-verified-20261030" defer></script>
     <script src="release-notes.js?v=20261027" defer></script>
   </head>
   <body>
     <main class="app">
-      <header class="topbar">
-        <img class="logo" src="assets/lpr-logo.jpg" alt="LPR Motorsport Formula Student" />
-        <div class="topbar-title"><span>FORMULA STUDENT</span><strong>SKINNARILA GRAND PRIX</strong></div>
-        <button id="sound-button" class="icon-button" type="button" aria-label="Äänet: päällä" aria-pressed="true">♫<span>Äänet: päällä</span></button>
-        <button id="leaderboard-button" class="icon-button" type="button" aria-label="Tuloslista">🏆</button>
-        <button id="restart-button" class="icon-button" type="button" aria-label="Aloita uudelleen">↺ <span>Aloita uudelleen</span></button>
-        <div class="language-switcher" role="group" aria-label="Kieli / Language">
-          <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-          <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
-        </div>
-      </header>
-
-      <aside id="chat-panel" class="chat-panel" aria-labelledby="chat-title" hidden>
-        <div class="chat-heading"><h2 id="chat-title">Varikkochat</h2><button id="chat-close" class="icon-button" type="button" aria-label="Sulje chat">×</button></div>
-        <p class="hint">Yhteinen chat · viestit ovat julkisia. Älä jaa henkilötietoja.</p>
-        <p class="chat-presence"><span class="chat-online-dot" aria-hidden="true"></span><span>Paikalla</span> <strong id="chat-online-count" role="status">—</strong></p>
+<aside id="left-rail" class="left-rail" aria-label="Varikko ja kuljettaja">
+        <div id="left-rail-content" class="left-rail-content">
+      <aside id="chat-panel" class="chat-panel" aria-labelledby="chat-title">
+        <div class="chat-heading"><h2 id="chat-title">Varikkochat</h2><button id="rail-collapse" type="button" aria-expanded="true" aria-controls="left-rail-content" aria-label="Piilota sivupalkki" title="Piilota sivupalkki"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-left"></use></svg></button></div>
+        <p class="chat-presence"><strong id="chat-online-count" role="status" aria-label="Paikalla olevien määrä">8</strong><span id="chat-online-label">Paikalla</span><span class="chat-presence-separator" aria-hidden="true">·</span><span class="chat-public-notice">Viestit ovat julkisia.</span></p>
         <ol id="chat-messages" aria-label="Chat-viestit" aria-live="polite" aria-relevant="additions"></ol>
         <form id="chat-form">
-          <label for="chat-input">Viesti</label>
-          <div class="chat-compose"><input id="chat-input" type="text" maxlength="280" placeholder="Kirjoita varikolle…" autocomplete="off" required /><button type="submit">Lähetä</button></div>
+          <label class="visually-hidden" for="chat-input">Viesti</label>
+          <div class="chat-compose"><input id="chat-input" type="text" maxlength="280" placeholder="Kirjoita varikolle…" autocomplete="off" required /><button class="chat-send" type="submit" aria-label="Lähetä" title="Lähetä"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1-lpr-chat-20261030#arrow-up"></use></svg></button></div>
         </form>
         <p id="chat-status" class="hint" role="status"></p>
       </aside>
-      <button id="chat-restore" class="chat-restore" type="button" aria-expanded="false" aria-controls="chat-panel" hidden>Varikkochat <span aria-hidden="true">💬</span></button>
+        <form id="leaderboard-start-form" class="leaderboard-panel leaderboard-start-form">
+          <div id="leaderboard-main-view">
+            <h3 id="leaderboard-driver-heading">Kuljettaja <span id="dashboard-account-name"></span></h3>
+            <button id="leaderboard-drive" class="leaderboard-start" type="button" hidden>Siirry radalle</button>
+            <div id="leaderboard-choices" class="leaderboard-choices">
+              <button id="leaderboard-login" class="leaderboard-choice" type="button">Kirjaudu sisään</button>
+              <button id="leaderboard-practice" class="leaderboard-choice" type="button">Jatka vierailijana</button>
+            </div>
+            <div id="leaderboard-guest-fields" hidden>
+              <div class="guest-fields-heading"><button id="leaderboard-guest-back" class="leaderboard-back" type="button" aria-label="Takaisin" title="Takaisin"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-left"></use></svg></button><h4>Jatka vierailijana</h4></div>
+              <p class="guest-privacy">Kierroksesi ja ajosi näkyvät julkisesti nimimerkillä. Vierailija ei saa kisapisteitä.</p>
+              <label for="leaderboard-guest-name">Nimimerkki</label>
+              <input id="leaderboard-guest-name" maxlength="24" autocomplete="nickname" placeholder="Valitse nimimerkki" />
+              <fieldset class="guest-series-segment">
+                <legend>Sarja</legend>
+                <div class="guest-series-options segment-control">
+                  <label class="guest-series-option segment-control-option"><input id="leaderboard-guest-series-human" type="radio" name="guest-series" value="human" checked /><span>Ihmiset</span></label>
+                  <label class="guest-series-option segment-control-option"><input id="leaderboard-guest-series-bot" type="radio" name="guest-series" value="bot" /><span>Botit</span></label>
+                </div>
+              </fieldset>
+              <button id="leaderboard-guest-start" class="leaderboard-start" type="button">Aloita pelaaminen</button>
+            </div>
+            <div id="leaderboard-account-fields" hidden>
+            <button id="leaderboard-back" class="leaderboard-back" type="button" aria-label="Takaisin valikkoon" title="Takaisin valikkoon"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-left"></use></svg></button>
+            <h4 id="leaderboard-account-title">Kirjaudu sisään</h4>
+            <p id="leaderboard-create-step" class="leaderboard-create-step" hidden></p>
+            <div id="leaderboard-credentials">
+            <label for="leaderboard-name">Nimimerkki</label>
+            <input id="leaderboard-name" required maxlength="24" autocomplete="username" autocapitalize="off" enterkeyhint="next" placeholder="Nimimerkki" />
+            <label id="leaderboard-password-label" for="leaderboard-password">Salasana</label>
+            <input id="leaderboard-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" enterkeyhint="go" placeholder="Vähintään 8 merkkiä" />
+            <p id="leaderboard-password-hint" class="leaderboard-password-hint">Salasana varaa nimimerkin sinulle. Salasanaa ei voi palauttaa.</p>
+            </div>
+            <fieldset id="leaderboard-series-step" class="leaderboard-series" hidden>
+              <legend>Kummassa sarjassa ajat?</legend>
+              <p id="leaderboard-series-name" class="leaderboard-series-name"></p>
+              <div class="leaderboard-series-options segment-control">
+              <label class="leaderboard-series-option segment-control-option"><input id="leaderboard-series-human" type="radio" name="leaderboard-series" value="human" /><span>Ihmisten sarja</span></label>
+              <label class="leaderboard-series-option segment-control-option"><input id="leaderboard-series-bot" type="radio" name="leaderboard-series" value="bot" /><span>Bottien sarja</span></label>
+              </div>
+              <p class="leaderboard-series-note">Ihmiset ja botit kilpailevat eri tuloslistoilla. Sarjaa voi myöhemmin vaihtaa vain ylläpito.</p>
+            </fieldset>
+            <button id="leaderboard-start" class="leaderboard-start" type="submit" hidden><span id="leaderboard-start-label">Kirjaudu sisään</span></button>
+            <div id="leaderboard-create-prompt" class="leaderboard-create-prompt" hidden><span>Eikö sinulla ole tiliä?</span><button id="leaderboard-create" type="button">Luo tili</button></div>
+            <p id="leaderboard-status" role="status"></p>
+            </div>
+            <button id="leaderboard-settings-open" class="leaderboard-settings-open" type="button" aria-label="Lisäasetukset" title="Lisäasetukset" aria-expanded="false" aria-controls="leaderboard-settings-view"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1-lpr-gear-20261030#gear"></use></svg></button>
+            </div>
+            <section id="leaderboard-settings-view" class="leaderboard-settings-view" aria-labelledby="leaderboard-settings-title" hidden>
+              <div class="leaderboard-settings-heading"><h4 id="leaderboard-settings-title">Lisäasetukset</h4><button id="leaderboard-settings-back" class="leaderboard-back" type="button" aria-label="Takaisin" title="Takaisin"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-left"></use></svg></button></div>
+            <fieldset class="analytics-settings" aria-label="Analytiikka / Analytics">
+              <label><input id="analytics-consent" type="checkbox" /> <span id="analytics-label"></span></label>
+              <details><summary>Tiedot <svg class="ph-icon summary-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-right"></use></svg></summary><p id="analytics-info"></p><a href="privacy.html" target="_blank" rel="noopener">Tietosuoja</a><br><button id="analytics-delete" type="button">Poista analytiikkatietoni</button><p id="analytics-status" role="status"></p></details>
+            </fieldset>
+            </section>
+            <button id="leaderboard-logout" class="leaderboard-logout" type="button" hidden>Kirjaudu ulos</button>
+        </form>
+        <div class="game-actions sidebar-utility-actions" role="group" aria-label="Pelin asetukset">
+          <button id="leaderboard-button" class="game-action-button" type="button" aria-label="Tuloslista" title="Tuloslista"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#trophy"></use></svg></button>
+          <button id="restart-button" class="game-action-button" type="button" aria-label="Aloita uudelleen" title="Aloita uudelleen (R)" aria-keyshortcuts="R"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#arrow-counter-clockwise"></use></svg></button>
+          <div id="sidebar-language-selector" class="language-selector" data-language-selector>
+            <button class="language-selector__trigger" type="button" aria-label="Vaihda kieltä" title="Vaihda kieltä" aria-haspopup="menu" aria-expanded="false"><img class="language-selector__flag" src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"></button>
+            <div class="language-selector__menu" role="menu" aria-label="Kieli">
+              <button class="language-selector__option" type="button" role="menuitemradio" data-language="fi" aria-checked="true" lang="fi"><img src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"><span>Suomi</span><span class="language-selector__code">FI</span></button>
+              <button class="language-selector__option" type="button" role="menuitemradio" data-language="en" aria-checked="false" lang="en"><img src="assets/circle-flags-gb.svg" alt="" aria-hidden="true"><span>English</span><span class="language-selector__code">EN</span></button>
+            </div>
+          </div>
+          <span id="language-selector-slot" hidden aria-hidden="true"></span>
+        </div>
+        <details id="guest-register-panel" class="guest-register-panel" hidden>
+      <summary>Luo tili ja säilytä kierroksesi <svg class="ph-icon summary-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-right"></use></svg></summary>
+      <form id="guest-register-form">
+        <p>Rekisteröidy tämän vierailijaistunnon aikana. Ajo jatkuu normaalisti. Sarja säilyy. Tänään ajetut varmennetut kierrokset lasketaan avoimeen päiväkisaan. Suljetut kisat eivät muutu.</p>
+        <label for="guest-register-name">Tilin nimimerkki</label>
+        <input id="guest-register-name" required maxlength="24" autocomplete="username" />
+        <label for="guest-register-password">Salasana</label>
+        <input id="guest-register-password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" />
+        <button type="submit">Luo tili</button>
+        <p id="guest-register-status" role="status"></p>
+      </form>
+    </details>
+        </div>
+      </aside>
       <section class="game-shell" aria-label="Ajopeli">
         <p id="spectate-label" role="status" hidden></p>
         <p id="spectate-connection" role="status" hidden></p>
@@ -83,117 +173,106 @@
           <div class="start-lights-row" aria-hidden="true"><span></span><span></span><span></span></div>
           <strong id="start-lights-label">Valmistaudu</strong>
         </div>
-        <div class="hud">
-          <div class="hud-item"><span>KIERROS</span><strong id="lap-count">1</strong></div>
-          <div class="hud-item wide"><span>AIKA</span><strong id="lap-time">00:00.000</strong></div>
-          <div class="hud-item wide track-record"><span>RATAENNÄTYS</span><strong id="best-time">--:--.---</strong><small id="record-holder">—</small></div>
-          <div class="hud-item speed"><span>NOPEUS</span><strong><span id="speed">0</span> <small>km/h</small></strong></div>
-        </div>
+        <aside id="lap-panel" class="lap-panel" aria-label="Kierrosaika ja sijoitukset">
+          <header class="lap-panel-header">
+            <div class="lap-panel-lap"><span data-lap-label="lap">KIERROS</span><strong id="lap-count">1</strong></div>
+            <div class="lap-panel-clock"><span data-lap-label="time">AIKA</span><strong id="lap-time">00:00.000</strong></div>
+            <div class="lap-panel-speed"><span data-lap-label="speed">NOPEUS</span><strong><span id="speed">0</span><small>km/h</small></strong></div>
+          </header>
+          <div class="lap-panel-branding" aria-label="LPR Motorsport SkinnarilaGP">
+            <img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true" />
+            <strong>Skinnarila<span>GP</span></strong>
+          </div>
+          <div class="lap-panel-rows">
+            <div class="lap-panel-row lap-panel-track" role="group" aria-labelledby="lap-track-label record-holder best-time">
+              <span id="lap-track-label" class="lap-panel-label" data-lap-label="track">Rataennätys</span>
+              <span id="record-holder" class="lap-panel-driver">—</span>
+              <strong id="best-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+            <div class="lap-panel-row lap-panel-personal" role="group" aria-labelledby="lap-personal-label personal-best-holder personal-best-time">
+              <span id="lap-personal-label" class="lap-panel-label" data-lap-label="personal">Oma paras</span>
+              <span id="personal-best-holder" class="lap-panel-driver">—</span>
+              <strong id="personal-best-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+            <div class="lap-panel-row lap-panel-next-row" role="group" aria-labelledby="lap-next-label next-driver next-time">
+              <span id="lap-next-label" class="lap-panel-label" data-lap-label="next">Seuraava sijoitus</span>
+              <span id="next-driver" class="lap-panel-driver">—</span>
+              <strong id="next-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+          </div>
+          <p id="lap-panel-status" class="lap-panel-status" role="status" aria-live="polite" hidden></p>
+        </aside>
         <section id="daily-race-hud" class="daily-race-hud" aria-label="Päivän kisa">
           <div><span id="daily-race-label">Päivän kisa · Ihmiset</span><strong id="daily-race-countdown">Ladataan…</strong></div>
           <div class="daily-race-leader"><span id="daily-race-leader-label">Johdossa</span><strong><span id="daily-race-name">—</span><span id="daily-race-time"></span></strong></div>
         </section>
+        <section id="drive-settings-panel" class="sidebar-settings" aria-label="Ajoasetukset">
+          <button id="drive-settings-collapse" class="drive-settings-collapse" type="button" aria-label="Piilota ajoasetukset" title="Piilota ajoasetukset" aria-expanded="true" aria-controls="drive-settings-list"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-left"></use></svg><span>Ajoasetukset</span></button>
+          <div id="drive-settings-list" class="sidebar-setting-list" role="group" aria-label="Ajoasetukset">
+            <button id="wheel-tc" class="sidebar-setting-row" type="button" aria-label="Luistonesto: päällä" aria-pressed="true"><kbd>T</kbd><span class="sidebar-setting-name">Luistonesto</span><span class="sidebar-setting-value">Päällä</span></button>
+            <button id="wheel-page" class="sidebar-setting-row" type="button" aria-label="Näyttö: nopeus"><kbd>P</kbd><span class="sidebar-setting-name">Näyttö</span><span class="sidebar-setting-value">Nopeus</span></button>
+            <button id="sound-button" class="sidebar-setting-row" type="button" aria-label="Äänet: päällä" title="Äänet: päällä" aria-pressed="true"><kbd><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#speaker-high"></use></svg></kbd><span class="sidebar-setting-name">Äänet</span><span class="sidebar-setting-value">Päällä</span></button>
+            <button id="wheel-dim" class="sidebar-setting-row" type="button" aria-label="Näytön himmennys: pois" aria-pressed="false"><kbd>B</kbd><span class="sidebar-setting-name">Näytön himmennys</span><span class="sidebar-setting-value">Pois</span></button>
+          </div>
+        </section>
+        <button id="drive-settings-toggle" class="drive-settings-toggle" type="button" aria-label="Ajoasetukset" title="Ajoasetukset" aria-expanded="false" aria-controls="drive-settings-panel"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#speedometer"></use></svg></button>
+        <div class="drive-telemetry">
+          <div class="drive-input-stack">
+          <div class="drive-input-meter drive-input-meter--throttle" role="meter" aria-label="Kaasu" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span>
+          </div>
+          <div class="drive-input-meter drive-input-meter--brake" role="meter" aria-label="Jarru" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span><span class="drive-input-segment" aria-hidden="true"></span>
+          </div>
+          </div>
+          <div class="drive-speed" role="img" aria-label="Nopeus kilometreinä tunnissa"><span id="drive-speed-value">0</span><span class="visually-hidden"> kilometriä tunnissa</span></div>
+        </div>
         <canvas id="track" aria-label="3D-näkymä kuljettajan paikalta"></canvas>
         <div id="sector-time" class="sector-time" role="status" hidden></div>
         <canvas id="cockpit" aria-hidden="true"></canvas>
         <div class="sauna-actions"><span id="sauna-hint" role="status"></span><button id="sale-enter" type="button" hidden disabled>Mene Saleen (E)</button><button id="sauna-enter" type="button" hidden disabled>Mene saunaan (E)</button><button id="pool-enter" type="button" hidden disabled>Mene paljuun (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
         <div id="sauna-dialogue" class="sauna-dialogue" role="status" aria-live="polite" hidden></div>
         <div class="telemetry"><strong id="lateral-g">0.0 G</strong><span id="grip-state">PITO OK</span><span id="tc-status">TC PÄÄLLÄ</span></div>
-        <div id="notice" class="notice" role="status">Paina kaasua ja lähde ajamaan!</div>
+        <div id="notice" class="notice hidden" role="status">
+          <span class="notice-message"></span>
+          <div class="crash-notice" hidden>
+            <svg class="ph-icon crash-notice-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#warning"></use></svg>
+            <div class="crash-notice-copy">
+              <strong class="crash-notice-title"></strong>
+              <span class="crash-notice-detail" hidden></span>
+              <span class="crash-notice-keyboard"><span class="crash-notice-instruction-before"></span> <kbd class="keycap">R</kbd> <span class="crash-notice-instruction-after"></span></span>
+            </div>
+            <button class="crash-notice-restart" type="button"></button>
+          </div>
+        </div>
         <div class="game-footer"><span id="input-status">KOSKETUS / NÄPPÄIMISTÖ</span><span id="track-status">LPR HARJOITUSRATA · 220 M</span></div>
       </section>
 
       <section class="controls" aria-label="Kosketusohjaimet">
-        <div class="wheel-controls" role="group" aria-label="Ratin säätimet">
-          <button id="wheel-page" type="button">Ratti: nopeus (P)</button>
-          <button id="wheel-dim" type="button" aria-pressed="false">Himmennys (B)</button>
-          <button id="wheel-tc" type="button" aria-pressed="true">Luistonesto (T)</button>
-        </div>
-        <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle">←</button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle">→</button></div>
+        <div class="steering"><button class="control steer" data-control="left" aria-label="Ohjaa vasemmalle"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#arrow-left"></use></svg></button><button class="control steer" data-control="right" aria-label="Ohjaa oikealle"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#arrow-right"></use></svg></button></div>
         <div class="pedals"><button class="control brake" data-control="brake">JARRU</button><button class="control gas" data-control="gas">KAASU</button></div>
       </section>
-      <p class="help">Puhelimella: käännä vasemman ja oikean nuolinapeilla, pidä toisella kädellä kaasua tai jarrua. Voit ajaa myös vaakasuunnassa. Tietokoneella: ← → tai A D, kaasu ↑ / W, jarru ↓ / S.</p>
+      <p class="help"><span class="keyboard-hint" aria-label="Näppäimistöohjaimet"><span class="key-instruction"><span>Ohjaa</span><span class="key-group"><kbd class="keycap">←</kbd><kbd class="keycap">→</kbd></span><span>tai</span><span class="key-group"><kbd class="keycap">A</kbd><kbd class="keycap">D</kbd></span></span><span class="key-instruction"><span>Kaasu</span><span class="key-group"><kbd class="keycap">↑</kbd><kbd class="keycap">W</kbd></span></span><span class="key-instruction"><span>Jarru</span><span class="key-group"><kbd class="keycap">↓</kbd><kbd class="keycap">S</kbd></span></span></span></p>
     </main>
 
     <dialog id="settings-dialog" aria-labelledby="leaderboard-title">
       <div class="dialog-head">
-        <div class="race-heading"><h2 id="leaderboard-title">SKINNARILA<br>GRAND PRIX</h2><p class="race-eyebrow">LPR MOTORSPORT · TIME ATTACK</p></div>
+        <div class="race-heading dashboard-brand"><img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true"><h2 id="leaderboard-title">Skinnarila<span>GP</span></h2><p class="race-eyebrow">LPR MOTORSPORT · AIKA-AJO</p></div>
         <div class="dialog-actions">
         <button id="release-notes-open" type="button">Mitä uutta?</button>
-        <div class="language-switcher" role="group" aria-label="Kieli / Language">
-          <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-          <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
-        </div>
-        <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><span aria-hidden="true">×</span> Takaisin peliin</button>
+        <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#x"></use></svg> <span>Takaisin peliin</span></button>
         </div>
       </div>
       <div class="leaderboard-entry-grid">
-          <form id="leaderboard-start-form" class="leaderboard-panel leaderboard-start-form">
-            <h3>Kuljettaja <span id="dashboard-account-name"></span></h3>
-            <button id="leaderboard-drive" class="leaderboard-start" type="button" hidden>Siirry radalle</button>
-            <div id="leaderboard-choices" class="leaderboard-choices">
-              <button id="leaderboard-login" class="leaderboard-choice" type="button">Kirjaudu sisään</button>
-              <button id="leaderboard-practice" class="leaderboard-choice" type="button">Jatka vierailijana</button>
-            </div>
-            <div id="leaderboard-guest-fields" hidden>
-              <h4>Jatka vierailijana</h4>
-              <label for="leaderboard-guest-name">Nimimerkki</label>
-              <input id="leaderboard-guest-name" maxlength="24" autocomplete="nickname" placeholder="Valitse nimimerkki" />
-              <p>Varmennetut kierrokset tallennetaan virallisiin tuloksiin nimellä (vierailija). Voit luoda tilin tämän istunnon aikana ja säilyttää kierroksesi. Vierailija ei saa kisapisteitä. Ajoasi voi seurata suorana.</p>
-              <label for="leaderboard-guest-series">Sarja</label>
-              <select id="leaderboard-guest-series"><option value="">Valitse sarja</option><option value="human">Ihmiset</option><option value="bot">Botit</option></select>
-              <button id="leaderboard-guest-start" class="leaderboard-start" type="button">Aloita pelaaminen</button>
-              <button id="leaderboard-guest-back" class="leaderboard-back" type="button">Takaisin</button>
-            </div>
-            <div id="leaderboard-account-fields" hidden>
-            <button id="leaderboard-back" class="leaderboard-back" type="button">Takaisin valikkoon</button>
-            <h4 id="leaderboard-account-title">Kirjaudu sisään</h4>
-            <button id="leaderboard-create" class="leaderboard-choice" type="button">Luo uusi käyttäjätunnus</button>
-            <p id="leaderboard-create-step" class="leaderboard-create-step" hidden></p>
-            <p>Leaderboardiin osallistuminen tallentaa nimimerkin, varmennetut kierrosajat ja ajon tarkastamiseen tarvittavat tiedot. Kehitysanalytiikka on vapaaehtoinen.</p>
-            <div id="leaderboard-credentials">
-            <label for="leaderboard-name">Nimimerkki</label>
-            <input id="leaderboard-name" required maxlength="24" autocomplete="username" autocapitalize="off" enterkeyhint="next" placeholder="Nimimerkki" />
-            <label id="leaderboard-password-label" for="leaderboard-password">Salasana</label>
-            <input id="leaderboard-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" enterkeyhint="go" placeholder="Vähintään 8 merkkiä" />
-            <p id="leaderboard-password-hint" class="leaderboard-password-hint">Salasana varaa nimimerkin sinulle. Salasanaa ei voi palauttaa.</p>
-            <p class="leaderboard-password-hint">Leaderboard-ajoasi voi seurata suorana nimimerkilläsi.</p>
-            </div>
-            <fieldset id="leaderboard-series-step" class="leaderboard-series" hidden>
-              <legend>Kummassa sarjassa ajat?</legend>
-              <p id="leaderboard-series-name" class="leaderboard-series-name"></p>
-              <div class="leaderboard-series-options">
-              <label class="leaderboard-series-option"><input id="leaderboard-series-human" type="radio" name="leaderboard-series" value="human" />
-                <svg class="leaderboard-series-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="18" r="10" fill="currentColor"/><path d="M14 56c0-11 8-20 18-20s18 9 18 20z" fill="currentColor"/><path d="M22 15c2-6 7-9 10-9s8 3 10 9" fill="none" stroke="#0b1a14" stroke-width="2.5" stroke-linecap="round"/></svg>
-                <span><strong>Ihmisten sarja</strong> <small>Ajan itse näppäimistöllä tai kosketusohjaimilla.</small></span></label>
-              <label class="leaderboard-series-option"><input id="leaderboard-series-bot" type="radio" name="leaderboard-series" value="bot" />
-                <svg class="leaderboard-series-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><line x1="32" y1="4" x2="32" y2="12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="4" r="3" fill="currentColor"/><rect x="14" y="12" width="36" height="26" rx="6" fill="currentColor"/><circle cx="24" cy="24" r="4" fill="#0b1a14"/><circle cx="40" cy="24" r="4" fill="#0b1a14"/><rect x="23" y="31" width="18" height="3" rx="1.5" fill="#0b1a14"/><rect x="9" y="20" width="5" height="10" rx="2" fill="currentColor"/><rect x="50" y="20" width="5" height="10" rx="2" fill="currentColor"/><rect x="18" y="41" width="28" height="17" rx="4" fill="currentColor"/><circle cx="32" cy="49.5" r="3" fill="#0b1a14"/></svg>
-                <span><strong>Bottien sarja</strong> <small>Autoa ohjaa ohjelma tai muu automaattinen ohjaus.</small></span></label>
-              </div>
-              <p class="leaderboard-series-note">Ihmiset ja botit kilpailevat eri tuloslistoilla. Sarjaa voi myöhemmin vaihtaa vain ylläpito.</p>
-            </fieldset>
-            </div>
-            <details class="leaderboard-options">
-            <summary>Lisäasetukset</summary>
-            <label class="chat-visibility"><input id="chat-visible" type="checkbox" /> <span>Näytä chat ajon aikana</span></label>
-            <fieldset class="analytics-settings" aria-label="Analytiikka / Analytics">
-              <label><input id="analytics-consent" type="checkbox" /> <span id="analytics-label"></span></label>
-              <details><summary>Tiedot / Details</summary><p id="analytics-info"></p><a href="privacy.html" target="_blank" rel="noopener">Tietosuoja / Privacy</a><br><button id="analytics-delete" type="button">Poista analytiikkatietoni</button><p id="analytics-status" role="status"></p></details>
-            </fieldset>
-            </details>
-            <button id="leaderboard-start" class="leaderboard-start" type="submit" hidden><span id="leaderboard-start-label">Kirjaudu sisään</span> <span aria-hidden="true">→</span></button>
-            <button id="leaderboard-logout" class="leaderboard-logout" type="button" hidden>Kirjaudu ulos</button>
-            <p id="leaderboard-status" role="status"></p>
-          </form>
+
       <section class="leaderboard-panel active-drivers" aria-labelledby="active-drivers-title">
-        <h3 id="active-drivers-title">Aktiiviset kuljettajat</h3>
-        <p class="active-drivers-note">Katso ajoa painamalla kuljettajan nimeä. Chat toimii myös katselun aikana.</p>
+        <h3 id="active-drivers-title">Kuljettajat verkossa</h3>
         <p id="active-drivers-status" role="status">Haetaan kuljettajia…</p>
         <ul id="active-drivers-list"></ul>
       </section>
-      <section class="leaderboard-panel verified-standings" aria-label="Varmennettujen kierrosaikojen TOP 10">
-        <h3>TOP 10</h3>
-        <div class="series-tabs" role="group" aria-label="Sarja">
+      <section class="leaderboard-panel verified-standings" aria-label="Top 10 nopeinta kierrosta">
+        <h3>Top 10 nopeinta kierrosta</h3>
+        <div class="series-tabs segment-control" role="group" aria-label="Sarja">
           <button id="verified-series-human" type="button" aria-pressed="true">Ihmiset</button>
           <button id="verified-series-bot" type="button" aria-pressed="false">Botit</button>
         </div>
@@ -205,13 +284,14 @@
       <section id="spectate-view" hidden aria-label="Suora ajonseuranta">
         <div id="spectate-game"></div>
         <aside id="spectate-sidebar" aria-label="Vaihda seurattavaa kuljettajaa">
-          <button id="spectate-back" type="button">← Takaisin kuljettajalistaan</button>
+          <button id="spectate-back" type="button"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#arrow-left"></use></svg> <span>Takaisin kuljettajalistaan</span></button>
         </aside>
       </section>
       <section id="championship" class="leaderboard-panel championship" aria-labelledby="championship-title">
-        <div class="championship-heading"><h3 id="championship-title">Päivän kisa</h3><button id="dashboard-details-open" type="button">Kisapäivä ja pisteet</button></div>
-        <p>Uusi kisa joka päivä Suomen aikaa. Vain varmennetut kierrokset.</p>
-        <div class="series-tabs" role="group" aria-label="Päiväkisan sarja">
+        <div class="championship-heading"><h3 id="championship-title">Päiväkisa</h3><button id="dashboard-details-open" type="button" aria-label="Kisapäivä ja pisteet" title="Kisapäivä ja pisteet"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#dots-three"></use></svg></button></div>
+        <p id="championship-personal" class="championship-personal"></p>
+        <p id="championship-summary">Uusi kisa joka päivä Suomen aikaa. Vain varmennetut kierrokset.</p>
+        <div class="series-tabs segment-control" role="group" aria-label="Päiväkisan sarja">
           <button id="championship-series-human" type="button" aria-pressed="true">Ihmiset</button>
           <button id="championship-series-bot" type="button" aria-pressed="false">Botit</button>
         </div>
@@ -222,13 +302,12 @@
           <button id="championship-refresh" type="button">Päivitä</button>
         </div>
         <p id="championship-clock"></p><p id="championship-notice" role="status"></p>
-        <p id="championship-personal" class="championship-personal"></p>
         <div class="championship-grid">
           <section><h4>Päivän nopeimmat</h4><div id="championship-fastest"></div></section>
           <section><h4>Eniten kierroksia</h4><div id="championship-volume"></div></section>
           <section><h4>Kuukauden pistekisa</h4><p id="championship-month"></p><div id="championship-monthly"></div></section>
         </div>
-        <details><summary>Mistä pisteitä saa?</summary>
+        <details><summary>Mistä pisteitä saa? <svg class="ph-icon summary-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-right"></use></svg></summary>
           <p>Nopeuskisan sijat 1–10: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1 pistettä.</p>
           <p>Kierrosmääräkisan sijat 1–8: 10, 8, 6, 5, 4, 3, 2, 1 pistettä.</p>
           <p>Päivän ensimmäinen kierros: 5 pistettä. Rajapyykit 5, 15 ja 30 kierrosta: kukin +2 pistettä.</p>
@@ -245,9 +324,12 @@
           <div class="release-notes-heading">
             <div><h2 id="release-notes-title">Mitä uutta?</h2><p id="release-notes-meta"></p></div>
             <div class="release-notes-actions">
-              <div class="language-switcher" role="group" aria-label="Kieli / Language">
-                <button type="button" data-language="fi" aria-label="Suomi" aria-pressed="true" title="Suomi" lang="fi"><svg viewBox="0 0 36 22" aria-hidden="true"><path fill="#fff" d="M0 0h36v22H0z"/><path fill="#003580" d="M10 0h6v22h-6zM0 8h36v6H0z"/></svg></button>
-                <button type="button" data-language="en" aria-label="English" aria-pressed="false" title="English" lang="en"><svg viewBox="0 0 60 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path fill="#c8102e" d="M0 0 30 15h-4.472L0 2.236zM60 0 30 15v-2.236L55.528 0zM60 30 30 15h4.472L60 27.764zM0 30 30 15v2.236L4.472 30z"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg></button>
+              <div id="release-notes-language-selector" class="language-selector" data-language-selector>
+                <button class="language-selector__trigger" type="button" aria-label="Vaihda kieltä" title="Vaihda kieltä" aria-haspopup="menu" aria-expanded="false"><img class="language-selector__flag" src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"></button>
+                <div class="language-selector__menu" role="menu" aria-label="Kieli">
+                  <button class="language-selector__option" type="button" role="menuitemradio" data-language="fi" aria-checked="true" lang="fi"><img src="assets/circle-flags-fi.svg" alt="" aria-hidden="true"><span>Suomi</span><span class="language-selector__code">FI</span></button>
+                  <button class="language-selector__option" type="button" role="menuitemradio" data-language="en" aria-checked="false" lang="en"><img src="assets/circle-flags-gb.svg" alt="" aria-hidden="true"><span>English</span><span class="language-selector__code">EN</span></button>
+                </div>
               </div>
               <button id="release-notes-close" type="button">Sulje</button>
             </div>
@@ -256,17 +338,5 @@
         </div>
       </section>
     </dialog>
-    <details id="guest-register-panel" class="guest-register-panel" hidden>
-      <summary>Luo tili ja säilytä kierroksesi</summary>
-      <form id="guest-register-form">
-        <p>Rekisteröidy tämän vierailijaistunnon aikana. Ajo jatkuu normaalisti. Sarja säilyy. Tänään ajetut varmennetut kierrokset lasketaan avoimeen päiväkisaan. Suljetut kisat eivät muutu.</p>
-        <label for="guest-register-name">Tilin nimimerkki</label>
-        <input id="guest-register-name" required maxlength="24" autocomplete="username" />
-        <label for="guest-register-password">Salasana</label>
-        <input id="guest-register-password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" />
-        <button type="submit">Luo tili</button>
-        <p id="guest-register-status" role="status"></p>
-      </form>
-    </details>
   </body>
 </html>

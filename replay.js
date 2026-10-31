@@ -8,7 +8,8 @@
  const resetCamera=()=>{if(renderer){renderer.visualSteering=null;renderer.lastWheelFrame=0;}};
  const message=text=>{$('#status').textContent=text;};
  const seconds=()=>recording?(recording.endTick-recording.startTick)/recording.hz:0;
- function pause(){playing=false;$('#play').textContent='▶ Toista';$('#play').setAttribute('aria-label','Toista uusinta');}
+ function setPlaybackButton(isPlaying){const button=$('#play'),label=isPlaying?'Tauko':'Toista';button.replaceChildren(window.LPRIcon(isPlaying?'pause':'play'),document.createTextNode(' '+label));button.setAttribute('aria-label',isPlaying?'Pysäytä uusinta':'Toista uusinta');}
+ function pause(){playing=false;setPlaybackButton(false);}
  async function api(path,options={}){
   const response=await fetch(config.leaderboard+path,{...options,headers:{...(secret?{Authorization:'Bearer '+secret}:{}),...options.headers},cache:'no-store',signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw Error(response.status===401?'Ylläpitoavain ei kelpaa tai pääsyä ei ole määritetty.':response.status===404?'Uusintaa ei ole saatavilla. Vanhoilla ajoilla ei ole tallennetta.':'Pyyntö epäonnistui ('+response.status+').');
@@ -104,7 +105,7 @@
    $('#login').hidden=true;$('#token').value='';$('#admin-tools').hidden=false;$('#runs').replaceChildren();
    for(const r of data.results){const tr=document.createElement('tr');
     const add=value=>{const td=document.createElement('td');if(value instanceof Node)td.append(value);else td.textContent=value;tr.append(td);};
-    add(r.nickname+' · '+(r.lap_ticks/120).toFixed(3)+' s');add(new Date(r.issued_ms).toLocaleString('fi-FI'));
+    add(r.nickname+' · '+(r.lap_ticks/120).toFixed(3)+' s');add(new Date(r.issued_ms).toLocaleString(document.documentElement.lang==='en'?'en-GB':'fi-FI'));
     // Series belongs to the account: changing it moves every lap of that driver.
     const series=document.createElement('select');series.setAttribute('aria-label','Kuljettajan sarja');
     for(const [value,label]of [['human','Ihminen'],['bot','Botti']]){const o=document.createElement('option');o.value=value;o.textContent=label;series.append(o);}series.value=r.series||'human';
@@ -120,7 +121,7 @@
       if(details){details.remove();details=null;show.setAttribute('aria-expanded','false');return;}
       try{const data=await api('/api/verified/admin/replays/'+r.session_id+'/'+r.lap+'/reports');
        details=document.createElement('tr');const td=document.createElement('td');td.colSpan=6;const ul=document.createElement('ul');
-       for(const p of data.results){const li=document.createElement('li');li.textContent=new Date(p.created_ms).toLocaleString('fi-FI')+' · '+(p.reporter||'poistettu tili')+' · '+(reasons[p.reason]||p.reason)+(p.note?' · '+p.note:'');ul.append(li);}
+       for(const p of data.results){const li=document.createElement('li');li.textContent=new Date(p.created_ms).toLocaleString(document.documentElement.lang==='en'?'en-GB':'fi-FI')+' · '+(p.reporter||'poistettu tili')+' · '+(reasons[p.reason]||p.reason)+(p.note?' · '+p.note:'');ul.append(li);}
        td.append(ul);details.append(td);tr.after(details);show.setAttribute('aria-expanded','true');
       }catch(error){message(error.message);}
      };add(show);
@@ -129,7 +130,7 @@
    $('#previous').disabled=offset===0;$('#next').disabled=!data.hasMore;message('Suoritukset '+(offset+1)+'–'+(offset+data.results.length));
   }catch(error){if(gen===generation)message(error.message);}
  }
- $('#play').onclick=()=>{if(!recording)return;if(playing)pause();else{if(elapsed>=seconds())elapsed=0;playing=true;lastFrame=performance.now();$('#play').textContent='Ⅱ Tauko';$('#play').setAttribute('aria-label','Pysäytä uusinta');}};
+ $('#play').onclick=()=>{if(!recording)return;if(playing)pause();else{if(elapsed>=seconds())elapsed=0;playing=true;lastFrame=performance.now();setPlaybackButton(true);}};
  $('#restart').onclick=()=>{elapsed=0;resetCamera();draw();};$('#seek').oninput=()=>{elapsed=Number($('#seek').value)*seconds();resetCamera();draw();};
  $('#view').onchange=()=>{resetCamera();draw();};
  window.addEventListener?.('resize',()=>draw());
@@ -165,7 +166,7 @@
   }catch(error){if(gen===liveRequest){playing=false;message(error.message.includes('peliversio')?error.message:'Seurantayhteys katkesi. Yhdistetään uudelleen…');}}finally{liveBusy=false;}
  }
  if(live){
-  $('#live-tools').hidden=false;document.title='LPR Motorsport · Suora seuranta';
+  $('#live-tools').hidden=false;document.title=window.LPRI18n?.t('LPR Motorsport · Suora seuranta')||'LPR Motorsport · Suora seuranta';
   $('h1 span').textContent='SUORA SEURANTA';
   $('#viewer').setAttribute('aria-label','Kuljettajan suora seuranta');
   $('#viewer > p.muted').textContent='Palvelimella laskettu auton liike ja ohjaus näytetään pienellä puskurointiviiveellä. Voit vaihtaa kuljettajanäkymän ja ratakuvan välillä. Harjoittelutilassa ajavat eivät näy seurannassa.';
