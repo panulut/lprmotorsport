@@ -33,7 +33,7 @@ for(const scene of ['sale','sauna','pool',null,'unknown']){
   const context={URLSearchParams,car,window:{LPRSale:{entrance}},renderer:{saunaStop,poolStop},
     ui:{dialog:{open:false},speed:node(),lateralG:node(),grip:node(),tc:node(),notice:node()},
     dynamics:{reset(car){car.speed=0;}},saunaLife:{enter(){saunaEntered=true;},leave(){}},
-    t:text=>text,clearInput(){},stopLooking(){},updateSaunaUI(){},
+    t:text=>text,clearInput(){},stopLooking(){},updateSaunaUI(){},updateDriveHud(){},
     nearSale:()=>Math.hypot(car.x-entrance.x,car.y-entrance.y)<40,
     nearSauna:()=>Math.hypot(car.x-saunaStop.x,car.y-saunaStop.y)<40,
     nearPool:()=>Math.hypot(car.x-poolStop.x,car.y-poolStop.y)<42};

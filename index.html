@@ -18,6 +18,10 @@
     <link rel="stylesheet" href="dashboard.css?v=viewport-chat-20261027" />
     <link rel="stylesheet" href="release-notes.css?v=20261027-language-switch" />
     <link rel="stylesheet" href="language-selector.css?v=20261030" />
+    <link rel="stylesheet" href="lap-panel.css?v=skinnarila-gp-branding-20261030" />
+    <link rel="stylesheet" href="sector-panel.css?v=sector-comparison-1" />
+    <link rel="stylesheet" href="crash-notice.css?v=restart-r-notice-20261030" />
+    <link rel="stylesheet" href="numeric-typography.css?v=stack-tabular-times-20261030" />
     <script src="icons.js?v=phosphor-regular-2.1.1" defer></script>
     <script src="i18n.js?v=track-record-20261027" defer></script>
     <script src="language-selector.js?v=20261030" defer></script>
@@ -42,11 +46,14 @@
     <script src="sauna.js?v=sound-20261013" defer></script>
     <script src="timing.js?v=sectors-20261009" defer></script>
     <script src="analytics.js?v=expiring-sessions-20261025" defer></script>
+    <script src="formatters.js?v=lap-duration-mmss-20261030" defer></script>
     <script src="leaderboard.js?v=verified-guests-20261029" defer></script>
     <script src="audio.js?v=warm-sound-20261013" defer></script>
     <script src="race-effects.js?v=skinnarila-20261015" defer></script>
     <script src="verified-driving.js?v=verified-guests-20261029" defer></script>
     <script src="track-record.js?v=20261027" defer></script>
+    <script src="lap-panel.js?v=verified-reference-replay-20261030" defer></script>
+    <script src="sector-panel.js?v=sector-comparison-1" defer></script>
     <script src="championship.js?v=daily-hud-20261027" defer></script>
     <script src="dashboard.js?v=guest-entry-layout-20261029" defer></script>
     <script src="chat.js?v=verified-guests-20261029" defer></script>
@@ -92,12 +99,35 @@
           <div class="start-lights-row" aria-hidden="true"><span></span><span></span><span></span></div>
           <strong id="start-lights-label">Valmistaudu</strong>
         </div>
-        <div class="hud">
-          <div class="hud-item"><span>KIERROS</span><strong id="lap-count">1</strong></div>
-          <div class="hud-item wide"><span>AIKA</span><strong id="lap-time">00:00.000</strong></div>
-          <div class="hud-item wide track-record"><span>RATAENNÄTYS</span><strong id="best-time">--:--.---</strong><small id="record-holder">—</small></div>
-          <div class="hud-item speed"><span>NOPEUS</span><strong><span id="speed">0</span> <small>km/h</small></strong></div>
-        </div>
+        <aside id="lap-panel" class="lap-panel" aria-label="Kierrosaika ja sijoitukset">
+          <header class="lap-panel-header">
+            <div class="lap-panel-lap"><span data-lap-label="lap">KIERROS</span><strong id="lap-count">1</strong></div>
+            <div class="lap-panel-clock"><span data-lap-label="time">AIKA</span><strong id="lap-time">00:00.000</strong></div>
+            <div class="lap-panel-speed"><span data-lap-label="speed">NOPEUS</span><strong><span id="speed">0</span><small>km/h</small></strong></div>
+          </header>
+          <div class="lap-panel-branding" aria-label="LPR Motorsport SkinnarilaGP">
+            <img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true" />
+            <strong>Skinnarila<span>GP</span></strong>
+          </div>
+          <div class="lap-panel-rows">
+            <div class="lap-panel-row lap-panel-track" role="group" aria-labelledby="lap-track-label record-holder best-time">
+              <span id="lap-track-label" class="lap-panel-label" data-lap-label="track">Rataennätys</span>
+              <span id="record-holder" class="lap-panel-driver">—</span>
+              <strong id="best-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+            <div class="lap-panel-row lap-panel-personal" role="group" aria-labelledby="lap-personal-label personal-best-holder personal-best-time">
+              <span id="lap-personal-label" class="lap-panel-label" data-lap-label="personal">Oma paras</span>
+              <span id="personal-best-holder" class="lap-panel-driver">—</span>
+              <strong id="personal-best-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+            <div class="lap-panel-row lap-panel-next-row" role="group" aria-labelledby="lap-next-label next-driver next-time">
+              <span id="lap-next-label" class="lap-panel-label" data-lap-label="next">Seuraava sijoitus</span>
+              <span id="next-driver" class="lap-panel-driver">—</span>
+              <strong id="next-time" class="lap-panel-value">--:--.---</strong>
+            </div>
+          </div>
+          <p id="lap-panel-status" class="lap-panel-status" role="status" aria-live="polite" hidden></p>
+        </aside>
         <section id="daily-race-hud" class="daily-race-hud" aria-label="Päivän kisa">
           <div><span id="daily-race-label">Päivän kisa · Ihmiset</span><strong id="daily-race-countdown">Ladataan…</strong></div>
           <div class="daily-race-leader"><span id="daily-race-leader-label">Johdossa</span><strong><span id="daily-race-name">—</span><span id="daily-race-time"></span></strong></div>
@@ -108,7 +138,18 @@
         <div class="sauna-actions"><span id="sauna-hint" role="status"></span><button id="sale-enter" type="button" hidden disabled>Mene Saleen (E)</button><button id="sauna-enter" type="button" hidden disabled>Mene saunaan (E)</button><button id="pool-enter" type="button" hidden disabled>Mene paljuun (E)</button><button id="sauna-seat" type="button" hidden>Vaihda vastakkaiselle lauteelle (F)</button><button id="sauna-steam" type="button" hidden>Heitä löylyä (välilyönti)</button><button id="sauna-sound" type="button" hidden aria-pressed="false">Saunan äänet: pois</button></div>
         <div id="sauna-dialogue" class="sauna-dialogue" role="status" aria-live="polite" hidden></div>
         <div class="telemetry"><strong id="lateral-g">0.0 G</strong><span id="grip-state">PITO OK</span><span id="tc-status">TC PÄÄLLÄ</span></div>
-        <div id="notice" class="notice" role="status">Paina kaasua ja lähde ajamaan!</div>
+        <div id="notice" class="notice hidden" role="status">
+          <span class="notice-message"></span>
+          <div class="crash-notice" hidden>
+            <svg class="ph-icon crash-notice-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#warning"></use></svg>
+            <div class="crash-notice-copy">
+              <strong class="crash-notice-title"></strong>
+              <span class="crash-notice-detail" hidden></span>
+              <span class="crash-notice-keyboard"><span class="crash-notice-instruction-before"></span> <kbd class="keycap">R</kbd> <span class="crash-notice-instruction-after"></span></span>
+            </div>
+            <button class="crash-notice-restart" type="button"></button>
+          </div>
+        </div>
         <div class="game-footer"><span id="input-status">KOSKETUS / NÄPPÄIMISTÖ</span><span id="track-status">LPR HARJOITUSRATA · 220 M</span></div>
       </section>
 
