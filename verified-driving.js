@@ -135,6 +135,9 @@
   },3000);
  }
  async function start({replace=false,reconnect=false}={}){
+  // Demo fixtures have no signed start or driving-session endpoints. Do not
+  // retry verification or flash the official starting lights during practice.
+  if(config?.demo===true){clearLights();return;}
   // Never teleport an already driving player back to the start after an error.
   if(reconnect&&!autoRetryAllowed)return;
   if(!reconnect)autoRetryAllowed=true;
