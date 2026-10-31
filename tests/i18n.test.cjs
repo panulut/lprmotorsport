@@ -16,7 +16,7 @@ const nickname = {
 };
 const storage = new Map();
 const context = {
-  window: {}, NodeFilter: { SHOW_TEXT: 4 },
+  window: { dispatchEvent() {} }, Event: class { constructor(type) { this.type = type; } }, NodeFilter: { SHOW_TEXT: 4 },
   localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
   document: {
     documentElement: {}, body: {},

@@ -7,7 +7,7 @@
   const nickname = document.querySelector('#leaderboard-name');
   const status = document.querySelector('#leaderboard-status');
   const list = document.querySelector('#leaderboard-list');
-  const format = ms => `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(3).padStart(6, '0')}`;
+  const format = ms => window.LPRFormatLapTime(ms);
   const dialog = document.querySelector('#settings-dialog');
   const startForm = document.querySelector('#leaderboard-start-form');
   const consent = document.querySelector('#analytics-consent');
@@ -25,10 +25,21 @@
   const accountFields = document.querySelector('#leaderboard-account-fields');
   const accountTitle = document.querySelector('#leaderboard-account-title');
   const accountEndpoint = () => window.LPRVerificationConfig?.leaderboard;
-  const accountKey = 'lpr-account';
+  const demoMode = window.LPRVerificationConfig?.demo === true;
+  const accountDisplayName = name => demoMode && name === 'Mika Demo' ? 'Mika Laine' : name;
+  const accountKey = demoMode ? 'lpr-demo-account' : 'lpr-account';
+  const guestSessionKey = demoMode ? 'lpr-demo-guest-session' : 'lpr-guest-session';
+  const guestNicknameKey = demoMode ? 'lpr-demo-guest-nickname' : 'lpr-guest-nickname';
+  const nicknameKey = demoMode ? 'lpr-demo-nickname' : 'lpr-nickname';
   let sessionChosen = false, guestSelection = false, guestNickname = '', guestSession = null;
   const guestFields = document.querySelector('#leaderboard-guest-fields');
   const guestName = document.querySelector('#leaderboard-guest-name');
+  const driverHeading = document.querySelector('#leaderboard-driver-heading');
+  const driverMainView = document.querySelector('#leaderboard-main-view');
+  const driverSettingsView = document.querySelector('#leaderboard-settings-view');
+  const driverSettingsOpen = document.querySelector('#leaderboard-settings-open');
+  const driverSettingsBack = document.querySelector('#leaderboard-settings-back');
+  let settingsOpen = false;
   let token, activeName = '', activeSeries = 'human', account = null, authMode = null, signingIn = false;
   // Account creation asks credentials first, then an explicit human/bot series choice.
   let createStep = 1, chosenSeries = null;
@@ -48,19 +59,30 @@
     const saved = JSON.parse(localStorage.getItem(accountKey) ?? 'null');
     if (saved && validName(saved.nickname) && validToken(saved.token) && Number.isSafeInteger(saved.expiresAt) && saved.expiresAt > Date.now()) account = { nickname: saved.nickname, token: saved.token, expiresAt: saved.expiresAt, series: seriesOf(saved.series) };
     else localStorage.removeItem(accountKey);
-    nickname.value = account?.nickname ?? localStorage.getItem('lpr-nickname') ?? '';
+    nickname.value = account?.nickname ?? localStorage.getItem(nicknameKey) ?? '';
   } catch {}
   function showAccount() {
     window.LPRChat?.identityChanged?.();
     const promotionPanel = document.querySelector('#guest-register-panel');
     if (promotionPanel) promotionPanel.hidden = !guestSession;
+    if (account && account.expiresAt <= Date.now()) forget();
     // A remembered sign-in skips the password, but every page load still needs Aloita ajo.
-    const remembered = !!account;
+    const remembered = !!account && account.expiresAt > Date.now();
     const showFields = !!activeName || !!authMode;
+    if (driverHeading) driverHeading.hidden = !remembered || !!guestSelection || !!authMode || settingsOpen;
+    if (driverMainView) driverMainView.hidden = settingsOpen;
+    if (driverSettingsView) driverSettingsView.hidden = !settingsOpen;
+    if (driverSettingsOpen) {
+      driverSettingsOpen.hidden = false;
+      driverSettingsOpen.setAttribute('aria-expanded', String(settingsOpen));
+    }
     if (guestFields) guestFields.hidden = !guestSelection;
     const lobbyDrive=document.querySelector('#leaderboard-drive');
-    if (lobbyDrive) lobbyDrive.hidden=!sessionChosen;
-    if (choices) choices.hidden = showFields || guestSelection || sessionChosen;
+    if (lobbyDrive) {
+      lobbyDrive.hidden = !dialog.open || (!sessionChosen && !remembered);
+      lobbyDrive.textContent = t('Siirry radalle');
+    }
+    if (choices) choices.hidden = remembered || showFields || guestSelection || sessionChosen;
     if (accountFields) accountFields.hidden = !showFields || sessionChosen;
     const backButton = document.querySelector('#leaderboard-back');
     if (backButton) backButton.hidden = !!activeName;
@@ -69,9 +91,11 @@
     password.disabled = !showFields || remembered || !!activeName;
     nickname.readOnly = !!account || !!activeName;
     for (const element of passwordRow) if (element) element.hidden = !!account || !!activeName;
-    if (logoutButton) logoutButton.hidden = !remembered && !guestSession;
+    if (logoutButton) logoutButton.hidden = !remembered;
     const createButton = document.querySelector('#leaderboard-create');
     if (createButton) createButton.hidden = !authMode || remembered || !!activeName || authMode === 'create';
+    const createPrompt = document.querySelector('#leaderboard-create-prompt');
+    if (createPrompt) createPrompt.hidden = !authMode || remembered || !!activeName || authMode === 'create';
     password.autocomplete = authMode === 'create' ? 'new-password' : 'current-password';
     const creating = authMode === 'create' && !remembered && !activeName;
     const choosingSeries = creating && createStep === 2;
@@ -82,10 +106,60 @@
     if (credentials) credentials.hidden = choosingSeries;
     if (seriesStep) seriesStep.hidden = !choosingSeries;
     if (seriesName) seriesName.textContent = choosingSeries ? `${t('Nimimerkki')}: ${nickname.value.trim()}` : '';
-    if (backButton) backButton.textContent = t(choosingSeries ? 'Takaisin' : 'Takaisin valikkoon');
+    if (backButton) {
+      const backLabel = t(choosingSeries ? 'Takaisin' : 'Takaisin valikkoon');
+      backButton.setAttribute('aria-label', backLabel);
+      backButton.title = backLabel;
+    }
     const hint = document.querySelector('#leaderboard-password-hint');
     if (hint) hint.hidden = remembered || !!activeName || authMode !== 'create';
   }
+  driverSettingsOpen?.addEventListener('click', () => {
+    settingsOpen = true;
+    showAccount();
+    driverSettingsBack?.focus();
+  });
+  driverSettingsBack?.addEventListener('click', () => {
+    settingsOpen = false;
+    showAccount();
+    driverSettingsOpen?.focus();
+  });
+  if (driverSettingsBack) {
+    const label = t('Takaisin');
+    driverSettingsBack.setAttribute('aria-label', label);
+    driverSettingsBack.title = label;
+  }
+  driverSettingsView?.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      settingsOpen = false;
+      showAccount();
+      driverSettingsOpen?.focus();
+    }
+  });
+  const syncLobbyDrive = () => {
+    const button = document.querySelector('#leaderboard-drive');
+    if (button) button.hidden = !dialog.open || (!sessionChosen && !(account?.expiresAt > Date.now()));
+  };
+  new MutationObserver(syncLobbyDrive).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  dialog.addEventListener('close', syncLobbyDrive);
+  document.querySelector('#leaderboard-drive')?.addEventListener('click', () => {
+    if (sessionChosen) return;
+    if (!account || account.expiresAt <= Date.now()) { showAccount(); return; }
+    sessionChosen = true; authMode = null; guestSelection = false; guestNickname = '';
+    activeName = accountDisplayName(account.nickname); activeSeries = seriesOf(account.series); token = account.token;
+    activeLap = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(pendingKey()) ?? '[]');
+      pending = Array.isArray(saved) ? saved.filter(lap => lap?.version === version && lap.protocol === protocol &&
+        lap.nickname === activeName && validToken(lap.lapId) && Number.isSafeInteger(lap.lapMs) && lap.lapMs > 5000 &&
+        Array.isArray(lap.sectors) && lap.sectors.length === 3 && lap.sectors.every(n => Number.isSafeInteger(n) && n > 0) &&
+        lap.sectors.reduce((a, b) => a + b, 0) === lap.lapMs) : [];
+    } catch { pending = []; }
+    showAccount();
+    window.LPRAnalytics?.identify(activeName);
+    document.dispatchEvent(new Event('lpr-lobby-ready'));
+  });
   function setStep(step) {
     createStep = step;
     status.textContent = '';
@@ -142,7 +216,7 @@
   });
   password.addEventListener('input', () => password.setCustomValidity(''));
   logoutButton?.addEventListener('click', async () => {
-    const current = guestSession || account;
+    const current = account?.expiresAt > Date.now() ? account : null;
     if (!current || signingIn) return;
     signingIn = true; logoutButton.disabled = true; startButton.disabled = true;
     try {
@@ -197,7 +271,7 @@
       password.value = ''; authMode = null; createStep = 1; chosenSeries = null; status.textContent = '';
       account = identity;
       guestNickname = '';
-      try { localStorage.setItem(accountKey, JSON.stringify(account)); localStorage.setItem('lpr-nickname', account.nickname); } catch {}
+      try { localStorage.setItem(accountKey, JSON.stringify(account)); localStorage.setItem(nicknameKey, account.nickname); } catch {}
     }
     sessionChosen = true;
     token = identity.token;
@@ -225,7 +299,7 @@
   document.querySelector('#leaderboard-practice')?.addEventListener('click', () => {
     if (signingIn) return;
     guestSelection = true; authMode = null; guestNickname = ''; showAccount();
-    guestName.value = localStorage.getItem('lpr-guest-nickname') || '';
+    guestName.value = localStorage.getItem(guestNicknameKey) || '';
     guestName.focus();
   });
   document.querySelector('#leaderboard-guest-back')?.addEventListener('click', () => {
@@ -238,25 +312,25 @@
       guestName.setCustomValidity(t('Kirjoita 1–24 merkin nimimerkki. Käytä kirjaimia, numeroita, välilyöntiä, pistettä, viivaa tai alaviivaa.'));
       guestName.reportValidity(); return;
     }
-    const series = document.querySelector('#leaderboard-guest-series')?.value;
+    const series = document.querySelector('input[name="guest-series"]:checked')?.value;
     if (!['human','bot'].includes(series)) { status.textContent = t('Valitse ihmisten tai bottien sarja.'); return; }
     signingIn = true;
     try {
       let remembered;
-      try { remembered = JSON.parse(localStorage.getItem('lpr-guest-session') || 'null'); } catch {}
+      try { remembered = JSON.parse(localStorage.getItem(guestSessionKey) || 'null'); } catch {}
       const resume = remembered?.nickname === name && remembered?.series === series && remembered.expiresAt > Date.now() && validToken(remembered.token);
       const response = await fetch(accountEndpoint() + '/api/verified/guest', {
         method:'POST',headers:{'Content-Type':'application/json',...(resume?{Authorization:'Bearer '+remembered.token}:{})},
         body:JSON.stringify({nickname:name,series}),signal:AbortSignal.timeout(15000)
       });
       if (!response.ok) {
-        if (response.status === 401) localStorage.removeItem('lpr-guest-session');
+        if (response.status === 401) localStorage.removeItem(guestSessionKey);
         throw Object.assign(Error('Guest session unavailable'),{status:response.status});
       }
       const data = await response.json();
       if (!validName(data.nickname) || !validToken(data.token) || !Number.isSafeInteger(data.expiresAt) || data.expiresAt <= Date.now() || !['human','bot'].includes(data.series) || typeof data.guest !== 'boolean') throw Error('Invalid guest session');
       guestSession = data;
-      try { localStorage.setItem('lpr-guest-session',JSON.stringify(data)); localStorage.setItem('lpr-guest-nickname',name); } catch {}
+      try { localStorage.setItem(guestSessionKey,JSON.stringify(data)); localStorage.setItem(guestNicknameKey,name); } catch {}
     } catch (error) { status.textContent = signInError(error.status,name); return; }
     finally { signingIn = false; }
     guestNickname = guestSession.nickname;
@@ -267,7 +341,7 @@
     window.LPRVerifiedDriving?.identityCleared?.();
     if (resumedAccount) {
       account = resumedAccount; activeName = resumedAccount.nickname; guestSession = null; guestNickname = '';
-      try { localStorage.setItem(accountKey,JSON.stringify(account)); localStorage.removeItem('lpr-guest-session'); } catch {}
+      try { localStorage.setItem(accountKey,JSON.stringify(account)); localStorage.removeItem(guestSessionKey); } catch {}
       nickname.value = activeName;
       window.LPRVerifiedDriving?.identityPromoted?.({...resumedAccount,guest:true});
     }
@@ -299,7 +373,7 @@
       account = {nickname:data.nickname,token:data.token,expiresAt:data.expiresAt,series:data.series};
       activeName = data.nickname; activeSeries = data.series; token = data.token;
       guestNickname = ''; guestSession = null; field.value = '';
-      try { localStorage.setItem(accountKey,JSON.stringify(account)); localStorage.removeItem('lpr-guest-session'); } catch {}
+      try { localStorage.setItem(accountKey,JSON.stringify(account)); localStorage.removeItem(guestSessionKey); } catch {}
       nickname.value = activeName;
       window.LPRVerifiedDriving?.identityPromoted?.(original);
       window.LPRAnalytics?.identify(activeName);
@@ -386,7 +460,10 @@
             pending.shift();
             savePending();
             // The server decides whether this is a new record. A cached list may be stale.
-            if (result.record === true && result.rank === 1) window.LPRRaceEffects?.celebrate(lap.lapMs);
+            if (result.record === true && result.rank === 1) {
+              window.LPRRaceEffects?.celebrate(lap.lapMs);
+              document.dispatchEvent(new CustomEvent('lpr-track-record', { detail: { lapMs: lap.lapMs } }));
+            }
             status.textContent = t('lapRank', { time: format(lap.lapMs), rank: result.rank });
             }
             await refresh();
@@ -403,6 +480,10 @@
     window.addEventListener('online', flushPending);
     window.LPRLeaderboard = {
       get identity() { return guestSession ? {...guestSession,guest:true} : activeName && token ? {nickname:activeName,token,series:activeSeries} : null; },
+      get accountIdentity() {
+        if (!(account?.expiresAt > Date.now())) return null;
+        return {nickname:accountDisplayName(account.nickname),series:account.series};
+      },
       // Chat authentication is independent of choosing a verified driving session.
       get chatIdentity() {
         if (guestSession) return {...guestSession,guest:true};
@@ -417,7 +498,7 @@
       signOut(message) {
         forget();
         sessionChosen = false; activeName = ''; guestNickname = ''; guestSession = null; token = undefined; pending = [];
-        try { localStorage.removeItem('lpr-guest-session'); } catch {}
+        try { localStorage.removeItem(guestSessionKey); } catch {}
         window.LPRVerifiedDriving?.identityCleared?.();
         dialog.classList.remove('lobby-ready');
         showAccount();

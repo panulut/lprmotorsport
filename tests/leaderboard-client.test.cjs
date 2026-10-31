@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),nodeCrypto=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'../leaderboard.js'),'utf8');
+const formatterSource=fs.readFileSync(path.join(__dirname,'../formatters.js'),'utf8');
 // One fake account server shared by every page load, like the real Worker.
 const serverAccounts=new Map(),accountCalls=[];
 function accountReply(body){
@@ -20,7 +21,7 @@ function setup(storage=new Map(),options={}){
   const node=id=>{
     if(!nodes.has(id)){
       const events=new Map();let text='';
-      nodes.set(id,{value:'',children:[],open:false,hidden:false,readOnly:false,
+      nodes.set(id,{value:id.endsWith('-series-human')?'human':id.endsWith('-series-bot')?'bot':'',checked:id==='#leaderboard-guest-series-human',children:[],open:false,hidden:false,readOnly:false,
         get textContent(){return text;},set textContent(value){text=value;this.children=[];},
         classList:{add(){},remove(){}},addEventListener:(type,fn)=>events.set(type,fn),
         trigger(type,event={preventDefault(){}}){return events.get(type)?.(event);},
@@ -29,10 +30,11 @@ function setup(storage=new Map(),options={}){
     }
     return nodes.get(id);
   };
-  const context={Event:class{constructor(type){this.type=type;}},window:{addEventListener:(type,fn)=>handlers.set(type,fn),LPRAnalytics:{identify:name=>identified.push(name)},
+  const context={Event:class{constructor(type){this.type=type;}},CustomEvent:class{constructor(type,options={}){this.type=type;this.detail=options.detail;}},MutationObserver:class{constructor(callback){this.callback=callback;}observe(){}},window:{addEventListener:(type,fn)=>handlers.set(type,fn),LPRAnalytics:{identify:name=>identified.push(name)},
     LPRVerificationConfig:{leaderboard:'https://verified.test'},LPRRaceEffects:{celebrate:ms=>celebrations.push(ms)}},crypto:require('node:crypto').webcrypto,AbortSignal,
     setInterval(){},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-    document:{querySelector:node,dispatchEvent:event=>dispatched.push(event),createElement:()=>({textContent:'',append(...items){this.textContent+=items.map(item=>item.textContent).join('');}})},
+    document:{querySelector:selector=>selector==='input[name="guest-series"]:checked'?
+      (node('#leaderboard-guest-series-human').checked?node('#leaderboard-guest-series-human'):node('#leaderboard-guest-series-bot').checked?node('#leaderboard-guest-series-bot'):null):node(selector),dispatchEvent:event=>dispatched.push(event),createElement:()=>({textContent:'',append(...items){this.textContent+=items.map(item=>item.textContent).join('');}})},
     async fetch(url,request){
       calls.push({url,options:request});
       if(url==='https://verified.test/api/verified/guest'){
@@ -59,7 +61,7 @@ function setup(storage=new Map(),options={}){
         finish?{mode:'laps',protection:'timed-v1',moderation:'approved',saved:true,rank:2,lapMs:body.lapMs,record:false,...network.result}:
         {version:'lut-20261024-v4',results:Array.from({length:20},(_,i)=>({nickname:i?'Driver '+i:'<script>',lap_ms:12346+i*1000}))}};
     }};
-  vm.createContext(context);vm.runInContext(source,context);
+  vm.createContext(context);vm.runInContext(formatterSource,context);vm.runInContext(source,context);
   const board=context.window.LPRLeaderboard;
   return {board,node,calls,storage,celebrations,network,handlers,identified,dispatched,
     // Select the explicit sign-in or account-creation flow.
@@ -87,7 +89,7 @@ function setup(storage=new Map(),options={}){
   assert.equal(node('#leaderboard-account-fields').hidden,true,'Start menu hides credentials until a flow is selected');
   assert.equal(node('#leaderboard-choices').hidden,false);
   assert.equal(node('#leaderboard-list').children.length,10);
-  assert.equal(node('#leaderboard-list').children[0].textContent,'<script> · 0:12.346');
+  assert.equal(node('#leaderboard-list').children[0].textContent,'<script> · 00:12.346');
   let prevented=false;node('#settings-dialog').trigger('cancel',{preventDefault(){prevented=true;}});assert(prevented);
   await app.lap();assert.equal(app.starts().length,0);assert.equal(app.finishes().length,0);
   node('#leaderboard-name').value='Panu';node('#leaderboard-start-form').trigger('submit');
@@ -132,10 +134,10 @@ function setup(storage=new Map(),options={}){
   assert(!withdrawn.board.requiresName);assert.equal(withdrawn.board.identity.token,withdrawalIdentity);assert(withdrawn.node('#settings-dialog').open,'Analytics withdrawal keeps the player in the lobby');
   const guest=setup();const beforeGuestCalls=accountCalls.length;
   await guest.node('#leaderboard-practice').trigger('click');
-  assert(guest.board.requiresName);guest.node('#leaderboard-guest-name').value='Practice Guest';guest.node('#leaderboard-guest-series').value='human';
+  assert(guest.board.requiresName);guest.node('#leaderboard-guest-name').value='Practice Guest';assert.equal(guest.node('#leaderboard-guest-series-human').checked,true,'Guest defaults to the visible human series option');
   await guest.node('#leaderboard-guest-start').trigger('click');
   assert(!guest.board.requiresName);assert.equal(guest.board.identity.guest,true);assert.equal(guest.board.identity.token,'e'.repeat(64));assert(guest.node('#settings-dialog').open,'Guest selection keeps the player in the lobby');
-  assert.equal(guest.board.chatIdentity.nickname,'Practice Guest');assert.equal(guest.board.chatIdentity.guest,true,'Guest nickname is available to chat without creating an account');
+  assert.equal(guest.board.chatIdentity.nickname,'Practice Guest');assert.equal(guest.board.chatIdentity.guest,true,'Guest identity stays marked so chat can require an account');
   assert.equal(accountCalls.length,beforeGuestCalls,'Practice never creates or signs in to an account');
   await guest.lap();assert.equal(guest.starts().length,0);assert.equal(guest.finishes().length,0,'Practice laps are never submitted');
   assert.equal(guest.node('#guest-register-panel').hidden,false,'A guest can register while driving');
@@ -173,6 +175,7 @@ function setup(storage=new Map(),options={}){
   await legacy.login('Legacy');assert.notEqual(legacy.board.identity.token,'a'.repeat(64),'Old device tokens never become account credentials');
   const record=setup(new Map(),{result:{rank:1,record:true}});await record.login();await record.lap();
   assert.deepEqual(record.celebrations,[40000]);
+  assert.equal(record.dispatched.filter(event=>event.type==='lpr-track-record').length,1,'Only a server-confirmed first-place track record emits the UI event');
   for(const moderation of ['quarantined','hidden']){
     const reviewed=setup(new Map(),{status:202,result:{moderation,rank:null,record:false}});
     await reviewed.login();await reviewed.lap();

@@ -221,3 +221,18 @@ for (const analog of [false, true]) {
 assert(poweredTurn(0, true, true).state.speed > 20, 'Direct wheel driving must retain straight-line acceleration');
 for (const steer of [-1, 1]) poweredTurn(steer, true, true);
 console.log('PASS: no automatic braking in powered turns, wider fast corners and small corrections');
+
+// TC limits drive torque under high lateral demand; disabling it leaves requested torque intact.
+for (const enabled of [true, false]) {
+  const dynamics = new context.window.VehicleDynamics();
+  dynamics.parameters.tractionControlEnabled = enabled;
+  const state = { x: 0, y: 0, angle: 0 };
+  dynamics.reset(state); state.vx = 20;
+  let minimumTorqueScale = 1;
+  for (let frame = 0; frame < 90; frame++) {
+    dynamics.step(state, { gas: 1, brake: 0, steer: 1, wheel: true }, 1 / 90, 0);
+    minimumTorqueScale = Math.min(minimumTorqueScale, state.torqueScale);
+  }
+  if (enabled) assert(minimumTorqueScale < .9, 'TC must reduce drive torque when cornering consumes rear grip');
+  else assert.equal(minimumTorqueScale, 1, 'Disabled TC must not limit requested torque');
+}

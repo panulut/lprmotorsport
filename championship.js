@@ -9,7 +9,8 @@
  for(const [value,selector] of seriesTabs)document.querySelector(selector).addEventListener('click',()=>{
   series=value;for(const [option,tab]of seriesTabs)document.querySelector(tab).setAttribute('aria-pressed',String(option===value));void refresh();
  });
- const seconds=ms=>(ms/1000).toFixed(3)+' s';
+ const formatLapTime=ms=>window.LPRFormatLapTime(ms);
+ const signedIn=()=>{const identity=window.LPRLeaderboard?.identity;return !!identity&&identity.guest!==true;};
  const hud=document.querySelector('#daily-race-hud');
  const hudNode=id=>document.querySelector('#daily-race-'+id);
  const drivingSeries=()=>window.LPRLeaderboard?.identity?.series==='bot'?'bot':'human';
@@ -33,7 +34,7 @@
   hudNode('leader-label').textContent=liveFailed?t('Viimeisin tieto · yhteyskatko','Last known · offline'):leaders.length>1?t('Jaettu johto','Joint leaders'):t('Johdossa','Leading');
   hudNode('name').textContent=leader?leaders.map(row=>row.nickname).join(', '):t('Ei vielä tuloksia','No results yet');
   hudNode('name').title=leader?leaders.map(row=>row.nickname).join(', '):'';
-  hudNode('time').textContent=leader?seconds(leader.bestMs):'';
+  hudNode('time').textContent=leader?formatLapTime(leader.bestMs):'';
  }
  async function refreshLive(){
   if(!hud||liveBusy)return;
@@ -75,8 +76,9 @@
     name=item.children[0];value=item.children[1];
    }
    const rank=kind==='speed'?row.speedRank:kind==='volume'?row.volumeRank:row.rank;
+   value.className=kind==='speed'?'standing-time':'';
    name.textContent=rank+'. '+row.nickname;name.title=row.nickname;
-   value.textContent=kind==='speed'?seconds(row.bestMs):kind==='volume'?row.laps+' '+t('kierrosta','laps'):row.points+' p';
+   value.textContent=kind==='speed'?formatLapTime(row.bestMs):kind==='volume'?row.laps+' '+t('kierrosta','laps'):row.points+' p';
   }
   for(let i=rows.length;i<items.length;i++)items[i].remove();
  }
@@ -92,13 +94,9 @@
   date.max=data.today;date.value=data.day;
   table('fastest',data.fastest,'speed');table('volume',data.mostLaps,'volume');table('monthly',data.monthly,'points');
   $('month').textContent=data.month+' · '+t('Vahvistettujen päivien pisteet','Points from finalized days');
-  if(data.me){const me=data.me;
-   personal.textContent=`🔥 ${t('Ajoputki','Streak')}: ${me.streak} ${t('päivää','days')} · ${t('Pisin','Longest')}: ${me.bestStreak} · ${t('Tänään','Today')}: ${me.todayLaps} ${t('kierrosta','laps')}`;
-   if(me.selectedDay){const p=me.selectedDay,b=p.breakdown;
-    personal.textContent+=`\n${t('Valitun päivän pisteet','Selected day points')}: ${p.points} (${t('nopeus','speed')} ${b.speed}, ${t('kierrosmäärä','volume')} ${b.volume}, ${t('osallistuminen','participation')} ${b.participation}, ${t('rajapyykit','milestones')} ${b.milestones}, streak ${b.streak})`;
-   }
-   if(!me.activeToday)personal.textContent+='\n'+t('Aja tänään yksi varmennettu kierros jatkaaksesi ajoputkea.','Complete one verified lap today to continue your streak.');
-  }else personal.textContent=t('Kirjaudu ja aja varmennettu kierros kerätäksesi pisteitä ja kasvattaaksesi ajoputkea.','Sign in and complete a verified lap to earn points and build your streak.');
+  const activeSession=!!window.LPRLeaderboard?.identity;
+  personal.hidden=activeSession;
+  personal.textContent=activeSession?'':t('Kirjaudu ja aja varmennettu kierros kerätäksesi pisteitä ja kasvattaaksesi ajoputkea.','Sign in and complete a verified lap to earn points and build your streak.');
   countdown();
  }
  async function refresh(){
