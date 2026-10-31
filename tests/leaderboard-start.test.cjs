@@ -223,7 +223,10 @@ assert.equal(game.car.lapStart,480000,'Lap clock rolls over at the finish line')
 assert(game.car.lapTimingArmed,'The next flying lap stays armed');
 assert.notEqual(game.car.x,ctx.window.LPRCampus.launchPosition.x,'The car stays at the finish instead of teleporting to the start');
 element('#restart-button').click();
-assert.equal(verifiedStarts.length,1,'An explicit restart still requests a fresh verified session');
+assert.equal(verifiedStarts.length,0,'Demo practice restart must not request verified start');
+ctx.window.LPRVerificationConfig.demo=false;
+element('#restart-button').click();
+assert.equal(verifiedStarts.length,1,'An explicit non-demo restart still requests a fresh verified session');
 assert.equal(verifiedStarts[0].replace,true);
 assert.equal(game.car.lap,lapsBeforeFlyingLap+1,'Explicit restart preserves the lap count');
 const shortcutEvent=(options={})=>({code:'KeyR',target:{tagName:'DIV'},preventDefault(){this.prevented=true;},...options});
@@ -244,6 +247,7 @@ assert.equal(game.car.lap,lapsBeforeFlyingLap+1,'R preserves the lap count throu
 const focusedRestart=shortcutEvent({target:{tagName:'BUTTON'}});emitWindow('keydown',focusedRestart);
 assert.equal(verifiedStarts.length,startCount+2,'R still works after clicking a gameplay button');
 console.log('PASS: inactive verification preserves flying laps; explicit and R restarts work with safe key guards');
+ctx.window.LPRVerificationConfig.demo=true;
 
 // Record and compare a dense reference through the real game update, sector gates,
 // finish rollover, and next flying lap. This catches integration failures that
