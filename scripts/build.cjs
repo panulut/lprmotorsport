@@ -6,6 +6,7 @@ const gameFiles=['replay-pose.js','replay.html','replay.js','replay.css','shared
 gameFiles.push('chat.js','championship.js','spectate-menu.js','dashboard.js','dashboard.css','track-record.js','release-notes.js','release-notes.css');
 gameFiles.push('design-tokens.css','components.css','icons.js','language-selector.js','language-selector.css','keycap-press.js');
 gameFiles.push('formatters.js','lap-panel.js','lap-panel.css','sector-panel.js','sector-panel.css','crash-notice.css','numeric-typography.css');
+gameFiles.push('sidebar.js','sidebar-compact.css','sidebar-settings.css','auth-feedback.css','series-controls.css','spectator-layout.css','mobile-layout.css');
 function readDocument(){return {version:1,objects:validate(JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8')))};}
 function dataScript(doc=readDocument()){return `window.LPRTrackData=${JSON.stringify(doc)};\n`;}
 function build(destination=path.join(root,'dist')) {

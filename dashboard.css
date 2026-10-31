@@ -1,5 +1,5 @@
 /* The overview uses the viewport. Longer lists have explicit pages. */
-.chat-restore {position:fixed;z-index:25;left:8px;top:8px;bottom:auto;width:152px;min-height:46px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #416b56;border-radius:9px;background:#102b20;color:#f4fff8;font:700 14px Inter,Arial,sans-serif;cursor:pointer;}
+.chat-restore {position:fixed;z-index:25;left:8px;top:8px;bottom:auto;width:152px;min-height:46px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--border-hover);border-radius:9px;background:var(--surface-1);color:var(--text-primary);font:400 14px Inter,Arial,sans-serif;cursor:pointer;}
 .chat-restore[hidden] {display:none!important;}
 body:not(.chat-open) > .app {width:calc(100% - 176px);margin-left:176px;}
 body:not(.chat-open) #settings-dialog:not(.spectating),body:not(.chat-open) #settings-dialog.spectating {width:calc(100% - 188px);max-width:calc(100% - 188px);margin-left:176px;}
@@ -23,7 +23,7 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 #settings-dialog:not(.spectating) #menu-chat-button {padding:8px;font-size:11px;}
 #settings-dialog:not(.spectating) .leaderboard-entry-grid {display:contents;}
 #settings-dialog:not(.spectating) .leaderboard-start-form {grid-area:entry;overflow:auto;min-height:0;padding:14px;}
-#settings-dialog:not(.spectating) .active-drivers {grid-area:drivers;padding:12px;margin:0;min-height:0;border:1px solid #304c40;border-radius:10px;}
+#settings-dialog:not(.spectating) .active-drivers {grid-area:drivers;padding:12px;margin:0;min-height:0;border:1px solid var(--border);border-radius:10px;}
 #settings-dialog:not(.spectating) .verified-standings {grid-area:records;padding:12px;min-height:0;}
 #settings-dialog .leaderboard-entry-grid h3,#settings-dialog .active-drivers h3 {font-size:13px;margin:0 0 8px;letter-spacing:.04em;}
 #settings-dialog .active-drivers-note {display:none;}
@@ -36,20 +36,17 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 #verified-list .standing-name {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
 #verified-list .standing-time {flex-shrink:0;white-space:nowrap;}
 #verified-list .replay-link {font-size:0;padding:4px;}
-#verified-list .replay-link::after {content:'▶';font-size:12px;}
 #settings-dialog .verified-standings > p:has(small) {display:none;}
-#settings-dialog .series-tabs {margin:0 0 6px;gap:2px;padding:2px;}
-#settings-dialog .series-tabs button {min-height:26px;font-size:11px;padding:3px 6px;}
-.dashboard-pager {display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:5px;font-size:10px;color:#aac3b6;}
+.dashboard-pager {display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:5px;font-size:10px;color:var(--text-secondary);}
 #settings-dialog .dashboard-pager[hidden] {display:none;}
-#settings-dialog .dashboard-pager button {padding:0 8px;min-height:24px;min-width:28px;border:1px solid #416b56;border-radius:5px;background:#183b2c;color:#fff;font-size:18px;}
+#settings-dialog .dashboard-pager button {padding:0 8px;min-height:24px;min-width:28px;border:1px solid var(--border-hover);border-radius:5px;background:var(--surface-2);color:#fff;font-size:18px;}
 .dashboard-pager button:disabled {opacity:.35;}
-#settings-dialog:not(.spectating) #championship {grid-area:daily;min-height:0;margin:0;padding:10px;border:1px solid #304c40;border-radius:10px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto minmax(0,1fr);gap:5px;}
+#settings-dialog:not(.spectating) #championship {grid-area:daily;min-height:0;margin:0;padding:10px;border:1px solid var(--border);border-radius:10px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto minmax(0,1fr);gap:5px;}
 .championship-heading {display:flex;align-items:center;justify-content:space-between;gap:6px;grid-column:1 / -1;min-width:0;}
 #settings-dialog .championship-heading h3 {font-size:15px;margin:0;}
-#dashboard-details-open {font-size:10px;padding:4px 6px;min-height:24px;border:1px solid #416b56;border-radius:5px;background:#183b2c;color:#deeee4;}
+#dashboard-details-open {font-size:10px;padding:4px 6px;min-height:24px;border:1px solid var(--border-hover);border-radius:5px;background:var(--surface-2);color:var(--text-primary);}
 #settings-dialog #championship > p:first-of-type {display:none;}
-#settings-dialog #championship > .series-tabs {width:auto;margin:0;min-width:130px;}
+#settings-dialog #championship > .series-tabs {margin:0;}
 #settings-dialog #championship-clock {font-size:10px;margin:0;text-align:right;align-self:center;}
 #settings-dialog #championship-notice:empty {display:none;}
 #settings-dialog #championship-personal {grid-column:1 / -1;white-space:normal;margin:0;font-size:10px;line-height:1.3;}
@@ -63,14 +60,14 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 .championship-grid ol {margin:0;}
 #settings-dialog .championship-grid li {padding:4px 0;font-size:11px;gap:5px;line-height:1.3;}
 .championship-grid .standing-name {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
-#dashboard-account-name {display:block;color:#78e4ac;margin-top:6px;overflow-wrap:anywhere;font-size:14px;}
+#dashboard-account-name {display:block;color:var(--brand-hover);margin-top:6px;overflow-wrap:anywhere;font-size:14px;}
 #settings-dialog.dashboard-remembered #leaderboard-account-title,#settings-dialog.dashboard-remembered #leaderboard-name,#settings-dialog.dashboard-remembered label[for=leaderboard-name],#settings-dialog.dashboard-remembered #leaderboard-account-fields > p {display:none;}
 #settings-dialog.dashboard-remembered #leaderboard-logout {margin:4px 0;font-size:11px;}
 #settings-dialog .leaderboard-start {min-height:36px;padding:8px;font-size:11px;}
 #settings-dialog .leaderboard-choice {min-height:32px;font-size:11px;padding:6px;}
 #settings-dialog .leaderboard-options {margin:8px 0;font-size:11px;}
 #settings-dialog .leaderboard-password-hint {font-size:10px;line-height:1.3;}
-.dashboard-popover {position:fixed;z-index:30;top:70px;right:24px;width:min(600px,calc(100% - 48px));max-height:calc(100dvh - 110px);overflow:auto;padding:20px;border:1px solid #78e4ac;border-radius:12px;background:#10221c;box-shadow:0 20px 100px #000c;}
+.dashboard-popover {position:fixed;z-index:30;top:70px;right:24px;width:min(600px,calc(100% - 48px));max-height:calc(100dvh - 110px);overflow:auto;padding:20px;border:1px solid var(--brand-hover);border-radius:12px;background:var(--background-2);box-shadow:none;}
 #dashboard-details-close {float:right;min-height:32px;margin-bottom:12px;}
 #dashboard-details-content {clear:both;}
 #dashboard-details-content .championship-controls {display:flex;flex-wrap:wrap;gap:8px;}
@@ -80,13 +77,12 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 #settings-dialog #spectate-sidebar .active-drivers {margin:0;padding:0;}
 #spectate-sidebar #active-drivers-list {--page-size:2;}
 #spectate-sidebar #active-drivers-list a {min-height:28px;padding:5px 8px;font-size:11px;}
-#settings-dialog #spectate-sidebar .verified-standings {padding:8px;margin:0;border:1px solid #304c40;}
+#settings-dialog #spectate-sidebar .verified-standings {padding:8px;margin:0;border:1px solid var(--border);}
 #settings-dialog #spectate-sidebar .verified-standings > h3 {font-size:13px;margin:0 0 5px;}
 #spectate-sidebar #verified-list {--page-size:1;}
-#settings-dialog #spectate-sidebar #championship {margin:0;padding:8px;border:1px solid #304c40;border-radius:8px;display:grid;grid-template-columns:1fr auto;gap:4px;min-height:0;}
+#settings-dialog #spectate-sidebar #championship {margin:0;padding:8px;border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:1fr auto;gap:4px;min-height:0;}
 #spectate-sidebar .championship-heading {flex-wrap:wrap;}
 #spectate-sidebar #dashboard-details-open {font-size:0;min-width:26px;}
-#spectate-sidebar #dashboard-details-open::after {content:'⋯';font-size:16px;}
 #settings-dialog #spectate-sidebar #championship > .series-tabs {grid-column:1 / -1;width:100%;}
 #settings-dialog #spectate-sidebar #championship-clock {grid-column:1 / -1;font-size:10px;text-align:left;}
 #settings-dialog #spectate-sidebar .championship-grid {grid-template-columns:1fr;gap:5px;}
@@ -96,6 +92,11 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 #settings-dialog #spectate-sidebar .championship-grid h4 {margin-bottom:2px;font-size:11px;}
 #settings-dialog #spectate-sidebar .championship-grid li {padding:1px 0;}
 #spectate-sidebar #active-drivers-list strong {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#verified-list .standing-time,#championship-fastest .standing-time {font-family:var(--font-heading);font-variant-numeric:tabular-nums;}
+#verified-list li:first-child,#championship-fastest li:first-child {color:var(--purple-400);font-weight:400;}
+#verified-list li:first-child::before {color:var(--purple-400);}
+#championship-fastest li:first-child .standing-name,#championship-fastest li:first-child .standing-time {color:var(--purple-400);}
+#active-drivers-list .active-driver-badge .ph-icon {width:18px;height:18px;}
 @media(max-width:1050px) and (min-width:651px) {
  body #settings-dialog:not(.spectating) {grid-template-columns:minmax(160px,.8fr) minmax(150px,1fr) minmax(150px,1fr);gap:8px;padding:10px;}
  #settings-dialog .championship-grid li {flex-direction:column;gap:0;}
@@ -125,13 +126,13 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
  #settings-dialog:not(.spectating) .leaderboard-start {margin:0;min-height:32px;font-size:10px;padding:6px;}
  #settings-dialog:not(.spectating) .leaderboard-choice {font-size:9px;min-height:32px;padding:4px;}
  #settings-dialog.dashboard-remembered:not(.spectating) #leaderboard-account-fields {grid-column:1 / -1;grid-row:2;display:flex;justify-content:space-between;align-items:center;gap:6px;}
- #settings-dialog.dashboard-remembered #leaderboard-account-fields::before {content:attr(data-nickname);color:#78e4ac;font-size:11px;font-weight:700;}
+ #settings-dialog.dashboard-remembered #leaderboard-account-fields::before {content:attr(data-nickname);color:var(--brand-hover);font-size:11px;font-weight:400;}
  #settings-dialog:not(.spectating) #leaderboard-start {grid-column:2;grid-row:1;}
  #settings-dialog.dashboard-remembered #leaderboard-credentials > p {display:none;}
  #settings-dialog.dashboard-remembered #leaderboard-logout {margin:0;}
  #settings-dialog:not(.spectating) .leaderboard-options {grid-column:1 / -1;margin:0;font-size:10px;}
- #settings-dialog:not(.spectating) .leaderboard-options[open] {position:fixed;z-index:25;top:60px;right:16px;width:calc(100% - 32px);max-height:calc(100dvh - 270px);overflow:auto;background:#10221c;border:1px solid #78e4ac;padding:12px;border-radius:10px;}
- #settings-dialog.dashboard-account-editing .leaderboard-start-form {position:fixed;z-index:25;top:55px;right:16px;width:calc(100% - 32px);max-height:calc(100dvh - 250px);overflow:auto;display:block;padding:12px;background:#10221c;border:1px solid #78e4ac;}
+ #settings-dialog:not(.spectating) .leaderboard-options[open] {position:fixed;z-index:25;top:60px;right:16px;width:calc(100% - 32px);max-height:calc(100dvh - 270px);overflow:auto;background:var(--background-2);border:1px solid var(--brand-hover);padding:12px;border-radius:10px;}
+ #settings-dialog.dashboard-account-editing .leaderboard-start-form {position:fixed;z-index:25;top:55px;right:16px;width:calc(100% - 32px);max-height:calc(100dvh - 250px);overflow:auto;display:block;padding:12px;background:var(--background-2);border:1px solid var(--brand-hover);}
  #settings-dialog:not(.spectating) .active-drivers,#settings-dialog:not(.spectating) .verified-standings {padding:7px;}
  #settings-dialog .active-drivers h3,#settings-dialog .verified-standings h3 {font-size:11px;margin:0 0 4px;}
  #settings-dialog #active-drivers-status {font-size:9px;margin:2px 0;}
@@ -140,7 +141,6 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
  .active-driver-badge {font-size:8px;}
  #settings-dialog #verified-list {--page-size:2;font-size:10px;}
  #settings-dialog #verified-list li {padding:3px 0;}
- #settings-dialog .series-tabs button {font-size:9px;min-height:24px;padding:2px 4px;}
  #settings-dialog:not(.spectating) #championship {padding:6px;gap:3px;}
  #settings-dialog .championship-heading h3 {font-size:12px;}
  #dashboard-details-open {font-size:9px;min-height:24px;}
@@ -188,3 +188,388 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
  #settings-dialog:not(.spectating) #active-drivers-list,
  #settings-dialog:not(.spectating) #verified-list {--page-size:1;}
 }
+
+
+/* Type scale application in the shared dashboard and chat components. */
+.chat-panel #chat-title{font-size:var(--text-title-small);line-height:var(--line-heading);font-weight:400}
+.chat-panel .chat-public-notice{display:block;margin:0;padding:2px 8px;border-left:3px solid var(--status-info);color:var(--text-secondary);font-size:var(--text-caption);line-height:var(--line-body)}
+.chat-panel #chat-status{font-size:var(--text-caption)}
+
+#verified-list .replay-link .ph-icon{width:1em;height:1em}
+#dashboard-details-open .ph-icon{width:16px;height:16px}
+
+/* Persistent left rail: chat controls stay directly above the driver card. */
+#left-rail{position:fixed;z-index:25;inset:8px auto 8px 8px;width:280px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#chat-panel{position:relative;inset:auto;flex:1 1 50%;width:100%;height:auto;min-height:110px;max-height:none;border-radius:12px;padding:12px;box-shadow:none}
+#chat-panel ol{min-height:0;max-height:none}
+#chat-restore{position:relative;inset:auto;flex:0 0 auto;width:100%;min-height:44px;border-radius:10px}
+#left-rail .leaderboard-start-form{flex:1 1 auto;min-height:150px;max-height:52%;overflow:auto;padding:14px;border:1px solid var(--border-hover);border-radius:12px;background:var(--background-2);scrollbar-width:thin}
+#left-rail .leaderboard-start-form{width:100%;max-width:none}
+#left-rail .leaderboard-start-form h3{margin:0 0 10px;font-size:18px;letter-spacing:0;text-transform:none}
+#left-rail .leaderboard-start-form .leaderboard-choices{grid-column:auto;grid-template-columns:1fr;gap:6px;margin:0}
+#left-rail .leaderboard-start-form .leaderboard-choice{min-height:40px;padding:8px 10px}
+#left-rail .leaderboard-start-form #leaderboard-status{margin-top:6px}
+#left-rail.dashboard-remembered #leaderboard-account-title,#left-rail.dashboard-remembered #leaderboard-name,#left-rail.dashboard-remembered label[for=leaderboard-name],#left-rail.dashboard-remembered #leaderboard-account-fields>p{display:none}
+#left-rail.dashboard-remembered #leaderboard-logout{margin:4px 0;font-size:11px}
+#left-rail.dashboard-account-editing .leaderboard-start-form{flex-basis:55%;max-height:72%}
+#left-rail .leaderboard-start-form .leaderboard-options{margin:8px 0 4px;padding-top:8px}
+
+/* The dashboard keeps its useful standings grid beside the persistent rail. */
+body:not(.chat-open)>.app,body.chat-open>.app{width:calc(100% - 304px);margin-left:304px}
+#settings-dialog,body.chat-open #settings-dialog,body:not(.chat-open) #settings-dialog{width:calc(100% - 328px);max-width:calc(100% - 328px);height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);margin:12px 12px 12px 316px;overflow:visible}
+#settings-dialog:not(.spectating){grid-template-columns:minmax(180px,.9fr) minmax(180px,1fr);grid-template-rows:52px minmax(120px,.85fr) minmax(180px,1.15fr);grid-template-areas:'head head' 'drivers records' 'daily daily'}
+#settings-dialog:not(.spectating)>.dialog-head{grid-area:head}
+#settings-dialog:not(.spectating) .leaderboard-entry-grid{display:contents}
+#settings-dialog:not(.spectating) .leaderboard-start-form{display:none}
+#settings-dialog:not(.spectating) #left-rail .leaderboard-start-form{display:block}
+#settings-dialog:not(.spectating) .active-drivers{grid-area:drivers}
+#settings-dialog:not(.spectating) .verified-standings{grid-area:records}
+#settings-dialog:not(.spectating) #championship{grid-area:daily}
+#settings-dialog:not(.spectating) #championship-title{font-size:var(--text-title-small);font-weight:400}
+
+@media(max-width:900px){
+ #left-rail{inset:auto 8px 8px;width:min(360px,calc(100vw - 16px));height:min(34dvh,280px);gap:6px}
+ #chat-panel{min-height:0;flex:1 1 45%;padding:8px}
+ #left-rail .leaderboard-start-form{min-height:0;max-height:none;flex:1 1 55%;padding:9px;overscroll-behavior:contain}
+ #left-rail .leaderboard-start-form h3{font-size:14px;margin-bottom:6px}
+ #left-rail .leaderboard-start-form .leaderboard-choice{min-height:32px;padding:5px 8px;font-size:11px}
+ body:not(.chat-open)>.app,body.chat-open>.app{width:100%;margin:0;padding-bottom:calc(min(34dvh,280px) + 16px)}
+ #settings-dialog,body.chat-open #settings-dialog,body:not(.chat-open) #settings-dialog{width:calc(100% - 16px);max-width:calc(100% - 16px);height:calc(100dvh - min(34dvh,280px) - 24px);max-height:calc(100dvh - min(34dvh,280px) - 24px);margin:8px;overflow:auto;overscroll-behavior:contain}
+ #settings-dialog:not(.spectating){grid-template-columns:1fr 1fr;grid-template-rows:42px minmax(74px,.7fr) minmax(130px,1.3fr);grid-template-areas:'head head' 'drivers records' 'daily daily';padding:8px;gap:6px}
+ body.chat-open #settings-dialog:not(.spectating),body:not(.chat-open) #settings-dialog:not(.spectating),body.chat-open #settings-dialog.spectating,body:not(.chat-open) #settings-dialog.spectating{width:calc(100% - 16px);max-width:calc(100% - 16px);height:calc(100dvh - min(34dvh,280px) - 24px);max-height:calc(100dvh - min(34dvh,280px) - 24px);margin:8px;overflow:auto;overscroll-behavior:contain}
+ #settings-dialog:not(.spectating) .dialog-head h2{font-size:20px}
+ #settings-dialog:not(.spectating) #championship{padding:6px}
+}
+@media(min-width:901px){
+ body:not(.chat-open) #settings-dialog:not(.spectating),body:not(.chat-open) #settings-dialog.spectating{width:calc(100% - 328px);max-width:calc(100% - 328px);margin:12px 12px 12px 316px}
+}
+@media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+ #settings-dialog:not(.spectating) .active-drivers,#settings-dialog:not(.spectating) .verified-standings{overflow:auto;overscroll-behavior:contain}
+}
+
+/* One shared paddock surface contains chat controls and driver access. */
+#left-rail{gap:0;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--background-2);box-shadow:none;overflow:hidden}
+#left-rail .rail-heading{display:flex;flex:0 0 44px;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 12px;border-bottom:1px solid var(--border);background:var(--surface-1)}
+#left-rail .rail-heading h2{margin:0;color:var(--text-secondary);font-size:11px;font-weight:400;letter-spacing:.1em;text-transform:uppercase}
+#rail-collapse{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;padding:5px;border:1px solid var(--border-hover);border-radius:7px;background:var(--surface-2);color:var(--text-primary)}
+#rail-collapse .ph-icon{width:18px;height:18px}
+#left-rail-content{display:flex;flex:1 1 auto;flex-direction:column;gap:0;min-height:0;overflow:hidden}
+#left-rail #chat-panel{position:relative;inset:auto;display:flex;flex:1 1 50%;width:100%;height:auto;min-height:0;max-height:none;margin:0;padding:12px;border:0;border-radius:0;background:transparent;box-shadow:none}
+#left-rail #chat-panel[hidden]{display:none!important}
+#left-rail #chat-restore{position:relative;inset:auto;display:flex;flex:0 0 40px;width:100%;min-height:40px;margin:0;padding:7px 12px;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;color:var(--text-primary);font-size:12px}
+#left-rail .leaderboard-start-form{flex:1 1 50%;min-height:0;max-height:none;width:100%;margin:0;padding:12px;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;box-shadow:none;overflow:auto}
+#left-rail .leaderboard-start-form h3{margin:0 0 8px;font-size:15px;letter-spacing:0;text-transform:none}
+#left-rail.is-collapsed{inset:8px auto auto 8px;width:44px;height:44px;overflow:visible;border-radius:10px}
+#left-rail.is-collapsed .rail-heading{height:42px;flex-basis:42px;justify-content:center;padding:0;border:0;border-radius:10px}
+#left-rail.is-collapsed .rail-heading h2,#left-rail.is-collapsed #left-rail-content{display:none}
+#left-rail.is-collapsed #rail-collapse{width:38px;height:38px;flex-basis:38px;border:0;background:transparent}
+@media(min-width:901px){
+ body.rail-collapsed:not(.chat-open)>.app,body.rail-collapsed.chat-open>.app{width:calc(100% - 64px);margin-left:64px}
+ body.rail-collapsed.chat-open #settings-dialog:not(.spectating),body.rail-collapsed:not(.chat-open) #settings-dialog:not(.spectating),body.rail-collapsed #settings-dialog.spectating{width:calc(100% - 76px);max-width:calc(100% - 76px);margin:12px 12px 12px 64px}
+}
+@media(max-width:900px){
+ #rail-collapse{display:none}
+ #left-rail .rail-heading{flex-basis:36px;padding-left:10px}
+ #left-rail.is-collapsed{inset:auto 8px 8px;width:min(360px,calc(100vw - 16px));height:min(34dvh,280px)}
+ #left-rail.is-collapsed .rail-heading h2{display:block}
+ #left-rail.is-collapsed #left-rail-content{display:flex}
+ #left-rail #chat-panel{gap:4px;padding:8px}
+ #left-rail #chat-panel > :not(ol){flex-shrink:1}
+ #left-rail #chat-panel ol{flex:1 1 0;min-height:0;max-height:none}
+ #left-rail #chat-panel .chat-heading .icon-button{min-width:32px;min-height:32px;padding:3px}
+ #left-rail #chat-panel .chat-compose input,#left-rail #chat-panel .chat-compose button{min-height:36px;padding:6px}
+ #left-rail #chat-panel #chat-status{font-size:10px}
+}
+@media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+ #left-rail{height:min(46dvh,200px)}
+ #left-rail #chat-panel{flex:0 0 80px}
+ #left-rail #chat-panel ol,#left-rail #chat-panel #chat-status{display:none}
+ body.chat-open #settings-dialog:not(.spectating),body:not(.chat-open) #settings-dialog:not(.spectating){height:calc(100dvh - min(46dvh,200px) - 32px);max-height:calc(100dvh - min(46dvh,200px) - 32px)}
+}
+#left-rail .leaderboard-start-form [hidden]{display:none!important}
+#left-rail .leaderboard-start-form #leaderboard-account-fields::before{content:attr(data-nickname);display:block;color:var(--brand-hover);margin:0 0 6px;overflow-wrap:anywhere;font-size:14px;font-weight:400}
+@media(max-width:900px){#left-rail .leaderboard-start-form #leaderboard-account-fields::before{margin:0;font-size:11px}}
+
+/* Keep the single paddock rail open; collapse it from the chat header. */
+#left-rail{gap:0;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--background-2);box-shadow:none;overflow:hidden}
+#left-rail-content{display:flex;flex:1 1 auto;flex-direction:column;gap:0;min-height:0;overflow:hidden}
+#left-rail #chat-panel{position:relative;inset:auto;display:flex;flex:1 1 auto;width:100%;height:auto;min-height:0;max-height:none;margin:0;padding:12px;border:0;border-radius:0;background:transparent;box-shadow:none}
+#left-rail #chat-panel[hidden]{display:flex!important}
+#left-rail #chat-panel .chat-heading{flex:0 0 auto;min-height:36px}
+#left-rail #chat-panel .chat-heading h2{font:400 var(--text-title-small)/var(--line-heading) var(--font-heading)!important}
+#rail-collapse{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;padding:5px;border:1px solid var(--border-hover);border-radius:8px;background:var(--surface-1);color:var(--text-primary);cursor:pointer}
+#rail-collapse .ph-icon{width:18px;height:18px}
+#left-rail .leaderboard-start-form{flex:0 1 auto;min-height:0;max-height:58%;width:100%;margin:auto 0 0;padding:12px;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;box-shadow:none;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
+#left-rail .leaderboard-start-form>h3{margin:0 0 8px;color:var(--text-secondary);font-size:var(--text-caption);font-weight:400;letter-spacing:.04em;text-transform:none}
+#left-rail .leaderboard-start-form #dashboard-account-name{font-size:var(--text-label)}
+#left-rail .leaderboard-start-form #leaderboard-main-view[hidden],#left-rail .leaderboard-start-form #leaderboard-settings-view[hidden]{display:none!important}
+#left-rail .leaderboard-start-form .leaderboard-settings-open{width:100%;margin:8px 0 0;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1);color:var(--text-secondary);text-align:left;cursor:pointer}
+#left-rail .leaderboard-start-form .leaderboard-settings-view{min-height:0;overflow:auto;overscroll-behavior:contain}
+#left-rail .leaderboard-start-form .leaderboard-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
+#left-rail .leaderboard-start-form .leaderboard-settings-heading h4{margin:0;font-size:var(--text-label);font-weight:400}
+#left-rail .leaderboard-start-form .leaderboard-settings-heading .leaderboard-back{flex:0 0 auto}
+#left-rail .leaderboard-start-form .leaderboard-settings-view .analytics-settings{margin:0;padding:0;border:0}
+#left-rail .leaderboard-start-form .leaderboard-settings-view .analytics-settings>label{align-items:flex-start;line-height:1.45}
+#left-rail .leaderboard-start-form .leaderboard-settings-view .analytics-settings details{margin-top:12px}
+#left-rail .leaderboard-start-form .leaderboard-settings-view .analytics-settings details[open]{padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1)}
+#left-rail .leaderboard-start-form #leaderboard-driver-heading[hidden]{display:none!important}
+#left-rail .leaderboard-start-form .leaderboard-settings-open{display:grid;place-items:center;width:40px;min-height:40px;margin:8px 0 0;padding:8px;border-radius:9px;text-align:center}
+#left-rail .leaderboard-start-form .leaderboard-settings-open .ph-icon{width:20px;height:20px}
+#left-rail #chat-restore{display:none!important}
+#left-rail.is-collapsed{inset:8px auto auto 8px;width:44px;height:44px;overflow:hidden;border-radius:10px}
+#left-rail.is-collapsed #left-rail-content{display:block;flex:0 0 42px}
+#left-rail.is-collapsed #chat-panel{width:42px;height:42px;min-height:42px;padding:2px;overflow:hidden}
+#left-rail.is-collapsed #chat-panel>:not(.chat-heading),#left-rail.is-collapsed #chat-title,#left-rail.is-collapsed .leaderboard-start-form{display:none!important}
+#left-rail.is-collapsed #chat-panel .chat-heading{width:38px;height:38px;min-height:38px;justify-content:center}
+#left-rail.is-collapsed #rail-collapse{width:38px;height:38px;flex-basis:38px;border:0;background:transparent}
+@media(max-width:900px){
+ #left-rail{inset:auto 8px 8px;width:min(360px,calc(100vw - 16px));height:min(42dvh,320px)}
+ #rail-collapse{display:grid;min-width:36px;min-height:36px}
+ #left-rail .leaderboard-start-form{max-height:58%;padding:9px}
+ #left-rail .leaderboard-start-form>h3{font-size:10px;margin-bottom:5px}
+ #left-rail #chat-panel{gap:4px;padding:8px}
+ #left-rail #chat-panel> :not(.chat-heading):not(ol){flex-shrink:0}
+ #left-rail #chat-panel ol{flex:1 1 0;min-height:0;max-height:none}
+ #left-rail #chat-panel .chat-compose input,#left-rail #chat-panel .chat-compose button{min-height:36px;padding:6px}
+ #left-rail #chat-panel #chat-status{font-size:10px}
+ #left-rail.is-collapsed{inset:auto 8px 8px auto;width:44px;height:44px}
+ #left-rail.is-collapsed #left-rail-content{display:block}
+}
+@media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+ #left-rail{height:min(44dvh,220px)}
+ #left-rail .leaderboard-start-form{max-height:60%}
+}
+
+/* Compact chat metadata and a clear, thumb-friendly composer. */
+#left-rail #chat-panel .chat-presence{order:1;display:flex;align-items:center;gap:6px;margin:-4px 0 0;color:var(--text-secondary);font-size:var(--text-caption);line-height:1.2}
+#left-rail #chat-panel .chat-public-notice{order:2;display:block;margin:0;padding:0;border:0;color:var(--text-tertiary);font-size:var(--text-caption);line-height:var(--line-body)}
+#left-rail #chat-panel .chat-heading{order:0}
+#left-rail #chat-panel #chat-messages{order:3}
+#left-rail #chat-panel #chat-form{order:4}
+#left-rail #chat-panel #chat-status{order:5;min-height:0}
+#left-rail #chat-panel #chat-form>label.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;display:block!important}
+#left-rail #chat-panel .chat-compose{align-items:stretch;gap:8px}
+#left-rail #chat-panel .chat-compose input{box-sizing:border-box;min-height:44px;height:44px;padding:10px 12px;border-radius:8px}
+#left-rail #chat-panel .chat-compose .chat-send{display:grid;place-items:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--border-hover);border-radius:8px;background:var(--surface-2);color:var(--text-secondary);transition:transform 130ms ease-out,background-color 130ms ease-out,border-color 130ms ease-out}
+#left-rail #chat-panel .chat-compose .chat-send .ph-icon{width:19px;height:19px}
+#left-rail #chat-panel .chat-compose .chat-send.has-message:not(:disabled){border-color:var(--brand);background:var(--brand);color:var(--brand-contrast)}
+@media(hover:hover) and (pointer:fine){#left-rail #chat-panel .chat-compose .chat-send.has-message:not(:disabled):hover{background:var(--brand-hover);border-color:var(--brand-hover)}}
+#left-rail #chat-panel .chat-compose .chat-send:active:not(:focus-visible){transform:scale(.97)}
+#left-rail #chat-panel .chat-compose .chat-send:focus-visible{outline:2px solid var(--brand-hover);outline-offset:2px}
+#left-rail #chat-panel .chat-compose .chat-send:disabled{opacity:1;cursor:not-allowed}
+#left-rail #chat-panel #chat-online-count{color:var(--text-secondary);font-variant-numeric:tabular-nums}
+@media(max-width:900px){
+ #left-rail #chat-panel .chat-public-notice,#left-rail #chat-panel .chat-presence{display:flex}
+ #left-rail #chat-panel .chat-public-notice{display:block}
+ #left-rail #chat-panel .chat-compose input,#left-rail #chat-panel .chat-compose .chat-send{height:44px;min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){#left-rail #chat-panel .chat-compose .chat-send{transition:none}}
+
+/* The driver form now lives in the paddock rail; remove its former empty grid track. */
+body #settings-dialog:not(.spectating){
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:'head head' 'drivers records' 'daily daily';
+}
+.left-rail.is-collapsed #rail-collapse{border-radius:7px}
+@media(max-width:650px){
+  body #settings-dialog:not(.spectating){
+    grid-template-rows:42px minmax(0,.8fr) minmax(0,1.2fr);
+  }
+}
+
+/* Keep the fixed paddock rail clear of portrait touch controls. */
+@media(max-width:900px) and (orientation:portrait){
+  body.chat-open>.app{padding-bottom:calc(min(34dvh,280px) + 64px)}
+}
+@media(max-width:350px) and (orientation:portrait){
+  body.chat-open>.app{padding-bottom:calc(min(34dvh,280px) + 34px)}
+  #left-rail{height:min(calc(42dvh - 30px),264px)}
+}
+
+@media(max-width:650px),(pointer:coarse){
+  .controls>.wheel-controls{display:none}
+}
+
+/* Landscape steering and pedals sit along the bottom edge of the game. */
+@media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+  #left-rail{inset:auto 8px calc(96px + 12px + env(safe-area-inset-bottom));height:min(44dvh,160px)}
+  #left-rail #chat-panel{flex:0 0 100px}
+  #left-rail #chat-panel .chat-presence,#left-rail #chat-panel .chat-public-notice{display:none}
+  #left-rail .leaderboard-start-form{flex:1 1 0;max-height:none;margin:0;padding:6px 9px}
+}
+
+
+/* The stacked timing islands need their full height on narrow portrait screens. */
+@media (max-width:650px) and (orientation:portrait){
+ html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ body{touch-action:pan-y}
+ body>.app{height:auto;min-height:100dvh;overflow:visible}
+ body>.app>.game-shell{flex:0 0 360px;height:360px;min-height:360px;aspect-ratio:auto!important}
+}
+
+/* Flush play surface and full-height paddock drawer. */
+body>main.app{width:calc(100% - 300px);max-width:none;height:100dvh;min-height:0;margin:0 0 0 300px;padding:0;display:flex;flex-direction:column;gap:0;overflow:visible}
+#left-rail{inset:0 auto 0 0;width:300px;height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;border-right:1px solid var(--border);border-radius:0;background:var(--background-2);box-shadow:none;overflow:hidden}
+#left-rail-content{height:100%;min-height:0}
+body>main.app>.game-shell{flex:1 1 auto;width:100%;height:auto;min-height:180px;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;aspect-ratio:auto}
+body>main.app>.controls{flex:0 0 auto;width:100%;min-height:0;margin:0;padding:10px 16px;gap:8px 14px;align-items:center;justify-content:center;flex-wrap:wrap}
+.controls>.wheel-controls{display:flex!important;flex:0 0 100%;align-items:center;justify-content:center;gap:6px;min-width:0}
+.game-actions{display:flex;flex:0 0 auto;align-items:center;gap:6px}
+.game-action-button{display:grid;place-items:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--border-hover);border-radius:9px;background:var(--surface-1);color:var(--text-primary)}
+.game-action-button .ph-icon{width:20px;height:20px}
+.game-actions .language-selector{flex:0 0 44px;width:44px;height:44px;margin:0}
+.game-actions .language-selector__trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;border-radius:9px}
+.game-actions .language-selector__trigger .ph-icon{width:20px;height:20px}
+.game-actions .language-selector__menu{right:0;left:auto;top:auto;bottom:calc(100% + 6px)}
+#left-rail .guest-register-panel{position:static;flex:0 0 auto;max-width:none;max-height:38%;overflow:auto;margin:0;padding:10px 12px;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;color:var(--text-primary);font:400 var(--text-label)/var(--line-body) var(--font-body)}
+#left-rail .guest-register-panel summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+#left-rail .guest-register-panel summary .ph-icon{width:16px;height:16px}
+#left-rail.is-collapsed{inset:8px auto auto 8px;width:44px;height:44px;border:1px solid var(--border);border-radius:10px;box-shadow:none}
+@media(min-width:901px) and (pointer:fine){body.rail-collapsed>main.app{width:calc(100% - 52px);margin-left:52px}}
+@media(max-width:900px){
+ body>main.app{width:100%;height:auto;min-height:100dvh;margin:0;padding:0 0 24px;overflow:visible}
+ #left-rail{inset:0 auto 0 0;width:min(360px,100vw);height:100dvh;max-height:100dvh;border:0;border-right:1px solid var(--border);border-radius:0;box-shadow:none}
+ #left-rail.is-collapsed{inset:auto 8px 8px auto;width:44px;height:44px}
+ body>main.app>.game-shell{flex:0 0 390px;height:390px;min-height:390px;aspect-ratio:auto!important}
+ body>main.app>.controls{display:flex;flex:0 0 auto;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:10px 8px}
+ .controls>.wheel-controls{flex:0 0 100%;flex-wrap:wrap;justify-content:center;gap:6px}
+ .wheel-controls>button{min-height:40px;padding:6px 8px;font-size:12px}
+ .game-actions{gap:4px}
+ body>main.app>.controls>.steering,body>main.app>.controls>.pedals{flex:0 0 auto}
+ body>main.app>.help{flex:0 0 auto;margin:8px 8px 0}
+}
+@media(max-width:650px) and (orientation:portrait){
+ html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ body{touch-action:pan-y}
+ body>main.app{height:auto;min-height:100dvh;max-width:none;overflow:visible}
+ body>main.app>.game-shell{flex:0 0 390px;height:390px;min-height:390px;aspect-ratio:auto!important}
+}
+@media(pointer:coarse) and (orientation:landscape),(max-width:900px) and (max-height:500px) and (orientation:landscape){
+ body>main.app{position:relative;width:100%;height:100dvh;min-height:0;margin:0;padding:0;gap:0}
+ body>main.app>.game-shell{position:absolute;inset:0;width:100%;height:100%;min-height:0;flex:0 0 auto}
+ body>main.app>.controls{position:absolute;z-index:4;inset:auto 0 0;height:auto!important;min-height:136px;max-height:45dvh;overflow:visible;display:flex;flex-direction:row;flex-wrap:wrap;align-content:end;padding:6px 10px max(8px,env(safe-area-inset-bottom));gap:6px 10px;pointer-events:none}
+ body>main.app>.controls>.wheel-controls{display:flex!important;flex:0 0 100%;justify-content:center;flex-wrap:wrap;pointer-events:auto}
+ body>main.app>.controls>.steering,body>main.app>.controls>.pedals{pointer-events:auto}
+ #left-rail:not(.is-collapsed){inset:0 auto 0 0;width:min(360px,90vw);height:100dvh}
+ #left-rail.is-collapsed{inset:auto 8px 8px auto}
+}
+@media(max-width:900px){
+ body.chat-open>main.app,body:not(.chat-open)>main.app{padding-bottom:24px}
+}
+.controls .game-actions .game-action-button{padding:0!important;border-radius:9px}
+body.chat-open>main.app,body:not(.chat-open)>main.app{width:calc(100% - 300px);margin-left:300px}
+@media(max-width:900px){body.chat-open>main.app,body:not(.chat-open)>main.app{width:100%;margin-left:0}}
+@media(min-width:901px) and (pointer:fine){body.rail-collapsed.chat-open>main.app,body.rail-collapsed:not(.chat-open)>main.app{width:calc(100% - 52px);margin-left:52px}}
+
+/* Keep the canvas flush at the top and gently finish the lower edge. */
+body>main.app>.game-shell{border-radius:0}
+
+
+/* A consistent, momentary press response; toggle state never enlarges controls. */
+button:not(:disabled):active{transform:scale(1.05)}
+.controls .control:not(:disabled):active,.controls .control.active{transform:translateY(4px) scale(1.05)}
+@media(prefers-reduced-motion:reduce){
+ button:not(:disabled):active,.controls .control.active{transform:none}
+}
+
+#left-rail .guest-register-panel button[type="submit"]{min-height:40px;border:1px solid var(--brand-active);border-radius:8px;background:var(--brand);color:var(--brand-contrast);font:400 var(--text-label)/1.2 var(--font-body);cursor:pointer}
+#left-rail .guest-register-panel button[type="submit"]:hover{background:var(--brand-hover)}
+
+/* Fade the lower edge of the play surface into the page's dark neutral. */
+body>main.app>.game-shell::after{content:"";position:absolute;z-index:3;inset:auto 0 0;height:clamp(72px,18%,160px);border-radius:inherit;background:linear-gradient(180deg,rgb(10 10 10 / 0) 0%,rgb(10 10 10 / .18) 45%,#0a0a0a 100%);pointer-events:none}
+
+.drive-telemetry{--drive-throttle-muted:#003b29;--drive-throttle-active:#01a66e;--drive-brake-muted:#450b0b;--drive-brake-active:#dc2627;position:absolute;z-index:6;right:max(16px,env(safe-area-inset-right));bottom:18px;display:flex;width:min(291px,calc(100% - 24px));height:64px;align-items:center;justify-content:flex-start;gap:15px;pointer-events:none}
+.drive-input-stack{display:flex;flex:0 1 178px;min-width:0;flex-direction:column;gap:6px}
+.drive-input-meter{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:2px;width:100%;height:12px;overflow:hidden;border-radius:4px}
+.drive-input-segment{display:block;min-width:0;height:12px;background:var(--drive-throttle-muted)}
+.drive-input-segment{border-radius:1px}
+.drive-input-meter--brake .drive-input-segment{background:var(--drive-brake-muted)}
+.drive-input-meter--throttle .drive-input-segment.is-active{background:var(--drive-throttle-active)}
+.drive-input-meter--brake .drive-input-segment.is-active{background:var(--drive-brake-active)}
+.drive-speed{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:0;color:var(--text-primary);font-family:var(--font-heading);font-variant-numeric:tabular-nums lining-nums;line-height:1;white-space:nowrap}
+.drive-speed>span{display:block;flex:0 0 98px;width:98px;text-align:right;font:300 clamp(32px,3.744vw,51.2px)/1 var(--font-heading);font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.035em;white-space:nowrap}
+
+/* Dashboard fills the available play column without an inset card frame. */
+#settings-dialog:not(.spectating){position:fixed;inset:0 0 0 300px;width:auto;max-width:none;height:100dvh;max-height:100dvh;margin:0;padding:clamp(16px,2vw,28px);overflow:auto;border:0;border-top:0;border-radius:0;background:var(--background-1);box-shadow:none;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:82px minmax(180px,.8fr) minmax(250px,1.2fr);grid-template-areas:'head head' 'drivers records' 'daily daily';gap:clamp(12px,1.8vw,24px)}
+body.rail-collapsed #settings-dialog:not(.spectating){left:52px}
+#settings-dialog:not(.spectating)>.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:20px;grid-area:head;min-width:0;margin:0;padding:0;border:0}
+#settings-dialog:not(.spectating) .race-heading.dashboard-brand{display:flex;flex:0 1 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:0}
+#settings-dialog:not(.spectating) .dashboard-brand>img{display:block;width:122px;height:35px;object-fit:contain;object-position:left center}
+#settings-dialog:not(.spectating) .dashboard-brand h2{margin:0;color:var(--text-primary);font:400 24px/1.1 var(--font-heading);letter-spacing:-.025em;white-space:nowrap}
+#settings-dialog:not(.spectating) .dashboard-brand h2 span{color:var(--brand)}
+#settings-dialog:not(.spectating) .dashboard-brand .race-eyebrow{display:none}
+#settings-dialog:not(.spectating) #active-drivers-title,
+#settings-dialog:not(.spectating) .verified-standings>h3,
+#settings-dialog:not(.spectating) #championship-title{margin:0;color:var(--text-primary);font:400 var(--text-title-small)/1.2 var(--font-heading);letter-spacing:-.02em}
+#settings-dialog:not(.spectating) .active-drivers,
+#settings-dialog:not(.spectating) .verified-standings{min-width:0;min-height:0;overflow:auto}
+#settings-dialog:not(.spectating) #championship{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto minmax(0,1fr);gap:12px 16px;min-width:0;min-height:0;margin:0;padding:16px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;box-shadow:none;overflow:auto}
+#settings-dialog:not(.spectating) .championship-heading{grid-column:1/-1;grid-row:1;align-items:center;gap:12px}
+#settings-dialog:not(.spectating) #championship-personal{grid-column:1/-1;grid-row:2;margin:0;color:var(--text-secondary);font:400 var(--text-body)/1.45 var(--font-body);white-space:normal}
+#settings-dialog:not(.spectating) #championship>.series-tabs{grid-column:1;grid-row:3;margin:0}
+#settings-dialog:not(.spectating) #championship-clock{grid-column:2;grid-row:3;align-self:center;margin:0;text-align:right}
+#settings-dialog:not(.spectating) #championship-notice{grid-column:1/-1;margin:0}
+#settings-dialog:not(.spectating) #championship .championship-grid{grid-column:1/-1;grid-row:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;min-height:0;margin:0}
+#settings-dialog:not(.spectating) .championship-grid>section{min-width:0;margin:0;padding:8px 16px;border:0;border-right:1px solid var(--border);border-radius:0;background:transparent;box-shadow:none}
+#settings-dialog:not(.spectating) .championship-grid>section:first-child{padding-left:0}
+#settings-dialog:not(.spectating) .championship-grid>section:last-child{padding-right:0;border-right:0}
+#settings-dialog:not(.spectating) .championship-grid h4{min-height:0;margin:0 0 12px;color:var(--text-secondary);font:400 var(--text-body-large)/1.25 var(--font-heading)}
+#settings-dialog:not(.spectating) #championship>p:first-of-type{display:none}
+body.chat-open #settings-dialog:not(.spectating) #championship #championship-personal,
+body:not(.chat-open) #settings-dialog:not(.spectating) #championship #championship-personal{display:block;grid-column:1/-1;grid-row:2}
+body.chat-open #settings-dialog:not(.spectating) #championship #championship-summary,
+body:not(.chat-open) #settings-dialog:not(.spectating) #championship #championship-summary{display:none}
+body.chat-open #settings-dialog:not(.spectating),
+body:not(.chat-open) #settings-dialog:not(.spectating){position:fixed;inset:0 0 0 300px;width:calc(100% - 300px);max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-top:0;border-radius:0;box-shadow:none}
+body.rail-collapsed.chat-open #settings-dialog:not(.spectating),
+body.rail-collapsed:not(.chat-open) #settings-dialog:not(.spectating){inset:0 0 0 52px;width:calc(100% - 52px);margin:0;height:100dvh;max-height:none}
+@media(max-width:900px){
+ body.chat-open #settings-dialog:not(.spectating),body:not(.chat-open) #settings-dialog:not(.spectating),body.rail-collapsed.chat-open #settings-dialog:not(.spectating),body.rail-collapsed:not(.chat-open) #settings-dialog:not(.spectating){inset:0;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:12px;overflow-y:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(140px,auto) minmax(180px,auto) minmax(320px,auto);grid-template-areas:'head' 'drivers' 'records' 'daily';gap:12px}
+ body.chat-open #settings-dialog:not(.spectating)>.dialog-head,body:not(.chat-open) #settings-dialog:not(.spectating)>.dialog-head{min-height:70px;gap:8px}
+ body.chat-open #settings-dialog:not(.spectating) .dashboard-brand>img,body:not(.chat-open) #settings-dialog:not(.spectating) .dashboard-brand>img{width:100px;height:29px}
+ body.chat-open #settings-dialog:not(.spectating) .dashboard-brand h2,body:not(.chat-open) #settings-dialog:not(.spectating) .dashboard-brand h2{font-size:21px}
+ body.chat-open #settings-dialog:not(.spectating) .dialog-actions,body:not(.chat-open) #settings-dialog:not(.spectating) .dialog-actions{gap:6px}
+ body.chat-open #settings-dialog:not(.spectating) #active-drivers-title,body.chat-open #settings-dialog:not(.spectating) .verified-standings>h3,body.chat-open #settings-dialog:not(.spectating) #championship-title,body:not(.chat-open) #settings-dialog:not(.spectating) #active-drivers-title,body:not(.chat-open) #settings-dialog:not(.spectating) .verified-standings>h3,body:not(.chat-open) #settings-dialog:not(.spectating) #championship-title{font-size:20px}
+ body.chat-open #settings-dialog:not(.spectating) #championship,body:not(.chat-open) #settings-dialog:not(.spectating) #championship{grid-template-rows:auto auto auto auto;overflow:visible}
+ body.chat-open #settings-dialog:not(.spectating) .championship-grid,body:not(.chat-open) #settings-dialog:not(.spectating) .championship-grid{grid-template-columns:minmax(0,1fr)!important}
+ body.chat-open #settings-dialog:not(.spectating) .championship-grid>section,body:not(.chat-open) #settings-dialog:not(.spectating) .championship-grid>section{padding:12px 0;border-right:0;border-bottom:1px solid var(--border)}
+ body.chat-open #settings-dialog:not(.spectating) .championship-grid>section:first-child,body:not(.chat-open) #settings-dialog:not(.spectating) .championship-grid>section:first-child{padding-top:0}
+ body.chat-open #settings-dialog:not(.spectating) .championship-grid>section:last-child,body:not(.chat-open) #settings-dialog:not(.spectating) .championship-grid>section:last-child{padding-bottom:0;border-bottom:0}
+}
+@media(prefers-reduced-motion:reduce){#settings-dialog:not(.spectating){scroll-behavior:auto}}
+
+/* Dashboard titles share a single inline identity row. */
+#settings-dialog:not(.spectating) .race-heading.dashboard-brand{flex-direction:row;align-items:center;gap:12px}
+#settings-dialog:not(.spectating) .dashboard-brand>img{width:122px;height:38px}
+#settings-dialog:not(.spectating) .dialog-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;flex:0 0 auto}
+#settings-dialog:not(.spectating) #release-notes-open{min-height:40px;padding:8px 12px;border:1px solid var(--border-hover);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);font:400 var(--text-label)/1.2 var(--font-body);white-space:nowrap}
+#settings-dialog:not(.spectating) #release-notes-open:hover{background:var(--surface-2)}
+
+/* The three dashboard areas use one shared surface language. */
+#settings-dialog:not(.spectating) .active-drivers,
+#settings-dialog:not(.spectating) .verified-standings,
+#settings-dialog:not(.spectating) #championship{border:1px solid var(--border);border-radius:10px;background:var(--background-2);box-shadow:none}
+#settings-dialog:not(.spectating) .active-drivers{padding:16px}
+#settings-dialog:not(.spectating) .verified-standings{display:flex;flex-direction:column;gap:14px;padding:16px}
+#settings-dialog:not(.spectating) .verified-standings>h3{margin:0}
+#settings-dialog:not(.spectating) .verified-standings>.series-tabs{flex:0 0 auto}
+#settings-dialog:not(.spectating) .verified-standings>#verified-list{flex:1 1 auto;min-height:0;margin:0}
+#settings-dialog:not(.spectating) #championship{padding:16px;overflow:auto}
+#settings-dialog:not(.spectating) .championship-grid>section{background:transparent;box-shadow:none}
+@media(max-width:420px){
+ #settings-dialog:not(.spectating) .race-heading.dashboard-brand{gap:6px}
+ #settings-dialog:not(.spectating) .dashboard-brand>img{width:76px;height:30px}
+ #settings-dialog:not(.spectating) .dashboard-brand h2{font-size:20px}
+ #settings-dialog:not(.spectating) .dialog-actions{gap:4px}
+ #settings-dialog:not(.spectating) #release-notes-open{min-height:36px;padding:6px 8px;font-size:12px}
+}
+
+/* Lap times use Stack Sans with OpenType tabular figures for steady columns. */
+#verified-list .standing-time,#championship-fastest .standing-time,#leaderboard-list .standing-time,#championship-clock{font-family:var(--font-heading);font-weight:400;font-variant-numeric:lining-nums tabular-nums}
+@media (pointer:coarse) and (orientation:landscape),(max-width:900px) and (max-height:500px) and (orientation:landscape){.drive-telemetry{bottom:calc(110px + env(safe-area-inset-bottom))}}
+@media(max-width:400px){.drive-telemetry{width:min(291px,calc(100% - 16px));right:max(8px,env(safe-area-inset-right));gap:clamp(8px,3.85vw,15px)}.drive-input-meter{gap:2px}.drive-speed>span{font-size:clamp(32px,11.2vw,43.2px)}}
+
+/* Buttons compress while pressed; keycap feedback intentionally remains a slight scale-up. */
+button:not(:disabled):active{transform:scale(.95)}
+.controls .control:not(:disabled):active,.controls .control.active{transform:translateY(4px) scale(.95)}
+@media(prefers-reduced-motion:reduce){button:not(:disabled):active,.controls .control.active{transform:none}}

@@ -1,0 +1,195 @@
+/* Shared segmented control: the outer radius exceeds its inset items by 2px. */
+#settings-dialog .series-tabs.segment-control,
+#leaderboard-guest-fields .guest-series-options.segment-control,
+#left-rail .leaderboard-series-options.segment-control,
+#settings-dialog .leaderboard-series-options.segment-control {
+  --segment-outer-radius: 8px;
+  --segment-inset: 2px;
+  --segment-inner-radius: calc(var(--segment-outer-radius) - var(--segment-inset));
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--segment-inset);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: var(--segment-inset);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--segment-outer-radius);
+  background: var(--background-1);
+}
+
+#settings-dialog .series-tabs.segment-control > button,
+#leaderboard-guest-fields .guest-series-options.segment-control > .guest-series-option,
+#left-rail .leaderboard-series-options.segment-control > .leaderboard-series-option,
+#settings-dialog .leaderboard-series-options.segment-control > .leaderboard-series-option {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--segment-inner-radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font: 400 var(--text-label)/1.2 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  cursor: pointer;
+}
+
+#settings-dialog .series-tabs.segment-control > button[aria-pressed="true"],
+#leaderboard-guest-fields .guest-series-options.segment-control > .guest-series-option:has(input:checked),
+#left-rail .leaderboard-series-options.segment-control > .leaderboard-series-option:has(input:checked),
+#settings-dialog .leaderboard-series-options.segment-control > .leaderboard-series-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--brand) 42%, var(--border));
+  background: color-mix(in srgb, var(--brand) 18%, var(--surface-2));
+  color: var(--text-primary);
+}
+
+#settings-dialog .series-tabs.segment-control > button:focus-visible,
+#leaderboard-guest-fields .guest-series-options.segment-control > .guest-series-option:has(input:focus-visible),
+#left-rail .leaderboard-series-options.segment-control > .leaderboard-series-option:has(input:focus-visible),
+#settings-dialog .leaderboard-series-options.segment-control > .leaderboard-series-option:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+#left-rail .leaderboard-series-options.segment-control > .leaderboard-series-option,
+#settings-dialog .leaderboard-series-options.segment-control > .leaderboard-series-option {
+  position: relative;
+  gap: 0;
+  font-size: var(--text-label);
+  font-weight: 400;
+}
+
+#left-rail .leaderboard-series-options.segment-control > .leaderboard-series-option input,
+#settings-dialog .leaderboard-series-options.segment-control > .leaderboard-series-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+#leaderboard-guest-fields .guest-series-segment {
+  min-width: 0;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+}
+
+#leaderboard-guest-fields .guest-series-segment legend {
+  margin: 0 0 5px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 400;
+}
+
+#leaderboard-guest-fields .guest-series-option {
+  position: relative;
+}
+
+#leaderboard-guest-fields .guest-series-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+#settings-dialog .verified-standings > .series-tabs.segment-control,
+#settings-dialog #championship > .series-tabs.segment-control {
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+}
+
+#settings-dialog #championship > .series-tabs.segment-control {
+  min-width: 0;
+}
+
+#leaderboard-guest-fields .guest-fields-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+#leaderboard-guest-fields .guest-fields-heading h4 {
+  min-width: 0;
+  margin: 0;
+}
+
+#leaderboard-guest-fields #leaderboard-guest-back {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+#leaderboard-guest-fields #leaderboard-guest-back .ph-icon {
+  width: 18px;
+  height: 18px;
+}
+
+#leaderboard-guest-fields #leaderboard-guest-back:focus-visible,
+#leaderboard-guest-fields .guest-series-option:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+#leaderboard-guest-fields .guest-privacy {
+  margin: 0 0 8px;
+}
+
+#settings-dialog #leaderboard-guest-start,
+#left-rail #leaderboard-guest-start {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font: 400 var(--text-label)/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-align: center !important;
+  text-transform: none;
+  cursor: pointer;
+}
+
+#leaderboard-guest-start:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #settings-dialog #leaderboard-guest-start,
+  #left-rail #leaderboard-guest-start {
+    transition: none;
+  }
+}

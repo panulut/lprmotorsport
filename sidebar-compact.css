@@ -1,0 +1,44 @@
+.sidebar-compact{display:none}
+.sidebar-compact[hidden]{display:none!important}
+
+#left-rail.is-collapsed{
+  position:fixed;inset:0 auto 0 0;width:60px;height:100dvh;max-height:100dvh;
+  display:flex;flex-direction:column;gap:0;padding:8px 7px;overflow:hidden;
+  border:0;border-right:1px solid var(--border);border-radius:0;
+  background:var(--background-2);box-shadow:none
+}
+#left-rail.is-collapsed .sidebar-compact{
+  display:flex;flex:1 1 auto;flex-direction:column;align-items:center;gap:8px;min-height:0
+}
+#left-rail.is-collapsed .sidebar-compact-action,
+#left-rail.is-collapsed #rail-collapse{
+  display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;
+  margin:0;padding:10px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-1);color:var(--text-secondary);cursor:pointer
+}
+#left-rail.is-collapsed .sidebar-compact-action .ph-icon,
+#left-rail.is-collapsed #rail-collapse .ph-icon{width:20px;height:20px}
+#left-rail.is-collapsed .sidebar-compact-spacer{flex:1 1 auto;min-height:16px}
+#left-rail.is-collapsed .sidebar-compact-action:hover,
+#left-rail.is-collapsed #rail-collapse:hover{border-color:var(--border-hover);background:var(--surface-2);color:var(--text-primary)}
+#left-rail.is-collapsed .sidebar-compact-action:focus-visible,
+#left-rail.is-collapsed #rail-collapse:focus-visible{outline:2px solid var(--brand-hover);outline-offset:2px}
+#left-rail.is-collapsed #left-rail-content,
+#left-rail.is-collapsed .guest-register-panel{display:none!important}
+
+@media(min-width:901px) and (pointer:fine){
+  body.rail-collapsed>main.app{width:calc(100% - 60px);margin-left:60px}
+  body.rail-collapsed #settings-dialog:not(.spectating),
+  body.rail-collapsed #settings-dialog.spectating{width:calc(100% - 72px);max-width:calc(100% - 72px);margin-left:60px}
+}
+@media(max-width:900px){
+  #left-rail.is-collapsed{inset:0 auto 0 0;width:56px;padding:max(6px,env(safe-area-inset-top)) 5px max(6px,env(safe-area-inset-bottom))}
+  #left-rail.is-collapsed .sidebar-compact{gap:6px}
+  #left-rail.is-collapsed .sidebar-compact-action,
+  #left-rail.is-collapsed #rail-collapse{flex-basis:44px;width:44px;height:44px;min-width:44px;min-height:44px}
+  body.rail-collapsed>main.app{width:calc(100% - 56px);margin-left:56px;padding-bottom:8px}
+  body.rail-collapsed #settings-dialog,
+  body.rail-collapsed #settings-dialog:not(.spectating),
+  body.rail-collapsed #settings-dialog.spectating{width:calc(100% - 68px);max-width:calc(100% - 68px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);margin:8px 8px 8px 60px}
+}
+@media(prefers-reduced-motion:reduce){#left-rail.is-collapsed *{scroll-behavior:auto}}

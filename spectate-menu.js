@@ -4,6 +4,9 @@
  const status=$('#active-drivers-status'),view=$('#spectate-view'),back=$('#spectate-back');
  const panel=$('.active-drivers'),app=$('.app'),sidebar=$('#spectate-sidebar');
  const standings=$('.verified-standings'),championship=$('#championship');
+ const label=$('#spectate-label'),connectionLabel=$('#spectate-connection');
+ const labelHome=document.createComment('spectator status'),connectionHome=document.createComment('spectator connection');
+ label.before(labelHome);connectionLabel.before(connectionHome);
  const standingsHome=document.createComment('standings'),championshipHome=document.createComment('championship');
  standings.before(standingsHome);championship.before(championshipHome);
  const panelHome=document.createComment('active drivers'),appHome=document.createComment('game');
@@ -17,7 +20,7 @@
  function markSelected(){for(const a of list.querySelectorAll('a')){if(watching&&a.dataset.session===selected)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current');}}
  function stopWatching(){
   ++generation;clearTimeout(pollTimer);controller?.abort();controller=null;recording=null;watchIdentity='';watching=false;
-  appHome.after(app);panelHome.after(panel);standingsHome.after(standings);championshipHome.after(championship);view.hidden=true;
+  appHome.after(app);panelHome.after(panel);standingsHome.after(standings);championshipHome.after(championship);labelHome.after(label);connectionHome.after(connectionLabel);view.hidden=true;
   dialog.classList.remove('spectating');document.body.classList.remove('spectating');
   $('#spectate-label').hidden=true;connection('');hooks?.end();markSelected();
   [...list.querySelectorAll('a')].find(a=>a.dataset.session===selected)?.focus();
@@ -30,7 +33,7 @@
   if(watching&&selected===driver.id)return;
   ++generation;clearTimeout(pollTimer);controller?.abort();controller=null;recording=null;selected=driver.id;watchIdentity=driver.watchId||driver.id;
   if(!watching){
-   watching=true;$('#spectate-game').append(app);sidebar.append(panel,standings,championship);
+   watching=true;$('#spectate-game').append(app);sidebar.append(label,connectionLabel,panel,standings,championship);
    view.hidden=false;dialog.classList.add('spectating');document.body.classList.add('spectating');
    hooks?.begin();back.focus();
   }else hooks?.switchDriver();
@@ -101,13 +104,15 @@
     for(const driver of data.results){
      const row=document.createElement('li'),link=document.createElement('a'),badge=document.createElement('span');
      link.href='index.html?spectate='+encodeURIComponent(driver.id);link.dataset.session=driver.id;
-     const name=document.createElement('strong');name.textContent=driver.nickname;name.title=driver.nickname;badge.textContent='LIVE';badge.className='active-driver-badge';
+     const watchLabel=t('watchDriverLive',{name:driver.nickname});
+     link.setAttribute('aria-label',watchLabel);link.title=watchLabel;
+     const name=document.createElement('strong');name.textContent=driver.nickname;name.title=driver.nickname;badge.append(window.LPRIcon('eye'));badge.className='active-driver-badge';badge.setAttribute('aria-hidden','true');
      link.append(name,badge);link.addEventListener('click',event=>watch(event,driver));row.append(link);fragment.append(row);
     }
     list.replaceChildren(fragment);signature=next;markSelected();
     if(focused)[...list.querySelectorAll('a')].find(a=>a.dataset.session===focused)?.focus();
    }
-   status.textContent=data.results.length?t('Valitse kuljettaja ja seuraa ajoa suorana.'):t('Ei aktiivisia kuljettajia juuri nyt.');
+   status.textContent=data.results.length?t('Katso kuljettajaa suorana'):t('Ei aktiivisia kuljettajia juuri nyt.');
    if(requested&&hooks){
     const driver=data.results.find(r=>r.id===requested);requested=null;
     if(driver)watch({button:0,preventDefault(){}},driver);
