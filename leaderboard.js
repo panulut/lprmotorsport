@@ -34,6 +34,8 @@
   let sessionChosen = false, guestSelection = false, guestNickname = '', guestSession = null;
   const guestFields = document.querySelector('#leaderboard-guest-fields');
   const guestName = document.querySelector('#leaderboard-guest-name');
+  const guestStatus = document.querySelector('#leaderboard-guest-status');
+  const guestStartButton = document.querySelector('#leaderboard-guest-start');
   const driverHeading = document.querySelector('#leaderboard-driver-heading');
   const driverMainView = document.querySelector('#leaderboard-main-view');
   const driverSettingsView = document.querySelector('#leaderboard-settings-view');
@@ -298,7 +300,9 @@
   });
   document.querySelector('#leaderboard-practice')?.addEventListener('click', () => {
     if (signingIn) return;
-    guestSelection = true; authMode = null; guestNickname = ''; showAccount();
+    guestSelection = true; authMode = null; guestNickname = '';
+    if (guestStatus) guestStatus.textContent = '';
+    showAccount();
     guestName.value = localStorage.getItem(guestNicknameKey) || '';
     guestName.focus();
   });
@@ -313,8 +317,10 @@
       guestName.reportValidity(); return;
     }
     const series = document.querySelector('input[name="guest-series"]:checked')?.value;
-    if (!['human','bot'].includes(series)) { status.textContent = t('Valitse ihmisten tai bottien sarja.'); return; }
+    if (!['human','bot'].includes(series)) { if (guestStatus) guestStatus.textContent = t('Valitse ihmisten tai bottien sarja.'); return; }
     signingIn = true;
+    if (guestStartButton) guestStartButton.disabled = true;
+    if (guestStatus) guestStatus.textContent = t('Muodostetaan vierailijaistuntoa…');
     try {
       let remembered;
       try { remembered = JSON.parse(localStorage.getItem(guestSessionKey) || 'null'); } catch {}
@@ -331,8 +337,13 @@
       if (!validName(data.nickname) || !validToken(data.token) || !Number.isSafeInteger(data.expiresAt) || data.expiresAt <= Date.now() || !['human','bot'].includes(data.series) || typeof data.guest !== 'boolean') throw Error('Invalid guest session');
       guestSession = data;
       try { localStorage.setItem(guestSessionKey,JSON.stringify(data)); localStorage.setItem(guestNicknameKey,name); } catch {}
-    } catch (error) { status.textContent = signInError(error.status,name); return; }
-    finally { signingIn = false; }
+    } catch (error) {
+      if (guestStatus) guestStatus.textContent = window.LPRVerificationConfig?.mode === 'local' && (!error.status || [403,404].includes(error.status))
+        ? 'Paikallinen kirjautumispalvelu ei vastaa. Avaa testiversio osoitteessa /?demo=1 tai käynnistä taustapalvelut.'
+        : signInError(error.status,name);
+      return;
+    } finally { signingIn = false; if (guestStartButton) guestStartButton.disabled = false; }
+    if (guestStatus) guestStatus.textContent = '';
     guestNickname = guestSession.nickname;
     activeSeries = guestSession.series;
     const resumedAccount = !guestSession.guest ? guestSession : null;
@@ -382,7 +393,7 @@
     } catch (error) { result.textContent = signInError(error.status,name); }
     finally { signingIn = false; }
   });
-  guestName?.addEventListener('input',()=>guestName.setCustomValidity(''));
+  guestName?.addEventListener('input',()=>{ guestName.setCustomValidity(''); if (guestStatus) guestStatus.textContent = ''; });
   dialog.addEventListener('cancel', event => { if (!sessionChosen || dialog.classList.contains('lobby-ready')) event.preventDefault(); });
   consent.addEventListener('change',()=>window.LPRLeaderboard.consentChanged());
   async function api(path, options) {
