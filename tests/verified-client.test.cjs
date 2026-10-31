@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-function fixture(){
+function fixture({demo=false}={}){
  const nodes=new Map(),storage=new Map(),requests=[],clients=[];let hidden=false,healthResolve,offline=false;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},disabled:false,handlers:{},append(){},addEventListener(name,fn){this.handlers[name]=fn;}});return nodes.get(id);};
  const identity={nickname:'Driver',token:'a'.repeat(64)};let startStatus=200,lapStatus=200;const signOuts=[];
@@ -19,7 +19,7 @@ function fixture(){
   enqueue(){} async flush(){}
  }
  const document={get hidden(){return hidden;},querySelector:node,addEventListener(name,fn){this[name]=fn;},dispatchEvent(){}};
- const window={LPRVerificationConfig:{service:'service',leaderboard:'board'},LPRDrivingRevision:'rev',LPRLeaderboard:{get identity(){return {...identity};},signOut:message=>signOuts.push(message)},
+ const window={LPRVerificationConfig:{service:'service',leaderboard:'board',demo},LPRDrivingRevision:'rev',LPRLeaderboard:{get identity(){return {...identity};},signOut:message=>signOuts.push(message)},
   LPRLiveClient:Client,LPRDriving:{encode:i=>i},addEventListener(){}};
  const countdowns=[];let retry;
  const context={window,document,fetch,AbortSignal,console,Event:class{constructor(type){this.type=type;}},setInterval(){},setTimeout(fn,ms){if(ms===3000){retry=fn;return null;}countdowns.push(ms);return setImmediate(fn);},clearTimeout(handle){if(handle)clearImmediate(handle);},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
@@ -30,6 +30,19 @@ function fixture(){
 }
 const settle=()=>new Promise(r=>setImmediate(r));
 (async()=>{
+ // A local demo has only fixture endpoints; it should not trigger official
+ // start retries, starting lights, or the authoritative driving reset.
+ const demo=fixture({demo:true});
+ demo.api.identityReady();
+ await settle();
+ await demo.api.start({replace:true});
+ assert.equal(demo.requests.some(r=>r.url.endsWith('/health')||r.url.endsWith('/start')||r.url.endsWith('/sessions')),false,
+   'Demo driving must not request an official server session');
+ assert.equal(demo.node('#start-lights').hidden,true,'Demo practice never shows start lights');
+ assert.equal(demo.starts,0,'Demo mode never invokes the authoritative driving reset');
+ const demoGame=fs.readFileSync(path.join(__dirname,'../game.js'),'utf8');
+ assert.match(demoGame,/window\.LPRVerificationConfig\?\.demo!==true/,
+   'Demo game reset must fall through to local practice instead of restarting verification');
  const guest=fixture();guest.identity.guest=true;
  const guestKey='lpr-verified-guest-receipts:'+guest.identity.token;
  guest.storage.set(guestKey,JSON.stringify([{receipt:'guest-receipt',replay:'guest-replay'}]));
