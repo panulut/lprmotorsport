@@ -23,6 +23,7 @@ Nykyiset tuotantokutsujat vain lukevat paikallista geometriaa.
 ```sh
 npm run test:collision-cache
 npm run measure:collision-cache
+npm run test:collision-performance
 ```
 
 Testi vertaa aiempaan toteutukseen (`tests/collision-shape-reference.cjs`,
@@ -30,6 +31,20 @@ integraatiohaaran commit `d4db5c7`). Se tarkistaa välimuistin uudelleenkäytön
 muodon päivittymisen, autojen eristyksen, 4 000 eri muotoa, kahden kierroksen kaikki
 autotilat ja uusinnat sekä törmäysten jälkeiset tilat. Aiemmat Chromiumissa tallennetut
 fysiikkatiivisteet tarkistetaan lisäksi komennolla `npm run test:determinism`.
+
+`test:collision-performance` on paikallinen Node-mittaus: se ajaa todellisia
+kartion törmäyskontakteja ja 200 seinäkosketusta. Se mittaa
+`world.step()`-kutsujen seinäkelloajan ja laskee 120 Hz:n 8,33 ms:n fysiikkabudjetin
+ylittävät askeleet. Se ei mittaa selaimen pudonneita ruutuja.
+
+`npm run load:verification` on myös paikallinen testi, ei Azure-kuormitustesti.
+Erillisen Azure-testin skriptit ovat `deploy/azure-test`-haarassa:
+`scripts/load-azure-verification.cjs` ja
+`scripts/measure-azure-load-stage.cjs`. Ne ajavat radan seuraajan syötteitä
+kapasiteettimittaukseen eivätkä tarkoituksellisia seinä- tai kartiotörmäyksiä.
+Siksi Azure-kuormatestin tulosta ei pidä esittää törmäyssuorituskyvyn mittauksena.
+Azure-testin nykyinen lähtöasetus on 0,5 vCPU / 1 GiB; resursseja kasvatetaan vain,
+jos mittaukset osoittavat nykyisen resurssin pullonkaulaksi.
 
 Mittaus ajaa kolme vuorottelevaa vertailuparia erillisissä Node-prosesseissa.
 Jokaisessa on 1 200 lämmittelyaskelta ja sen jälkeen samat 24 000 ohjaussyötettä,

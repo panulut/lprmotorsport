@@ -227,6 +227,24 @@ window.LPRCampus = (() => {
     }return out;};
     return [...half(sorted).slice(0,-1),...half(sorted.reverse()).slice(0,-1)];
   }
+  const partReachMap = new WeakMap();
+  function getPartReach(part) {
+    let r = partReachMap.get(part);
+    if (r === undefined) {
+      r = Math.max(...part.map(([x, y]) => Math.hypot(x, y)));
+      partReachMap.set(part, r);
+    }
+    return r;
+  }
+  const partsReachMap = new WeakMap();
+  function getPartsReach(parts) {
+    let r = partsReachMap.get(parts);
+    if (r === undefined) {
+      r = Math.max(...parts.map(getPartReach));
+      partsReachMap.set(parts, r);
+    }
+    return r;
+  }
   function resolveBoundsCollision(state, previous, obstacles, onImpact) {
     let from={...previous},firstContact;
     // Spend the rest of the step travelling along the contacted surface.
@@ -265,18 +283,23 @@ window.LPRCampus = (() => {
     const startAngle=previous.angle ?? state.angle ?? 0;
     const turn=(state.angle ?? startAngle)-startAngle;
     const parts=carCollisionParts(state);
-    const reach=Math.max(...parts.flat().map(p=>Math.hypot(...p)));
+    const reach=getPartsReach(parts);
     const travel=Math.hypot(dx,dy)+Math.abs(turn)*reach;
+    const minX=Math.min(previous.x,state.x),maxX=Math.max(previous.x,state.x);
+    const minY=Math.min(previous.y,state.y),maxY=Math.max(previous.y,state.y);
     let firstHit=Infinity,normal,impactMaterial,hitBounds;
     for(const bounds of obstacles) {
       const cx=(bounds.minX+bounds.maxX)/2,cy=(bounds.minY+bounds.maxY)/2;
       const halfX=(bounds.maxX-bounds.minX)/2,halfY=(bounds.maxY-bounds.minY)/2;
       const obstacleReach=Math.hypot(halfX,halfY);
-      if(cx+obstacleReach<Math.min(previous.x,state.x)-reach || cx-obstacleReach>Math.max(previous.x,state.x)+reach ||
-        cy+obstacleReach<Math.min(previous.y,state.y)-reach || cy-obstacleReach>Math.max(previous.y,state.y)+reach) continue;
+      if(cx+obstacleReach<minX-reach || cx-obstacleReach>maxX+reach ||
+        cy+obstacleReach<minY-reach || cy-obstacleReach>maxY+reach) continue;
       const oc=Math.cos(bounds.angle || 0),os=Math.sin(bounds.angle || 0);
       const obstacleAxes=[[oc,os],[-os,oc]];
       for(const part of parts) {
+        const pReach=getPartReach(part);
+        if(cx+obstacleReach<minX-pReach || cx-obstacleReach>maxX+pReach ||
+          cy+obstacleReach<minY-pReach || cy-obstacleReach>maxY+pReach) continue;
         // Separating axes give a safe distance to advance along the sweep,
         // including rotation. Never expand a wall by an enclosing circle.
         const separation=t=>{
@@ -290,8 +313,8 @@ window.LPRCampus = (() => {
           let gap=-Infinity,n;
           for(const [x,y] of axes) {
             const extent=halfX*Math.abs(x*oc+y*os)+halfY*Math.abs(-x*os+y*oc);
-            const projections=points.map(p=>p[0]*x+p[1]*y);
-            const low=Math.min(...projections),high=Math.max(...projections);
+            let low=Infinity,high=-Infinity;
+            for(let pi=0;pi<points.length;pi++){const pr=points[pi][0]*x+points[pi][1]*y;if(pr<low)low=pr;if(pr>high)high=pr;}
             const a=low-extent,b=-extent-high;
             if(Math.max(a,b)>gap) {gap=Math.max(a,b);n=a>b?{x,y}:{x:-x,y:-y};}
           }
@@ -492,7 +515,7 @@ window.LPRCampus = (() => {
       angle:bounds.angle||0,vx:0,vy:0,spin:0,damage:0,bend:0,bendVelocity:0,dents:[]};
     body.origin={x:body.x,y:body.y,angle:body.angle};
     body.spawn={...body.origin};
-    body.width=bounds.maxX-bounds.minX;body.depth=bounds.maxY-bounds.minY;
+    body.width=bounds.maxX-bounds.minX;body.depth=bounds.maxY-bounds.minY;body.radius=Math.hypot(body.width,body.depth)/2;
     Object.defineProperty(bounds,'body',{value:body,enumerable:false});targetBodies.push(body);return body;
   }
   buildingBounds.forEach(b=>makeBody(b,'wall'));
@@ -544,7 +567,8 @@ window.LPRCampus = (() => {
   }
   function overlap(a,b) {
     const dx=b.x-a.x,dy=b.y-a.y;
-    if(Math.hypot(dx,dy)>Math.hypot(a.width,a.depth)/2+Math.hypot(b.width,b.depth)/2)return false;
+    const ra=a.radius||Math.hypot(a.width,a.depth)/2,rb=b.radius||Math.hypot(b.width,b.depth)/2,r=ra+rb;
+    if(dx>r||dx<-r||dy>r||dy<-r||dx*dx+dy*dy>r*r)return false;
     let depth=Infinity,normal;
     for(const angle of [a.angle,b.angle]) for(const turn of [0,Math.PI/2]) {
       const x=Math.cos(angle+turn),y=Math.sin(angle+turn);
@@ -574,48 +598,123 @@ window.LPRCampus = (() => {
     }
     return {depth,normal};
   }
+  const sessionBodyIndex=new WeakMap();
+  function getSessionIndex(bodies){
+    let idx=sessionBodyIndex.get(bodies);
+    if(!idx||idx.length!==bodies.length){
+      const dynamic=[],trees=[],cellSize=160,staticGrid=new Map();
+      for(let i=0;i<bodies.length;i++){
+        const b=bodies[i];if(b.radius===undefined)b.radius=Math.hypot(b.width,b.depth)/2;
+        if(b.kind==='tree')trees.push(i);
+        if(Number.isFinite(b.mass))dynamic.push(i);
+        else{
+          const r=b.radius,minX=Math.floor((b.x-r)/cellSize),maxX=Math.floor((b.x+r)/cellSize);
+          const minY=Math.floor((b.y-r)/cellSize),maxY=Math.floor((b.y+r)/cellSize);
+          for(let cx=minX;cx<=maxX;cx++)for(let cy=minY;cy<=maxY;cy++){
+            const k=cx+','+cy;let l=staticGrid.get(k);if(!l){l=[];staticGrid.set(k,l);}l.push(i);
+          }
+        }
+      }
+      const candBuf=new Int32Array(Math.max(512,bodies.length)),candStamp=new Int32Array(bodies.length);
+      idx={dynamic,trees,staticGrid,cellSize,length:bodies.length,candBuf,candStamp,stampId:0};
+      sessionBodyIndex.set(bodies,idx);
+    }
+    return idx;
+  }
   function stepObstacles(seconds,car,onImpact,sessionBodies=bodies) {
     const bodies=sessionBodies;
     const duration=Math.max(0,Math.min(seconds,.1));
-    const motion=bodies.reduce((max,b)=>Number.isFinite(b.mass)?Math.max(max,
-      Math.hypot(b.vx,b.vy)/spec.metresPerWorldUnit+Math.abs(b.spin)*Math.hypot(b.width,b.depth)/2):max,0);
+    const isSmall=bodies.length<=48;
+    const sIndex=isSmall?null:getSessionIndex(bodies);
+    const dynamicList=isSmall?bodies:sIndex.dynamic.map(i=>bodies[i]);
+    const motion=dynamicList.reduce((max,b)=>Number.isFinite(b.mass)?Math.max(max,
+      Math.hypot(b.vx,b.vy)/spec.metresPerWorldUnit+Math.abs(b.spin)*(b.radius||Math.hypot(b.width,b.depth)/2)):max,0);
     const steps=Math.max(1,Math.ceil(duration*Math.max(90,motion*4))),dt=duration/steps;
-    for(let i=0;i<steps;i++) for(const b of bodies) {
-      if(b.kind==='tree') {
-        const target=b.damage*.65;
-        b.bendVelocity+=((target-b.bend)*14-b.bendVelocity*5)*dt;
-        b.bend=Math.max(0,Math.min(1,b.bend+b.bendVelocity*dt));continue;
-      }
-      if(!Number.isFinite(b.mass)||Math.abs(b.vx)+Math.abs(b.vy)+Math.abs(b.spin)<.001)continue;
-      b.x+=b.vx*dt/spec.metresPerWorldUnit;b.y+=b.vy*dt/spec.metresPerWorldUnit;b.angle+=b.spin*dt;
-      if(car) {
-        // The target can also strike the player while the player is stationary.
-        // Use separate visible car parts so the open nose gaps stay clear.
-        for(const part of carCollisionParts(car)) {
-          if(Math.hypot(b.x-car.x,b.y-car.y)>Math.hypot(b.width,b.depth)/2+30)break;
-          const hit=overlapCarPart(b,car,part);if(!hit)continue;
-          b.x-=hit.normal.x*(hit.depth+.001);b.y-=hit.normal.y*(hit.depth+.001);
-          const normal=hit.normal,contact={body:b,normal,impactMaterial:b.bounds.impactMaterial};
-          impactObstacle(car,contact);onImpact?.(contact);updateBounds(b);break;
+    const treeList=isSmall?bodies:sIndex.trees.map(i=>bodies[i]);
+    for(let i=0;i<steps;i++) {
+      for(const b of treeList) {
+        if(b.kind==='tree') {
+          const target=b.damage*.65;
+          b.bendVelocity+=((target-b.bend)*14-b.bendVelocity*5)*dt;
+          b.bend=Math.max(0,Math.min(1,b.bend+b.bendVelocity*dt));
         }
       }
-      for(const other of bodies) {
-        if(other===b)continue;
-        const hit=overlap(b,other);if(!hit)continue;
-        const n=hit.normal,inv=Number.isFinite(other.mass)?1/other.mass:0;
-        b.x-=n.x*(hit.depth+.001);b.y-=n.y*(hit.depth+.001);
-        const closing=(b.vx-other.vx)*n.x+(b.vy-other.vy)*n.y;
-        if(closing>0) {
-          const impulse=closing/(1/b.mass+inv);
-          b.vx-=n.x*impulse/b.mass;b.vy-=n.y*impulse/b.mass;
-          other.vx+=n.x*impulse*inv;other.vy+=n.y*impulse*inv;
-          const damage=Math.max(0,.5*impulse*closing-150)/35000;
-          b.damage=Math.min(1,b.damage+damage);other.damage=Math.min(1,other.damage+damage);
+      for(const b of dynamicList) {
+        if(!Number.isFinite(b.mass)||Math.abs(b.vx)+Math.abs(b.vy)+Math.abs(b.spin)<.001)continue;
+        b.x+=b.vx*dt/spec.metresPerWorldUnit;b.y+=b.vy*dt/spec.metresPerWorldUnit;b.angle+=b.spin*dt;
+        if(car) {
+          const cdx=b.x-car.x,cdy=b.y-car.y,carReach=(b.radius||Math.hypot(b.width,b.depth)/2)+30;
+          if(cdx>=-carReach&&cdx<=carReach&&cdy>=-carReach&&cdy<=carReach&&cdx*cdx+cdy*cdy<=carReach*carReach) {
+            for(const part of carCollisionParts(car)) {
+              const hit=overlapCarPart(b,car,part);if(!hit)continue;
+              b.x-=hit.normal.x*(hit.depth+.001);b.y-=hit.normal.y*(hit.depth+.001);
+              const normal=hit.normal,contact={body:b,normal,impactMaterial:b.bounds.impactMaterial};
+              impactObstacle(car,contact);onImpact?.(contact);updateBounds(b);break;
+            }
+          }
         }
-        b.spin*=.4;
+        if(isSmall) {
+          for(const other of bodies) {
+            if(other===b)continue;
+            const hit=overlap(b,other);if(!hit)continue;
+            const n=hit.normal,inv=Number.isFinite(other.mass)?1/other.mass:0;
+            b.x-=n.x*(hit.depth+.001);b.y-=n.y*(hit.depth+.001);
+            const closing=(b.vx-other.vx)*n.x+(b.vy-other.vy)*n.y;
+            if(closing>0) {
+              const impulse=closing/(1/b.mass+inv);
+              b.vx-=n.x*impulse/b.mass;b.vy-=n.y*impulse/b.mass;
+              other.vx+=n.x*impulse*inv;other.vy+=n.y*impulse*inv;
+              const damage=Math.max(0,.5*impulse*closing-150)/35000;
+              b.damage=Math.min(1,b.damage+damage);other.damage=Math.min(1,other.damage+damage);
+            }
+            b.spin*=.4;
+          }
+        } else {
+          const rb=b.radius||Math.hypot(b.width,b.depth)/2;
+          const minCellX=Math.floor((b.x-rb)/sIndex.cellSize),maxCellX=Math.floor((b.x+rb)/sIndex.cellSize);
+          const minCellY=Math.floor((b.y-rb)/sIndex.cellSize),maxCellY=Math.floor((b.y+rb)/sIndex.cellSize);
+          const candBuf=sIndex.candBuf,candStamp=sIndex.candStamp;
+          let stamp=sIndex.stampId+1;
+          if(stamp>0x7fffffff){candStamp.fill(0);stamp=1;}
+          sIndex.stampId=stamp;
+          let candCount=0;
+          for(let cx=minCellX;cx<=maxCellX;cx++)for(let cy=minCellY;cy<=maxCellY;cy++){
+            const l=sIndex.staticGrid.get(cx+','+cy);
+            if(l)for(let k=0;k<l.length;k++){
+              const id=l[k];
+              if(candStamp[id]!==stamp){candStamp[id]=stamp;candBuf[candCount++]=id;}
+            }
+          }
+          for(let k=0;k<sIndex.dynamic.length;k++){
+            const id=sIndex.dynamic[k];
+            const other=bodies[id];
+            const r=rb+(other.radius||Math.hypot(other.width,other.depth)/2);
+            const dx=other.x-b.x,dy=other.y-b.y;
+            if(dx>=-r&&dx<=r&&dy>=-r&&dy<=r&&candStamp[id]!==stamp){
+              candStamp[id]=stamp;candBuf[candCount++]=id;
+            }
+          }
+          if(candCount>1) candBuf.subarray(0,candCount).sort();
+          for(let ci=0;ci<candCount;ci++){
+            const other=bodies[candBuf[ci]];
+            if(other===b)continue;
+            const hit=overlap(b,other);if(!hit)continue;
+            const n=hit.normal,inv=Number.isFinite(other.mass)?1/other.mass:0;
+            b.x-=n.x*(hit.depth+.001);b.y-=n.y*(hit.depth+.001);
+            const closing=(b.vx-other.vx)*n.x+(b.vy-other.vy)*n.y;
+            if(closing>0) {
+              const impulse=closing/(1/b.mass+inv);
+              b.vx-=n.x*impulse/b.mass;b.vy-=n.y*impulse/b.mass;
+              other.vx+=n.x*impulse*inv;other.vy+=n.y*impulse*inv;
+              const damage=Math.max(0,.5*impulse*closing-150)/35000;
+              b.damage=Math.min(1,b.damage+damage);other.damage=Math.min(1,other.damage+damage);
+            }
+            b.spin*=.4;
+          }
+        }
+        const drag=Math.exp(-(b.kind==='person'?3:1.7)*dt);
+        b.vx*=drag;b.vy*=drag;b.spin*=Math.exp(-3*dt);updateBounds(b);
       }
-      const drag=Math.exp(-(b.kind==='person'?3:1.7)*dt);
-      b.vx*=drag;b.vy*=drag;b.spin*=Math.exp(-3*dt);updateBounds(b);
     }
   }
   function resetObstacles(sessionBodies=bodies) {
@@ -687,6 +786,7 @@ window.LPRCampus = (() => {
       }
       const localPeople=[];
       const select=ids=>ids.map(i=>localBounds[i]);
+      getSessionIndex(sessionBodies);
       return {track:definition.track,road:definition.road,length:definition.length,finishGate:definition.finishGate,
         launchPosition:definition.launchPosition,
         crossesFinishLine,world,
