@@ -7,12 +7,13 @@ const production=new Set([
  'lpr-verified.panu-musakka.workers.dev',
  'lpr-leaderboard.panu-musakka.workers.dev'
 ]);
+const stagingHostPattern=/(?:^|[-.])(?:test|staging)(?:[-.]|$)/i;
 const banner='<div role="note" style="padding:8px;text-align:center;background:#ffe08a;color:#17231b;font:700 14px system-ui">TESTIVERSIO · Tulokset tallentuvat erilliselle testilistalle.</div>';
 function testURL(value,{allowLoopback=false}={}){
  const url=new URL(value);
  const isLoopback=allowLoopback&&url.protocol==='http:'&&(url.hostname==='127.0.0.1'||url.hostname==='localhost')&&Boolean(url.port);
  if(url.username||url.password||url.search||url.hash||url.pathname!=='/'||production.has(url.hostname))throw Error('An isolated HTTPS test endpoint is required');
- if(!isLoopback&&(url.protocol!=='https:'||!/(?:test|staging)/.test(url.hostname)))throw Error('An isolated HTTPS test endpoint is required');
+ if(!isLoopback&&(url.protocol!=='https:'||!stagingHostPattern.test(url.hostname)))throw Error('An isolated HTTPS test endpoint is required');
  return url.origin;
 }
 function buildStaging(env=process.env,destination,{allowLoopback=false}={}){
