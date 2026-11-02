@@ -4,7 +4,9 @@ const {Sessions}=require('./sessions.cjs');
 const {createCapacityReporter}=require('./capacity-reporter.cjs');
 const {revision}=require('./world.cjs');
 const {createChat}=require('./chat.cjs');
+const {validateAzureProduction}=require('./azure-production.cjs');
 async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],sessionsOptions={},metricsToken=process.env.VERIFICATION_METRICS_TOKEN,capacityReportURL=process.env.CAPACITY_REPORT_URL,chatStorageURL=process.env.CHAT_STORAGE_URL}={}) {
+ validateAzureProduction({secret,metricsToken,origins,sessionsOptions,capacityReportURL,chatStorageURL});
  const {sign,verify,protocol,validPlayer,validName}=await import('./protocol.mjs');
  if(typeof secret!=='string'||secret.length<32)throw Error('VERIFICATION_SECRET must contain at least 32 characters');
  const reporter=createCapacityReporter({url:capacityReportURL,token:metricsToken});
@@ -43,9 +45,9 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
   if(allowed.has(origin))headers['Access-Control-Allow-Origin']=origin;
   const reply=(code,data)=>{if(!res.destroyed){res.writeHead(code,headers);res.end(JSON.stringify(data));}};
   if(origin&&!allowed.has(origin))return reply(403,{error:'Origin denied'});
-  if(req.method==='OPTIONS'){res.writeHead(204,{...headers,'Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET, POST, DELETE, OPTIONS'});return res.end();}
+  if(req.method==='OPTIONS'){res.writeHead(204,{...headers,'Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET, POST, DELETE, OPTIONS','Access-Control-Max-Age':'600'});return res.end();}
   const url=new URL(req.url,'http://localhost');
-  if(req.method==='GET'&&url.pathname==='/health')return reply(200,{ready:true,protocol,revision,hz:120,streaming:true,activeSessions:sessions.activeCount,maxSessions:sessions.maxSessions,lapLagMs:sessions.lapLagMs});
+  if(req.method==='GET'&&url.pathname==='/health')return reply(200,{ready:true,protocol,revision,commit:process.env.LPR_RELEASE_COMMIT||null,hz:120,streaming:true,activeSessions:sessions.activeCount,maxSessions:sessions.maxSessions,lapLagMs:sessions.lapLagMs});
   if(req.method==='GET'&&url.pathname==='/metrics'){
    if(typeof metricsToken!=='string'||metricsToken.length<32)return reply(404,{error:'Not found'});
    const expected=Buffer.from(metricsToken),provided=Buffer.from(req.headers.authorization?.replace(/^Bearer /,'')||'');

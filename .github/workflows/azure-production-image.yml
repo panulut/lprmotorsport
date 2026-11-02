@@ -1,0 +1,71 @@
+name: Validate Azure production image
+on:
+  push:
+    branches: [deploy/azure-production]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  image:
+    if: github.ref == 'refs/heads/deploy/azure-production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SOURCE_COMMIT: ${{ github.sha }}
+      IMAGE: ghcr.io/panulut/lprmotorsport/verification:production-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run test:azure-production
+      - run: docker build --file Dockerfile.azure-production --build-arg LPR_RELEASE_COMMIT="$SOURCE_COMMIT" --tag "$IMAGE" .
+      - name: Scan image before publication
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          version: v0.76.1
+          image-ref: ${{ env.IMAGE }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
+      - name: Check production contract, origin isolation and graceful shutdown
+        run: |
+          set -euo pipefail
+          export VERIFICATION_SECRET="$(openssl rand -hex 32)"
+          export VERIFICATION_METRICS_TOKEN="$(openssl rand -hex 32)"
+          trap 'docker rm -f lpr-production-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name lpr-production-smoke -p 127.0.0.1:18081:8081 \
+            -e VERIFICATION_SECRET -e VERIFICATION_METRICS_TOKEN \
+            -e GAME_ORIGINS=https://panulut.github.io,https://lprmotorsports.me \
+            -e MAX_VERIFIED_SESSIONS=2 -e MAX_VERIFIED_STARTS_PER_MINUTE=8 \
+            -e VERIFICATION_WORKERS=1 -e VERIFICATION_WORKER_HEAP_MB=256 -e VERIFICATION_LAP_LAG_MS=2000 \
+            -e CHAT_STORAGE_URL=https://lpr-verified.panu-musakka.workers.dev/api/verified/chat-storage \
+            -e CAPACITY_REPORT_URL=https://lpr-leaderboard.panu-musakka.workers.dev/api/internal/capacity "$IMAGE"
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const base='http://127.0.0.1:18081';let h;
+            for(let i=0;i<30;i++){try{const r=await fetch(base+'/health');if(r.ok){h=await r.json();break;}}catch{}await new Promise(r=>setTimeout(r,1000));}
+            assert(h?.ready);assert.equal(h.commit,process.env.SOURCE_COMMIT);assert.equal(h.maxSessions,2);
+            assert.equal(h.revision,require('./verification/world.cjs').revision);
+            assert.equal(h.lapLagMs,2000);assert.equal(h.activeSessions,0);
+            const good=await fetch(base+'/health',{method:'OPTIONS',headers:{Origin:'https://panulut.github.io'}});
+            assert.equal(good.status,204);assert.equal(good.headers.get('Access-Control-Max-Age'),'600');
+            assert.equal((await fetch(base+'/health',{headers:{Origin:'https://lpr-motorsport-test-a1gg.onrender.com'}})).status,403);
+            assert.equal((await fetch(base+'/metrics')).status,401);
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          docker stop --time 10 lpr-production-smoke
+          test "$(docker inspect --format '{{.State.ExitCode}}' lpr-production-smoke)" = 0
+      - name: Publish validated image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_REPOSITORY_OWNER" --password-stdin
+          docker push "$IMAGE"

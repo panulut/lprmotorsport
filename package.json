@@ -2,6 +2,7 @@
   "name": "lpr-lap-challenge",
   "private": true,
   "scripts": {
+    "test:azure-production": "node tests/azure-production.test.cjs",
     "test:release-browser": "node scripts/check-release-browser.cjs",
     "test:dashboard-browser": "node scripts/check-dashboard-browser.cjs",
     "test:spectate": "node tests/spectate.test.cjs && node tests/replay-viewer.test.cjs",
