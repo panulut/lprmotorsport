@@ -6,7 +6,7 @@ function validateAzureProduction({secret,metricsToken,origins,chatStorageURL,cap
  if(env.VERIFICATION_ENVIRONMENT===undefined)return;
  if(env.VERIFICATION_ENVIRONMENT!=='azure-production')throw Error('Unsupported verification environment for this image');
  for(const [key,value]of Object.entries({NODE_ENV:'production',VERIFICATION_PUBLIC:'1',PORT:'8081',
-  MAX_VERIFIED_SESSIONS:'2',MAX_VERIFIED_STARTS_PER_MINUTE:'8',VERIFICATION_WORKERS:'1',
+  MAX_VERIFIED_SESSIONS:'5',MAX_VERIFIED_STARTS_PER_MINUTE:'8',VERIFICATION_WORKERS:'1',
   VERIFICATION_WORKER_HEAP_MB:'256',VERIFICATION_LAP_LAG_MS:'2000'}))
   if(env[key]!==value)throw Error('Azure production requires '+key+'='+value);
  if(!/^[a-f0-9]{40}$/.test(env.LPR_RELEASE_COMMIT||''))throw Error('Azure production requires an immutable source commit');

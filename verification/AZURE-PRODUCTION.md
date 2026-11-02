@@ -7,7 +7,8 @@ remain isolated. Collision optimization PR #20 is excluded.
 Target: Azure subscription `41128d20-bcb4-4799-80ce-ac23952b4bdd`, Sweden Central,
 resource group `rg-lpr-prod`, standard Container Apps environment `aca-lpr-prod`,
 Consumption profile only, application `lpr-verification-prod`.
-Resources: 0.5 vCPU / 1 GiB, one verification worker, two sessions, 0–1 replicas,
+Resources: 0.5 vCPU / 1 GiB, one verification worker, five sessions (raised from two
+on 2026-11-02 at the owner's request), 0–1 replicas,
 8 starts/minute, unchanged 2000 ms lap eligibility bound and other realtime rules.
 
 Use a standard environment to measure the public ingress independently of the
@@ -57,5 +58,6 @@ confirming no active sessions. Do not force-push main or delete shared resources
 Capacity evidence: the 30 October 10-client test on the same 0.5 vCPU / 1 GiB
 Express host produced ten first-lap receipts, then lost eligibility for eight
 players after lap-finish replay completion delayed acknowledgments. It did not
-pass a complete two-lap 10-player test. This migration retains two sessions;
-raising admission is a separate measured change, without loosening anti-cheat.
+pass a complete two-lap 10-player test. Five sessions have not been load-tested;
+watch "practice laps" and "lag terminations" in the admin capacity history and
+lower the limit again if they appear. Anti-cheat rules are unchanged.
