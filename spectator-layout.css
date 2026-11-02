@@ -1,0 +1,43 @@
+/* The spectator keeps the live game and driver directory in separate, readable zones. */
+#settings-dialog.spectating { overflow:hidden; }
+#settings-dialog.spectating #spectate-view { height:100%; min-height:0; grid-template-columns:minmax(0,1fr) 250px; }
+#spectate-game { min-height:0; }
+.spectating #spectate-game .app { height:100%; padding:12px; }
+.spectating #spectate-game .game-shell { height:100%; min-height:0; }
+.spectating #spectate-game .game-shell > .telemetry,
+.spectating #spectate-game .game-footer,
+.spectating #spectate-game .hud,
+.spectating #spectate-game .drive-telemetry,
+.spectating #spectate-game #drive-settings-panel,
+.spectating #spectate-game #drive-settings-toggle,
+.spectating #spectate-game #verification-state,
+.spectating #spectate-game .notice,
+.spectating #spectate-game .controls,
+.spectating #spectate-game .help { display:none!important; }
+.spectating #spectate-game .lap-panel { width:min(360px,calc((100% - 36px)/2)); }
+.spectating #spectate-game .sector-panel { width:min(310px,calc((100% - 36px)/2)); }
+#settings-dialog.spectating #spectate-sidebar { overflow:auto; gap:12px; padding:16px; }
+#spectate-sidebar #spectate-back { display:flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:8px 12px; font:400 14px/1.2 var(--font-body); }
+#spectate-back .ph-icon { width:18px; height:18px; flex:none; }
+#spectate-sidebar #spectate-label, #spectate-sidebar #spectate-connection { position:static; max-width:none; margin:0; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-1); font:400 14px/1.35 var(--font-body); overflow-wrap:anywhere; }
+#spectate-sidebar #spectate-label[hidden], #spectate-sidebar #spectate-connection[hidden] { display:none; }
+#settings-dialog #spectate-sidebar .active-drivers { padding:12px; border:1px solid var(--border); border-radius:10px; }
+#settings-dialog #spectate-sidebar .verified-standings, #settings-dialog #spectate-sidebar #championship { padding:12px; border-radius:10px; flex:none; }
+#spectate-sidebar #active-drivers-list { --page-size:4; }
+#spectate-sidebar #active-drivers-list a { min-height:40px; padding:8px; font-size:14px; }
+@media (max-width:900px) {
+ #settings-dialog.spectating #spectate-view { display:flex; flex-direction:column; overflow:auto; }
+ #spectate-game { flex:0 0 auto; height:min(56dvh,480px); min-height:300px; }
+ #settings-dialog.spectating #spectate-sidebar { overflow:visible; border-left:0; border-top:1px solid var(--border); }
+ #spectate-sidebar #active-drivers-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+}
+@media (max-width:650px) {
+ .spectating #spectate-game .app { padding:8px; }
+ .spectating #spectate-game .lap-panel { width:min(360px,calc(100% - 16px)); }
+ .spectating #spectate-game .sector-panel { top:240px; left:8px; right:8px; width:auto; }
+ #spectate-game { height:440px; }
+}
+@media (max-width:900px) {
+ #settings-dialog.spectating #spectate-sidebar { display:flex; flex-direction:column; }
+ body.rail-collapsed.spectate-menu-open #settings-dialog.spectating { width:calc(100% - 60px); max-width:calc(100% - 60px); margin-left:52px; }
+}

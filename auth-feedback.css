@@ -1,0 +1,201 @@
+/* Compact chat identity and focused account entry states. */
+#chat-panel .chat-presence {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 4px;
+  color: var(--brand, #03bc7e);
+  white-space: nowrap;
+}
+
+#left-rail #chat-panel .chat-presence {
+  color: var(--brand, #03bc7e);
+}
+
+#chat-panel .chat-presence strong {
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+#left-rail #chat-panel .chat-public-notice {
+  order: 0;
+  display: inline;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-secondary, #a8a8a8);
+  font-size: inherit;
+  line-height: inherit;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+#left-rail #chat-panel .chat-presence-separator {
+  color: var(--text-tertiary, #777);
+}
+
+#left-rail #chat-panel #chat-online-count,
+#left-rail #chat-panel #chat-online-label {
+  color: inherit;
+  font-size: inherit;
+}
+
+#left-rail #chat-panel #chat-messages li strong {
+  color: var(--text-primary, #ededed);
+  font-family: var(--font-body, Inter, Arial, sans-serif);
+  font-weight: 400;
+}
+
+#left-rail #chat-panel #chat-messages li p {
+  color: var(--text-secondary, #a8a8a8);
+  font-weight: 400;
+}
+
+#left-rail #chat-panel #chat-status {
+  text-align: center;
+}
+
+#chat-panel #chat-form[hidden] {
+  display: none !important;
+}
+
+#leaderboard-back {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+}
+
+#leaderboard-back .ph-icon {
+  width: 18px;
+  height: 18px;
+}
+
+#leaderboard-settings-back {
+  display: inline-grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-1, #171717);
+  color: var(--text-secondary, #a8a8a8);
+  text-decoration: none;
+}
+
+#leaderboard-settings-back .ph-icon {
+  width: 18px;
+  height: 18px;
+}
+
+#leaderboard-settings-back:focus-visible {
+  outline: 2px solid var(--brand, #03bc7e);
+  outline-offset: 2px;
+}
+
+#leaderboard-account-title,
+#leaderboard-settings-title {
+  font-size: 18px;
+  text-transform: none;
+}
+
+#left-rail .leaderboard-start-form #leaderboard-settings-title,
+#settings-dialog .leaderboard-start-form #leaderboard-settings-title {
+  font-size: 18px;
+}
+
+#leaderboard-create-step {
+  text-transform: none;
+}
+
+#left-rail .leaderboard-start-form :is(#leaderboard-start, #leaderboard-drive, #leaderboard-login, #leaderboard-guest-start),
+#settings-dialog .leaderboard-start-form :is(#leaderboard-start, #leaderboard-drive, #leaderboard-login, #leaderboard-guest-start) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  place-items: center;
+  justify-content: stretch;
+  border: 1px solid var(--brand, #03bc7e);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--brand, #03bc7e);
+  color: var(--brand-contrast, #032c20);
+  font: 400 var(--text-label, 14px)/1.2 var(--font-body, Inter, Arial, sans-serif);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+#left-rail .leaderboard-start-form #leaderboard-start-label,
+#settings-dialog .leaderboard-start-form #leaderboard-start-label {
+  justify-self: center;
+  text-align: center;
+}
+
+#left-rail .leaderboard-start-form #leaderboard-start:disabled,
+#settings-dialog .leaderboard-start-form #leaderboard-start:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+#leaderboard-create-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 2px 0 0;
+  color: var(--text-secondary, #a8a8a8);
+  font-size: 13px;
+}
+
+#leaderboard-create-prompt[hidden] {
+  display: none !important;
+}
+
+#leaderboard-create-prompt button {
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--brand, #03bc7e);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+#leaderboard-create-prompt button:focus-visible,
+#leaderboard-back:focus-visible {
+  outline: 2px solid var(--brand, #03bc7e);
+  outline-offset: 2px;
+}
+
+#left-rail .leaderboard-start-form #leaderboard-login {
+  border-color: var(--brand, #03bc7e);
+  background: var(--brand, #03bc7e);
+  color: var(--brand-contrast, #032c20);
+  font-weight: 400;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #left-rail .leaderboard-start-form #leaderboard-login:hover {
+    border-color: var(--brand-hover, #57e0ac);
+    background: var(--brand-hover, #57e0ac);
+  }
+
+  #left-rail .leaderboard-start-form #leaderboard-start:hover,
+  #settings-dialog .leaderboard-start-form #leaderboard-start:hover {
+    border-color: var(--brand-hover, #57e0ac);
+    background: var(--brand-hover, #57e0ac);
+  }
+}
+
+#left-rail .leaderboard-start-form :is(#leaderboard-start, #leaderboard-drive, #leaderboard-login, #leaderboard-guest-start)[hidden]{display:none!important}

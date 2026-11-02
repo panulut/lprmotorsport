@@ -1,22 +1,25 @@
 (() => {
  'use strict';
- const panel=document.querySelector('#chat-panel'),button=document.querySelector('#chat-restore');
- const activeButton=()=>button;
+ const panel=document.querySelector('#chat-panel'),rail=document.querySelector('#left-rail');
  const form=document.querySelector('#chat-form'),input=document.querySelector('#chat-input');
  const list=document.querySelector('#chat-messages'),status=document.querySelector('#chat-status');
- const send=form.querySelector('button');
- const visibility=document.querySelector('#chat-visible');
- const visibilityKey='lpr-chat-visible';
- const dialog=document.querySelector('#settings-dialog');
- // A modal makes its siblings inert. Keep chat inside the active modal so it
- // remains readable and interactive, then return it to the page for driving.
+ const send=form.querySelector('.chat-send');
+ const dialog=document.querySelector('#settings-dialog'),app=document.querySelector('.app');
+ // Keep the chat, restore control, and driver form together inside the active
+ // modal so the complete left rail stays interactive while standings are open.
  function placePanel(){
-  const parent=dialog.open?dialog:document.body;
-  if(panel.parentElement!==parent)parent.append(panel);
-  if(button.parentElement!==parent)parent.append(button);
+  const parent=dialog.open?dialog:app;
+  if(rail.parentElement!==parent)parent.append(rail);
  }
  new MutationObserver(placePanel).observe(dialog,{attributes:true,attributeFilter:['open']});
  placePanel();
+ function syncSendButton(){
+  const ready=!!input.value.trim()&&!sending;
+  send.disabled=sending;
+  send.setAttribute('aria-disabled',String(!ready));
+  send.classList.toggle('has-message',ready);
+ }
+ input.addEventListener('input',syncSendButton);
  const t=text=>window.LPRI18n?.t(text)??text;
  const endpoint=window.LPRVerificationConfig.service+'/api/chat';
  const onlineCount=document.querySelector('#chat-online-count');
@@ -47,57 +50,65 @@
  let timer=null,loading=false,sending=false,ticket=null;
  function typing(){return panel.contains(document.activeElement)&&!panel.hidden;}
  const identity=()=>window.LPRLeaderboard?.chatIdentity;
- const signedOut='Valitse nimimerkki tai kirjaudu sisään lähettääksesi viestejä.';
+ // Both account and active guest sessions use a token to obtain a chat ticket.
+ const chatIdentity=()=>{
+  const value=identity();
+  return value&&typeof value.token==='string'&&value.token.length?value:null;
+ };
+ const signedOut='Kirjaudu sisään tai jatka vierailijana lähettääksesi viestejä.';
+ function syncIdentity(){
+  const current=chatIdentity();
+  form.hidden=!current;
+  if(!current)ticket=null;
+  if(!sending)status.textContent=current?'':t(signedOut);
+  syncSendButton();
+  return current;
+ }
  function identityChanged(){
   ticket=null;
-  if(!sending)status.textContent=t(identity()?'Yhteys kunnossa':signedOut);
+  syncIdentity();
  }
+ window.addEventListener('lpr-language-changed',()=>{
+  if(!sending)status.textContent=chatIdentity()?'':t(signedOut);
+ });
  window.LPRChat={get typing(){return typing();},identityChanged};
  function controls(){window.dispatchEvent(new Event('lpr-chat-focus'));}
  panel.addEventListener('focusin',controls);
  // Keep typing, cursor movement and spaces away from every game keyboard handler.
  for(const type of ['keydown','keyup'])panel.addEventListener(type,event=>{
   event.stopPropagation();
-  if(type==='keydown'&&event.key==='Escape'){event.preventDefault();close();}
  });
- function setVisible(visible,{save=true}={}){
-  const hadFocus=panel.contains(document.activeElement);
-  panel.hidden=!visible;visibility.checked=visible;
-  document.body.classList.toggle('chat-open',visible);
-  button.hidden=visible;
-  button.setAttribute('aria-expanded',String(visible));
-  if(save)try{localStorage.setItem(visibilityKey,String(visible));}catch{}
+ function keepVisible(){
+  panel.hidden=false;
+  document.body.classList.add('chat-open');
   clearTimeout(timer);
-  if(hadFocus){controls();if(!visible)activeButton().focus();}
-  // Reading the chat leaves the driving controls available; focus only when composing.
-  if(visible)void refresh();
+  void refresh();
  }
- function close(){setVisible(false);activeButton().focus();}
- document.querySelector('#chat-close').addEventListener('click',close);
- button.addEventListener('click',()=>{button.blur();setVisible(true);});
- visibility.addEventListener('change',()=>setVisible(visibility.checked));
  async function request(options){
   const response=await fetch(endpoint,{...options,signal:AbortSignal.timeout(10000)});
   if(!response.ok)throw Object.assign(Error('Chat HTTP '+response.status),{status:response.status});
   return response.json();
  }
- // The account service signs account and guest nicknames into short-lived tickets.
+ // The account service signs session identities into short-lived tickets.
  async function chatTicket(identity,renew){
-  const key=identity.token||'guest:'+identity.nickname;
+  const key=identity.token;
   if(!renew&&ticket?.key===key&&ticket.expires-Date.now()>30000)return ticket.value;
   ticket=null;
-  const guest=identity.guest===true&&!identity.token;
-  const response=await fetch(window.LPRVerificationConfig.leaderboard+(guest?'/api/verified/guest-chat-ticket':'/api/verified/chat-ticket'),{
-   method:'POST',headers:guest?{'Content-Type':'application/json'}:{Authorization:'Bearer '+identity.token},
-   ...(guest?{body:JSON.stringify({nickname:identity.nickname})}:{}),signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw Object.assign(Error('Chat ticket HTTP '+response.status),{status:response.status,signIn:!guest&&response.status===401});
+  const response=await fetch(window.LPRVerificationConfig.leaderboard+'/api/verified/chat-ticket',{
+   method:'POST',headers:{Authorization:'Bearer '+identity.token},signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw Object.assign(Error('Chat ticket HTTP '+response.status),{status:response.status,signIn:response.status===401});
   const data=await response.json();
   if(typeof data?.ticket!=='string'||!Number.isSafeInteger(data.expiresInMs))throw Error('Invalid chat ticket');
+  if(chatIdentity()?.token!==identity.token)throw Object.assign(Error('Chat identity changed'),{signIn:true});
   ticket={key,value:data.ticket,expires:Date.now()+data.expiresInMs};
   return ticket.value;
  }
  async function post(identity,text){
-  const attempt=async renew=>request({method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await chatTicket(identity,renew)},body:JSON.stringify({text})});
+  const attempt=async renew=>{
+   const chatAuth=await chatTicket(identity,renew);
+   if(chatIdentity()?.token!==identity.token)throw Object.assign(Error('Chat identity changed'),{signIn:true});
+   return request({method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+chatAuth},body:JSON.stringify({text})});
+  };
   try{return await attempt(false);}
   catch(error){if(error.status!==401||error.signIn)throw error;return attempt(true);}
  }
@@ -124,26 +135,26 @@
   try{
    const data=await request();if(!Array.isArray(data.messages))throw Error('Invalid chat');
    render(data.messages);
-   if(!sending)status.textContent=t(identity()?'Yhteys kunnossa':signedOut);
-  }catch{if(!sending)status.textContent=t('Chat ei saa yhteyttä. Yritetään uudelleen…');}
+   if(!sending)status.textContent=chatIdentity()?'':t(signedOut);
+  }catch{if(!sending)status.textContent=chatIdentity()?t('Chat ei saa yhteyttä. Yritetään uudelleen…'):t(signedOut);}
   finally{loading=false;schedule();}
  }
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(sending)return;
-  const login=identity(),text=input.value.trim();
-  if(!login){status.textContent=t(signedOut);return;}
+  const text=input.value.trim();
   if(!text)return;
-  sending=true;send.disabled=true;status.textContent=t('Lähetetään…');
+  const login=chatIdentity();
+  if(!login){status.textContent=t(signedOut);return;}
+  sending=true;syncSendButton();status.textContent=t('Lähetetään…');
   try{
    await post(login,text);
    if(input.value.trim()===text)input.value='';
    status.textContent=t('Viesti lähetetty');void refresh();
   }catch(error){status.textContent=t(error.signIn?'Kirjaudu uudelleen ennen lähettämistä.':error.status===409?'Tämä nimimerkki kuuluu rekisteröityneelle käyttäjälle. Valitse vierailijalle toinen nimimerkki.':error.status===429?'Liikaa viestejä. Odota minuutti.':'Viestiä ei lähetetty. Yritä uudelleen.');}
-  finally{sending=false;send.disabled=false;}
+  finally{sending=false;syncIdentity();}
  });
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden)void refresh();});
  window.addEventListener('online',()=>void refresh());
- let savedVisibility=true;
- try{savedVisibility=localStorage.getItem(visibilityKey)!=='false';}catch{}
- setVisible(savedVisibility,{save:false});
+ syncIdentity();
+ keepVisible();
 })();

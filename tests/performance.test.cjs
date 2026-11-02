@@ -25,7 +25,7 @@ for (const refresh of [60, 120, 144, 240]) {
   let renders = 0, simulated = 0;
   const frameContext = { window: {}, document: { hidden: false }, lastFrame: 0, car: {},
     requestAnimationFrame() {}, update(dt) { simulated += dt; }, updateSteamTarget() {},
-    syncAudio() {}, audio: { update() {} },
+    syncAudio() {}, audio: { update() {} }, renderDriveHud() {},
     renderer: { render() { renders++; } } };
   vm.createContext(frameContext);
   vm.runInContext(frameSource, frameContext);

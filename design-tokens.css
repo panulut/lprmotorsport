@@ -1,0 +1,56 @@
+/* LPR Motorsport design tokens. Semantic colors map to the primitive ramps. */
+@font-face{font-family:Inter;src:url('./assets/fonts/inter-400.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:Inter;src:url('./assets/fonts/inter-500.woff2') format('woff2');font-style:normal;font-weight:500;font-display:swap}
+@font-face{font-family:Inter;src:url('./assets/fonts/inter-600.woff2') format('woff2');font-style:normal;font-weight:600;font-display:swap}
+@font-face{font-family:Inter;src:url('./assets/fonts/inter-700.woff2') format('woff2');font-style:normal;font-weight:700;font-display:swap}
+@font-face{font-family:Inter;src:url('./assets/fonts/inter-800.woff2') format('woff2');font-style:normal;font-weight:800;font-display:swap}
+@font-face{font-family:'Stack Sans Headline';src:url('./assets/fonts/stack-sans-headline-400.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:'Stack Sans Headline';src:url('./assets/fonts/stack-sans-headline-300.woff2') format('woff2');font-style:normal;font-weight:300;font-display:swap}
+
+:root{
+  color-scheme:dark;
+  --font-body:'Inter',Arial,sans-serif;
+  --font-heading:'Stack Sans Headline','Arial Narrow',sans-serif;
+  /* Shared 4 px based type scale. Use semantic roles below in UI components. */
+  --type-1:0.75rem;  /* 12 */
+  --type-2:0.875rem; /* 14 */
+  --type-3:1rem;     /* 16 */
+  --type-4:1.125rem; /* 18 */
+  --type-5:1.25rem;  /* 20 */
+  --type-6:1.5rem;   /* 24 */
+  --type-7:1.75rem;  /* 28 */
+  --type-8:2rem;     /* 32 */
+  --type-9:2.5rem;   /* 40 */
+  --type-10:3rem;    /* 48 */
+  --text-caption:var(--type-1);
+  --text-label:var(--type-2);
+  --text-body:var(--type-3);
+  --text-body-large:var(--type-4);
+  --text-title-small:var(--type-5);
+  --text-title-medium:var(--type-6);
+  --text-title-large:var(--type-8);
+  --text-display:clamp(3.5rem,8vw,6.75rem);
+  --line-tight:1.1;
+  --line-heading:1.2;
+  --line-body:1.5;
+  --gray-50:#ededed;--gray-100:#d4d4d4;--gray-200:#b8b8b8;--gray-300:#a0a0a0;--gray-400:#8a8a8a;--gray-500:#737373;--gray-600:#666;--gray-700:#525252;--gray-800:#3b3b3b;--gray-900:#272727;--gray-950:#171717;
+  --gray-alpha-50:rgb(255 255 255 / 4%);--gray-alpha-100:rgb(255 255 255 / 7%);--gray-alpha-200:rgb(255 255 255 / 10%);--gray-alpha-300:rgb(255 255 255 / 14%);--gray-alpha-400:rgb(255 255 255 / 18%);--gray-alpha-500:rgb(255 255 255 / 22%);--gray-alpha-600:rgb(255 255 255 / 30%);--gray-alpha-700:rgb(255 255 255 / 40%);--gray-alpha-800:rgb(255 255 255 / 55%);--gray-alpha-900:rgb(255 255 255 / 70%);--gray-alpha-950:rgb(255 255 255 / 85%);
+  --green-50:#e6fff5;--green-100:#c2f8e2;--green-200:#8deec8;--green-300:#57e0ac;--green-400:#24cf91;--green-500:#03bc7e;--green-600:#00a66e;--green-700:#00875b;--green-800:#006d49;--green-900:#00583c;--green-950:#003b29;
+  --purple-50:#f3eaff;--purple-100:#e4d1ff;--purple-200:#cfb1ff;--purple-300:#b88cff;--purple-400:#a366fa;--purple-500:#8b5cf6;--purple-600:#7c3aed;--purple-700:#6d28d9;--purple-800:#5b21b6;--purple-900:#4c1d95;--purple-950:#2e1065;
+  --amber-50:#fff8e6;--amber-100:#ffedbd;--amber-200:#ffdc85;--amber-300:#ffca52;--amber-400:#ffb629;--amber-500:#f59e0b;--amber-600:#d97706;--amber-700:#b45309;--amber-800:#92400e;--amber-900:#78350f;--amber-950:#451a03;
+  --red-50:#fff0f0;--red-100:#ffdada;--red-200:#ffb8b8;--red-300:#ff9292;--red-400:#fa6b6b;--red-500:#ef4444;--red-600:#dc2626;--red-700:#b91c1c;--red-800:#991b1b;--red-900:#7f1d1d;--red-950:#450a0a;
+  --blue-50:#eaf4ff;--blue-100:#cfe4ff;--blue-200:#a8ceff;--blue-300:#7cb4ff;--blue-400:#4a94ff;--blue-500:#3b82f6;--blue-600:#2563eb;--blue-700:#1d4ed8;--blue-800:#1e40af;--blue-900:#1e3a8a;--blue-950:#172554;
+  --background-1:#0a0a0a;--background-2:#111;--surface-1:#222;--surface-2:#292929;--surface-3:#333;--border:var(--gray-800);--border-hover:var(--gray-700);--text-primary:#ededed;--text-secondary:#b8b8b8;--text-tertiary:#a0a0a0;
+  --brand:var(--green-500);--brand-hover:var(--green-400);--brand-active:var(--green-600);--brand-contrast:#032c20;
+  --status-success:var(--green-400);--status-warning:var(--amber-300);--status-danger:var(--red-400);--status-info:var(--blue-400);
+  --radius-sm:6px;--radius-md:10px;--radius-lg:16px;--shadow-card:0 18px 48px rgb(0 0 0 / 28%);
+}
+html{font-family:var(--font-body);font-synthesis:none;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+h1,h2,h3,h4,h5,h6,.topbar-title strong,.hud-item strong,.dialog-head h2,.chat-heading h2,.calibration-step>span{font-family:var(--font-heading)}
+/* Preserve existing UI font weights; only the design preview opts into regular type. */
+.ds-shell :where(h1,h2,h3,h4,h5,h6,strong,b,th,button,summary,legend){font-weight:400}
+/* Route legacy component font declarations through the shared type tokens. */
+body{font-family:var(--font-body)}
+h1,h2,h3,h4,h5,h6,.topbar-title strong,.hud-item strong,.dialog-head h2,.chat-heading h2,.telemetry strong,.record-banner strong,.calibration-step>span{font-family:var(--font-heading)}
+.ds-shell h1,.ds-shell h2,.ds-shell h3,.display,.heading-sample,.number-sample,.demo-place,.demo-stat strong{font-family:var(--font-heading);font-weight:400}
+.chat-compose input,.chat-restore,#spectate-label,#spectate-connection{font-family:var(--font-body)!important}

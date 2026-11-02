@@ -2678,11 +2678,6 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const ctx = this.cockpit;
     const w = this.width, h = this.height;
     ctx.clearRect(0,0,w,h);
-    const gradient = ctx.createLinearGradient(0,h*.68,0,h);
-    gradient.addColorStop(0,'#07120b00');
-    gradient.addColorStop(1,'#050b0afb');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0,h*.68,w,h*.32);
     // Bodywork and cockpit rails are one 3D assembly; the driver's arms,
     // wheel and instruments share this foreground layer.
     this.drawSteeringWheel(car);
@@ -2714,7 +2709,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const spec=window.LPRVehicleSpec;
     const lock=this.visualSteeringAngle(car)/spec.maxVisualRoadWheelAngle;
     // Leave room for the tall silhouette as the wheel passes through 90 degrees.
-    return { x:this.width*.5, y:this.height-radius*1.04-10, radius, angle:lock*spec.maxSteeringWheelAngle };
+    const cockpitLift=Math.min(24,this.height*.04);
+    return { x:this.width*.5, y:this.height-radius*1.04-10-cockpitLift, radius, angle:lock*spec.maxSteeringWheelAngle };
   }
 
   steeringWheelActionAt(car, clientX, clientY) {

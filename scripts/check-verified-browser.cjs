@@ -31,11 +31,12 @@ const {driver}=require('../tests/helpers-driving.cjs');
   await page.route('**/game.js?*',route=>{
    let source=fs.readFileSync(path.join(__dirname,'../game.js'),'utf8').replaceAll('\r\n','\n');
    source=source.replace('  function readInput() {','  function readInput() {\n    if(window.__input)return {...window.__input};');
-   source=source.replace('  reset();\n  openTestScene',`  window.__verifiedGame={update,held,updateDriving,reset,get car(){return car},get world(){return drivingWorld},render(){renderer.render(car,performance.now());}};\n  reset();\n  openTestScene`);
+   source=source.replace('  reset();\n  openTestScene',`  window.__verifiedGame={update,held,updateDriving,reset,get car(){return car},get world(){return drivingWorld},get timing(){return timing},render(){renderer.render(car,performance.now());}};window.__traceFromVerifiedReplay=verifiedReplayTrace;\n  reset();\n  openTestScene`);
    return route.fulfill({contentType:'text/javascript',body:source});
   });
   await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
   await page.goto(origin);await page.waitForFunction(()=>window.__verifiedGame,null,{polling:20});
+  await page.evaluate(()=>{window.__deltaSamples=[];document.addEventListener('lpr-sector-live-delta',event=>window.__deltaSamples.push(event.detail.delta));});
   const controls=Array.from({length:180},(_,i)=>[1,i>150?.2:0,i<60?.3:i<120?-.3:0,i>=60,i>=120,i<90]);
   const local=require('../verification/world.cjs').createWorld();for(const input of controls)local.world.step(local.api.decode(input));
   const browserControls=await page.evaluate(inputs=>{const world=window.LPRDriving.create();for(const input of inputs)world.step(window.LPRDriving.decode(input));return world.result();},controls);
@@ -124,6 +125,53 @@ const {driver}=require('../tests/helpers-driving.cjs');
   }
   await page.waitForFunction(()=>document.querySelector('#verification-status').textContent.includes('tallennettu'),{},{timeout:10000,polling:20});
   assert.equal(board.db.prepare('SELECT COUNT(*) n FROM verified_laps').get().n,2,'Browser standing and flying laps saved');
+  const verifiedDelta=await page.evaluate(()=>{
+   const record=JSON.parse(localStorage.getItem('lpr-best-sectors-lut-20261011-v3')||'null');
+   return {traceLength:record?.trace?.length||record?.referenceTrace?.length||0,deltaSamples:window.__deltaSamples.filter(Number.isFinite),referenceTime:window.__verifiedGame.timing.referenceLapTime,
+    displayedDelta:document.querySelector('#sector-delta')?.textContent.trim(),displayedState:document.querySelector('#sector-delta')?.parentElement?.dataset.state};
+  });
+  assert(verifiedDelta.traceLength>10000,'A full 120 Hz clean verified lap is retained beyond the former 10,000-sample limit');
+  assert(verifiedDelta.deltaSamples.length>0,'The actual verified game loop emits position-matched delta during a later lap');
+  const shownDelta=verifiedDelta.deltaSamples.at(-1),shownDeltaText=shownDelta<0?`−${(Math.abs(shownDelta)/1000).toFixed(3)}`:shownDelta>0?`+${(shownDelta/1000).toFixed(3)}`:'0.000';
+  assert.notEqual(verifiedDelta.displayedDelta,'—','The Delta panel displays the live trace comparison');
+  assert.equal(verifiedDelta.displayedDelta,shownDeltaText,'The visible Delta matches the most recent mini-sector event');
+  assert.equal(verifiedDelta.displayedState,shownDelta<0?'faster':shownDelta>0?'slower':'even','The visible Delta state follows the comparison sign');
+  // A second game tab must be able to recover the signed-in driver's clean PB
+  // trace from the authenticated timing-panel pointer and public replay frames.
+  await page.evaluate(()=>{
+   const key='lpr-best-sectors-lut-20261011-v3',record=JSON.parse(localStorage.getItem(key)||'null');
+   if(record){delete record.trace;delete record.referenceTrace;localStorage.setItem(key,JSON.stringify(record));}
+  });
+  const recoveryPage=await context.newPage();
+  recoveryPage.on('pageerror',error=>errors.push('recovery: '+error.message));
+  await recoveryPage.route('**/verification/config.js*',route=>route.fulfill({contentType:'text/javascript',body:`window.LPRVerificationConfig=${JSON.stringify({service:serviceURL,leaderboard:boardURL})};`}));
+  await recoveryPage.route('**/game.js?*',route=>{
+   let source=fs.readFileSync(path.join(__dirname,'../game.js'),'utf8').replaceAll('\r\n','\n');
+   source=source.replace('  function readInput() {','  function readInput() {\n    if(window.__input)return {...window.__input};');
+   source=source.replace('  reset();\n  openTestScene',`  window.__verifiedGame={update,held,updateDriving,reset,get car(){return car},get world(){return drivingWorld},get timing(){return timing},render(){renderer.render(car,performance.now());}};window.__traceFromVerifiedReplay=verifiedReplayTrace;\n  reset();\n  openTestScene`);
+   return route.fulfill({contentType:'text/javascript',body:source});
+  });
+  await recoveryPage.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
+  await recoveryPage.goto(origin);
+  await recoveryPage.waitForFunction(()=>window.LPRLeaderboard?.accountIdentity,null,{timeout:10000,polling:50});
+  await recoveryPage.click('#leaderboard-drive');
+  await recoveryPage.waitForFunction(()=>!!window.LPRLeaderboard?.identity,null,{timeout:10000,polling:50});
+  await recoveryPage.waitForFunction(()=>window.__verifiedGame?.timing?.bestTrace?.length>100,{},{timeout:15000,polling:50}).catch(async error=>{
+   const diagnosis=await recoveryPage.evaluate(async()=>{
+    const identity=window.LPRLeaderboard?.identity,config=window.LPRVerificationConfig;
+    let panel=null,replay=null;
+    if(identity?.token){const r=await fetch(config.leaderboard+'/api/verified/timing-panel?series=human',{headers:{Authorization:'Bearer '+identity.token}});panel={status:r.status,data:await r.json()};
+     const pointer=panel.data?.personalBest?.replay;if(pointer){const rr=await fetch(config.leaderboard+'/api/verified/replays/'+pointer.sessionId+'/'+pointer.lap);const data=await rr.json();
+      replay={status:rr.status,summary:{format:data.format,sceneRevision:data.sceneRevision,hz:data.hz,startTick:data.startTick,endTick:data.endTick,frameCount:data.frames?.length,first:data.frames?.[0],last:data.frames?.at(-1),trackCount:data.track?.length},converted:window.__traceFromVerifiedReplay?.(data,panel.data.personalBest.lap_ms)?.length||0};}}
+    return {identity:!!identity,series:identity?.series,traceLength:window.__verifiedGame?.timing?.bestTrace?.length||0,panel,replay};
+   });
+   console.error(JSON.stringify({recoveryDiagnosis:diagnosis,pageErrors:errors},null,2));throw error;
+  });
+  const recovered=await recoveryPage.evaluate(()=>({time:window.__verifiedGame.timing.referenceLapTime,
+   samples:window.__verifiedGame.timing.bestTrace.length,personalBest:window.__verifiedGame.timing.traceIsPersonalBest}));
+  assert(recovered.samples>100,'A saved public replay restores a usable position trace');
+  assert(recovered.personalBest,'Only the authenticated personal-best replay is marked as PB');
+  await recoveryPage.close();
   if(guestMode)assert(promoted,'The guest registered between the two actual laps');
   await page.evaluate(()=>window.__verifiedGame.render());
   const artifacts=path.resolve(__dirname,'../artifacts/verification');fs.mkdirSync(artifacts,{recursive:true});
@@ -198,7 +246,9 @@ const {driver}=require('../tests/helpers-driving.cjs');
   assert(await page.evaluate(()=>!window.LPRLeaderboard.requiresName&&!!window.LPRLeaderboard.identity),'Withdrawing analytics consent keeps leaderboard participation');
   assert.deepEqual(errors,[]);
   const report={generatedAt:new Date().toISOString(),browser:browser.version(),revision,ticks,verifiedLaps:2,
-   guestPromotion:guestMode,scope:'Real 3D game with synthetic controls and accelerated server clock; no remote/human capacity claim',explicitDriveRequired:true,rollingStartMetres:200,automaticRestart:true,startLights:true,heldDuringPreparation:true,optionalAnalytics:true,driverSeatReplay:true,replaySeek:true,viewerReports:true,adminSeriesMoves:true,dailyChampionship:true,tamperedPhysicsRejected:true,tamperedPowerRejected:true,errors};
+   guestPromotion:guestMode,verifiedTraceCapture:true,verifiedDeltaSamples:verifiedDelta.deltaSamples.length,verifiedTraceSamples:verifiedDelta.traceLength,
+   serverReplayTraceRecovery:true,recoveredReplaySamples:recovered.samples,
+   scope:'Real 3D game with synthetic controls and accelerated server clock; no remote/human capacity claim',explicitDriveRequired:true,rollingStartMetres:200,automaticRestart:true,startLights:true,heldDuringPreparation:true,optionalAnalytics:true,driverSeatReplay:true,replaySeek:true,viewerReports:true,adminSeriesMoves:true,dailyChampionship:true,tamperedPhysicsRejected:true,tamperedPowerRejected:true,errors};
   fs.writeFileSync(path.join(artifacts,'browser-report.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report));
  }finally{releaseHealth?.();if(browser)await browser.close();await service.sessions.close();await Promise.all([game,service,board].map(server=>new Promise(r=>{server.closeAllConnections();server.close(r);})));}

@@ -1,0 +1,121 @@
+/* Left rail utility actions remain beside account/settings; Figma controls live in game HUD. */
+#left-rail .game-actions{position:relative;display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+#left-rail .sidebar-utility-actions>.game-action-button{display:grid}
+body:has(#settings-dialog[open]) #left-rail .game-action-button{display:none!important}
+#left-rail .game-actions .game-action-button,#left-rail .game-actions .language-selector__trigger{border-radius:8px}
+#left-rail .leaderboard-start-form{display:flex;flex-direction:column}
+#settings-dialog:not(.spectating) #left-rail .leaderboard-start-form,#settings-dialog.spectating #left-rail .leaderboard-start-form{display:flex;flex-direction:column}
+#left-rail .leaderboard-start-form:has(.language-selector.is-open){overflow:visible}
+#left-rail .leaderboard-start-form #leaderboard-main-view{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+#left-rail .sidebar-account-settings-row{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)}
+#left-rail .sidebar-account-settings-row #leaderboard-settings-open{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--border-hover);border-radius:9px;background:var(--surface-1);color:var(--text-primary);text-align:center}
+#left-rail .sidebar-account-settings-row #leaderboard-settings-open .ph-icon{width:20px;height:20px}
+#left-rail .sidebar-account-settings-row .language-selector{display:flex;flex:0 0 44px;width:44px;height:44px;margin:0}
+#left-rail .sidebar-account-settings-row .language-selector__trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;border-radius:9px}
+#left-rail .sidebar-account-settings-row .language-selector__menu{top:auto;right:0;bottom:calc(100% + 8px);left:auto}
+#left-rail .leaderboard-start-form.sidebar-settings-view-open .sidebar-account-settings-row{display:none}
+#left-rail .leaderboard-start-form.sidebar-settings-view-open .leaderboard-settings-view{flex:1 1 auto;min-height:0}
+#left-rail .leaderboard-start-form .leaderboard-settings-view:has(.language-selector.is-open){overflow:visible}
+#left-rail .sidebar-settings-language-group{display:flex;align-items:center;gap:8px}
+#left-rail .sidebar-settings-language-group #leaderboard-settings-back{align-self:center;margin-top:0;padding:0}
+#left-rail .sidebar-settings-language-group .language-selector{display:flex;flex:0 0 44px;width:44px;height:44px;margin:0}
+#left-rail .sidebar-settings-language-group .language-selector__trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;border-radius:9px}
+#left-rail .sidebar-settings-language-group .language-selector__menu{top:auto;right:0;bottom:calc(100% + 8px);left:auto}
+#left-rail #guest-register-panel>summary{color:var(--brand)!important;background:transparent!important}
+#left-rail #guest-register-panel>summary .ph-icon{color:var(--brand)!important}
+#left-rail #guest-register-panel>summary:hover{color:var(--brand-hover)!important;background:transparent!important}
+#left-rail .sidebar-compact .game-action-button,#left-rail .sidebar-compact .language-selector__trigger{width:44px;min-width:44px;height:44px;min-height:44px;padding:0}
+#left-rail .sidebar-compact .language-selector{position:relative;flex:0 0 44px;width:44px;height:44px}
+#left-rail .sidebar-compact .language-selector__menu{position:fixed;top:50%;right:auto;bottom:auto;left:60px;transform:translateY(-50%)}
+#left-rail .sidebar-compact .language-selector.is-open .language-selector__menu{transform:translateY(-50%)}
+#left-rail.is-collapsed .sidebar-compact{overflow-y:auto;scrollbar-width:none}
+#left-rail.is-collapsed .sidebar-compact::-webkit-scrollbar{display:none}
+/* Figma 4:276: brake, speed, throttle form one centered telemetry line. */
+.drive-telemetry{left:50%;right:auto;width:min(520px,calc(100% - 32px));height:72px;font:300 64px/1 var(--font-heading);display:grid;grid-template-columns:minmax(0,189.386px) 3ch minmax(0,189.386px);align-items:center;justify-content:center;gap:13px;transform:translateX(-50%)}
+.drive-input-stack{display:contents}
+.drive-input-meter{position:relative;display:block;width:100%;height:6px;overflow:hidden;border:0;border-radius:3px;background:var(--drive-brake-muted)}
+.drive-input-meter--brake{grid-column:1;grid-row:1;background:var(--drive-brake-muted)}
+.drive-input-meter--throttle{grid-column:3;grid-row:1;background:var(--drive-throttle-muted)}
+.drive-input-meter::before{position:absolute;inset:0 auto 0 0;width:var(--input-level,0%);border-radius:3px;content:"";transition:none}
+.drive-input-meter--brake::before{left:auto;right:0;background:var(--drive-brake-active)}
+.drive-input-meter--throttle::before{left:0;right:auto;background:var(--drive-throttle-active)}
+.drive-input-segment{display:none}
+.drive-speed{grid-column:2;grid-row:1;justify-content:center;min-width:0}
+.drive-speed>span:first-child{flex:0 0 100%;width:100%;text-align:center;font:300 64px/1 var(--font-heading);font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.035em}
+.drive-speed .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:900px){.drive-telemetry{left:50%;bottom:calc(18px + env(safe-area-inset-bottom));width:min(520px,calc(100% - 76px));grid-template-columns:minmax(0,189.386px) 3ch minmax(0,189.386px)}}
+@media(max-width:400px){.drive-telemetry{width:calc(100% - 72px);gap:8px;font-size:clamp(40px,14vw,52px)}.drive-speed>span:first-child{font-size:clamp(40px,14vw,52px)}}
+@media (pointer:coarse) and (orientation:landscape),(max-width:900px) and (max-height:500px) and (orientation:landscape){.drive-telemetry{bottom:calc(110px + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){.drive-input-meter::before{transition:none}}
+
+/* Figma 4:177 setting panel, layered over the lower-left of the driving view. */
+.game-shell .sidebar-settings{position:absolute;z-index:7;left:12px;bottom:12px;box-sizing:border-box;width:min(360px,calc(100% - 24px));height:215px;padding:8px 11px;border:1px solid rgb(255 255 255 / .1);border-radius:12px;background:rgb(23 23 23 / .88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.game-shell .drive-settings-collapse{position:absolute;z-index:2;top:6px;right:6px;display:flex;align-items:center;justify-content:center;gap:6px;width:28px;height:28px;padding:0;border:1px solid var(--border);border-radius:7px;background:var(--surface-1);color:var(--text-secondary)}
+.game-shell .drive-settings-collapse .ph-icon{width:16px;height:16px}
+.game-shell .drive-settings-collapse span{display:none}
+.game-shell .sidebar-settings.is-collapsed{height:44px}
+.game-shell .sidebar-settings.is-collapsed .sidebar-setting-list{display:none}
+.game-shell .sidebar-settings.is-collapsed .drive-settings-collapse{right:6px;left:6px;justify-content:flex-start;width:auto;padding:0 8px}
+.game-shell .sidebar-settings.is-collapsed .drive-settings-collapse span{display:inline;color:var(--text-primary);font:400 14px/1 var(--font-body)}
+.game-shell .sidebar-setting-list{display:flex;flex-direction:column;width:100%;height:100%;padding-top:2px;min-width:0}
+.game-shell .sidebar-setting-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;column-gap:6px;width:100%;height:49px;min-height:49px;padding:10px 30px 10px 0;border:0;border-bottom:1px solid rgb(255 255 255 / .07);border-radius:0;background:transparent;color:var(--text-primary);text-align:left;cursor:pointer}
+.game-shell .sidebar-setting-row:last-child{height:48px;min-height:48px;border-bottom:0}
+.game-shell .sidebar-setting-row kbd{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid #525252;border-radius:7px;background:linear-gradient(180deg,#292929 0%,#222 100%);box-shadow:0 2px 0 #171717,inset 0 0 0 1px rgb(0 0 0 / .18);color:#ededed;font:400 12px/1 var(--font-body)}
+.game-shell .sidebar-setting-row kbd .ph-icon{width:16px;height:16px}
+.game-shell .sidebar-setting-name{min-width:0;overflow:hidden;color:#b8b8b8;font:400 16px/1.3 var(--font-body);text-overflow:ellipsis;white-space:nowrap}
+.game-shell .sidebar-setting-value{color:var(--text-primary);font:400 16px/1.25 var(--font-heading);white-space:nowrap}
+.game-shell .sidebar-setting-row:hover kbd{border-color:#737373}
+.game-shell .drive-settings-toggle{display:none;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--border-hover);border-radius:10px;background:var(--surface-1);color:var(--text-primary)}
+.game-shell .drive-settings-toggle .ph-icon{width:20px;height:20px}
+@media(min-width:901px){body:not(.rail-collapsed) .game-shell .sidebar-settings{width:min(360px,max(260px,calc((100% - 568px)/2)))}}
+@media(max-width:900px) and (orientation:portrait){
+ body>main.app>.game-shell{flex-basis:680px;height:680px;min-height:680px}
+ .game-shell .sidebar-settings{bottom:calc(96px + env(safe-area-inset-bottom))}
+}
+@media(max-width:900px) and (max-height:500px) and (orientation:landscape){
+ .game-shell .sidebar-settings{display:none;right:12px;left:auto;bottom:calc(146px + env(safe-area-inset-bottom));width:min(360px,calc(100% - 24px))}
+ .game-shell .sidebar-settings.is-open{display:flex}
+ .game-shell .drive-settings-toggle{position:absolute;z-index:8;right:12px;bottom:calc(146px + env(safe-area-inset-bottom));display:grid}
+ .game-shell .sidebar-settings.is-open+.drive-settings-toggle{display:none}
+ .game-shell:has(#drive-settings-panel.is-open) #sector-panel{display:none}
+ .game-shell:has(#drive-settings-panel.is-open) .drive-telemetry{display:none}
+}
+@media(max-width:900px){
+ #left-rail.is-collapsed .sidebar-compact .language-selector{display:flex!important;position:relative;flex:0 0 44px;width:44px;height:44px}
+ #left-rail.is-collapsed .sidebar-compact .language-selector__trigger{display:grid;place-items:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:0}
+}
+
+/* Race utilities belong to the settings screen, never the rail footer. */
+#left-rail .sidebar-utility-actions[hidden]{display:none!important}
+#leaderboard-settings-view .sidebar-utility-actions{flex-wrap:wrap;justify-content:flex-start}
+
+/* Driving settings bottom drawer. */
+.game-shell #drive-settings-panel{display:block;left:12px;right:auto;bottom:0;width:min(360px,calc(100% - 24px));height:auto;max-height:calc(100% - 24px);overflow:auto;padding:48px 16px 16px;border-radius:16px 16px 0 0;background:rgb(23 23 23 / 88%);transform:translateY(100%);visibility:hidden;transition:transform 200ms cubic-bezier(.22,1,.36,1),visibility 200ms;}
+.game-shell #drive-settings-panel.is-open{transform:translateY(0);visibility:visible}
+.game-shell #drive-settings-panel .sidebar-setting-list{display:flex;height:auto;padding:0}
+.game-shell #drive-settings-panel .sidebar-setting-row{padding-right:0}
+.game-shell #drive-settings-panel .drive-settings-collapse{left:auto;right:8px;top:8px;width:32px;height:32px;padding:0;justify-content:center;border-radius:8px}
+.game-shell #drive-settings-panel .drive-settings-collapse span{display:none}
+.drive-settings-handle{position:absolute;top:0;left:50%;transform:translateX(-50%);width:80px;height:32px;cursor:grab;touch-action:none}
+.drive-settings-handle::after{content:"";position:absolute;top:12px;left:20px;width:40px;height:4px;border-radius:2px;background:var(--text-secondary)}
+.game-shell #drive-settings-toggle{position:absolute;left:12px;right:auto;bottom:12px;z-index:6;display:grid}
+.game-shell:has(#drive-settings-panel.is-open) #drive-settings-toggle{display:none}
+@media(prefers-reduced-motion:reduce){.game-shell #drive-settings-panel{transition:none}}
+
+/* Keep the surrounding shell near black, with raised controls distinct. */
+body, main.app { background:var(--background-1); }
+#left-rail, #left-rail #chat-panel, #left-rail-content { background:var(--background-2); }
+
+/* Race utilities belong to the driving drawer; leaderboard stays reachable in compact rail. */
+#drive-settings-panel .sidebar-utility-actions{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+#drive-settings-panel .sidebar-utility-actions[hidden]{display:none!important}
+#left-rail .sidebar-compact-action[data-action="chat"]{background:transparent;border-color:transparent;box-shadow:none}
+
+/* Race utilities share the sidebar settings row, outside the driving sheet. */
+#left-rail .sidebar-account-settings-row > .sidebar-utility-actions,
+#left-rail .sidebar-settings-language-group > .sidebar-utility-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-wrap: wrap;
+}

@@ -12,9 +12,12 @@
  const pagers=[];
  function update(){
   queued=false;
-  const account=window.LPRLeaderboard?.chatIdentity;
+  const account=window.LPRLeaderboard?.accountIdentity;
   dialog.classList.toggle('dashboard-remembered',!!account);
   dialog.classList.toggle('dashboard-account-editing',!$('#leaderboard-guest-fields').hidden||(!account&&!$('#leaderboard-account-fields').hidden));
+  const rail=$('#left-rail');
+  rail.classList.toggle('dashboard-remembered',!!account);
+  rail.classList.toggle('dashboard-account-editing',!$('#leaderboard-guest-fields').hidden||(!account&&!$('#leaderboard-account-fields').hidden));
   $('#dashboard-account-name').textContent=account?.nickname||'';
   $('#leaderboard-account-fields').dataset.nickname=account?.nickname||'';
   for(const p of pagers){
@@ -36,7 +39,7 @@
  function schedule(){if(!queued){queued=true;queueMicrotask(update);}}
  for(const selector of ['#active-drivers-list','#verified-list','#championship-fastest','#championship-volume','#championship-monthly']){
   const root=$(selector),nav=document.createElement('nav'),previous=document.createElement('button'),next=document.createElement('button'),label=document.createElement('span');
-  nav.className='dashboard-pager';previous.type=next.type='button';previous.textContent='‹';next.textContent='›';
+  nav.className='dashboard-pager';previous.type=next.type='button';previous.append(window.LPRIcon('arrow-left'));next.append(window.LPRIcon('arrow-right'));
   label.setAttribute('aria-live','polite');nav.append(previous,label,next);root.after(nav);
   const p={root,nav,previous,next,label,page:0};pagers.push(p);
   previous.onclick=()=>{p.page--;update();};next.onclick=()=>{p.page++;update();};

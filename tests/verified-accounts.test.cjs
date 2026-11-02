@@ -56,6 +56,12 @@ const {revision}=require('../verification/world.cjs');
   assert.equal(saved.status,200);assert.equal((await saved.json()).saved,true);
   const list=await(await fetch(base+'/api/verified/leaderboard')).json();
   assert.deepEqual(list.results.map(row=>[row.nickname,row.lap_ticks]),[['Panu',8000]],'Only account laps appear; the pre-account lap is hidden');
+  const timingResponse=await fetch(base+'/api/verified/timing-panel?series=human',{headers:{Authorization:'Bearer '+panu.token}});
+  assert.equal(timingResponse.status,200);
+  const timingPanel=await timingResponse.json();
+  assert.deepEqual(timingPanel.personalBest.replay,{sessionId:'3'.repeat(32),lap:1},'An authenticated timing panel returns only the owner PB replay pointer');
+  assert.deepEqual(timingPanel.personalBest.sectors,[6000*1000/120,1000*1000/120,1000*1000/120]);
+  assert.equal((await fetch(base+'/api/verified/timing-panel?series=human')).status,401,'Replay pointers require the authenticated owner');
   // Revoke between authentication and the lap INSERT, using real SQLite and the production Worker.
   const {default:worker}=await import('../cloudflare/verified-worker.mjs');
   const raceToken=(await(await account('Panu','salasana',false,'2.2.2.2')).json()).token;

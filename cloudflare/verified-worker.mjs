@@ -19,6 +19,8 @@ const chatStorageIndex='CREATE INDEX IF NOT EXISTS verified_chat_expiry ON verif
 const SESSION_MS=7*86400000;
 const CHAT_TICKET_MS=10*60000;
 const CHAT_RETENTION_MS=24*60*60*1000;
+// Timing-panel polling is infrequent. Protect its ranked SQL query from bursts.
+const TIMING_PANEL_PER_PLAYER_PER_MINUTE=30, TIMING_PANEL_PER_IP_PER_MINUTE=120;
 async function newSession(db,account,secret){
  const now=Date.now(),token=randomHex()+randomHex(),expiresAt=now+SESSION_MS;
  await db.prepare('DELETE FROM verified_login_sessions WHERE expires_ms<=?').bind(now).run();
@@ -75,6 +77,7 @@ export default {
   await ensureAccounts(env.DB);
   await env.DB.batch(retentionStatements(env.DB,revision));
   await env.DB.prepare('DELETE FROM verified_chat_messages WHERE at<=?').bind(Date.now()-CHAT_RETENTION_MS).run();
+  await env.DB.prepare('DELETE FROM verified_limits WHERE expires < ?').bind(Date.now()).run();
  },
  async fetch(request,env){
   const revision=env.SIMULATION_REVISION||BUILD_REVISION;
@@ -82,7 +85,7 @@ export default {
   const origins=new Set((env.GAME_ORIGINS||'https://panulut.github.io,http://localhost:8000,http://127.0.0.1:8000').split(','));
   const headers={'Cache-Control':'no-store','Vary':'Origin','X-Content-Type-Options':'nosniff'};
   if(origins.has(origin))headers['Access-Control-Allow-Origin']=origin;
-  const reply=(data,status=200)=>Response.json(data,{status,headers});
+  const reply=(data,status=200,extraHeaders={})=>Response.json(data,{status,headers:{...headers,...extraHeaders}});
   if(origin&&!origins.has(origin))return reply({error:'Origin denied'},403);
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET, POST, OPTIONS'}});
   try{
@@ -122,6 +125,10 @@ export default {
     return reply({error:'Method not allowed'},405);
    }
    if(url.pathname.startsWith('/api/verified/replays/')||url.pathname.startsWith('/api/verified/admin/'))return await replayRoute(request,env,url,reply,headers,body,revision);
+   const limit=async(id,max,windowMs)=>{
+    const result=await env.DB.prepare('INSERT INTO verified_limits(key,attempts,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1 RETURNING attempts').bind(id,Date.now()+windowMs).first();
+    return result.attempts>max;
+   };
    if(url.pathname==='/api/verified/leaderboard'&&request.method==='GET'){
     const series=url.searchParams.get('series')||'human';
     if(!SERIES.includes(series))return reply({error:'Invalid series'},400);
@@ -129,6 +136,40 @@ export default {
      CASE WHEN r.pinned=1 THEN 1 ELSE 0 END AS replay_available FROM verified_laps l JOIN verified_replays r USING(session_id,lap) ${principalJoins}
      WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND ${seriesOf('l.player_hash')}=? AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap) ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10`).bind(revision,series).all();
     return reply({protocol,revision:revision,series,results:rows.results.map(row=>({...row,lap_ms:row.lap_ticks*1000/120}))});
+   }
+   if(url.pathname==='/api/verified/timing-panel'&&request.method==='GET'){
+    const series=url.searchParams.get('series')||'human';
+    if(!SERIES.includes(series))return reply({error:'Invalid series'},400);
+    const credential=request.headers.get('Authorization')?.replace(/^Bearer\s+/i,'');
+    const owner=await sessionOwner(env.DB,credential,env.VERIFICATION_SECRET,Date.now());
+    if(!owner)return reply({error:'Sign in required'},401);
+    const now=Date.now(),minute=Math.floor(now/60000);
+    const playerLimit=`tp:p:${owner.player_hash}:${minute}`;
+    // CF-Connecting-IP is set by Cloudflare at the edge; ignore spoofable X-Forwarded-For.
+    const clientIp=request.headers.get('CF-Connecting-IP');
+    const ipLimit=clientIp?`tp:i:${await hash(clientIp)}:${minute}`:null;
+    if(await limit(playerLimit,TIMING_PANEL_PER_PLAYER_PER_MINUTE,120000)||
+       (ipLimit&&await limit(ipLimit,TIMING_PANEL_PER_IP_PER_MINUTE,120000)))
+     return reply({error:'Too many timing-panel requests'},429,{'Retry-After':String(60-Math.floor(now%60000/1000))});
+    const rows=await env.DB.prepare(`WITH ranked AS (
+     SELECT l.player_hash,${guestNameSQL} AS nickname,l.lap_ticks,l.issued_ms,l.session_id,l.lap,l.sector1,l.sector2,l.sector3,
+      ROW_NUMBER() OVER (PARTITION BY l.player_hash ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap) AS best_order
+     FROM verified_laps l JOIN verified_replays r USING(session_id,lap) ${principalJoins}
+     WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND ${seriesOf('l.player_hash')}=?
+      AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap)
+    ) SELECT player_hash,nickname,lap_ticks,session_id,lap,sector1,sector2,sector3 FROM ranked WHERE best_order=1
+     ORDER BY lap_ticks,nickname COLLATE NOCASE,player_hash`).bind(revision,series).all();
+    const standings=rows.results||[], personal=standings.find(row=>row.player_hash===owner.player_hash)||null;
+    const track=standings[0]||null;
+    const rank=personal?1+standings.filter(row=>row.lap_ticks<personal.lap_ticks).length:null;
+    const next=personal?standings.find(row=>row.lap_ticks>personal.lap_ticks)||null:null;
+    const timing=row=>row?{nickname:row.nickname,lap_ms:row.lap_ticks*1000/120}:null;
+    const personalBest=timing(personal);
+    if(personalBest){
+     personalBest.sectors=[personal.sector1,personal.sector2,personal.sector3].map(ticks=>ticks*1000/120);
+     personalBest.replay={sessionId:personal.session_id,lap:personal.lap};
+    }
+    return reply({protocol,revision,series,fieldSize:standings.length,rank,trackBest:timing(track),personalBest,next:timing(next)});
    }
    if(url.pathname==='/api/verified/championship'&&request.method==='GET'){
     const credential=request.headers.get('Authorization')?.replace(/^Bearer /,'');
@@ -141,10 +182,6 @@ export default {
     }
     return reply(await championship(env.DB,url,Date.now(),playerHash));
    }
-   const limit=async(id,max,windowMs)=>{
-    const result=await env.DB.prepare('INSERT INTO verified_limits(key,attempts,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1 RETURNING attempts').bind(id,Date.now()+windowMs).first();
-    return result.attempts>max;
-   };
    if(url.pathname==='/api/verified/account'){
     if(request.method!=='POST')return reply({error:'POST required'},405);
     const now=Date.now(),ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');

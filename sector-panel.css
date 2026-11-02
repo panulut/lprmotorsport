@@ -1,0 +1,36 @@
+/* A flush timing island: the border is the one-pixel inset for corner geometry. */
+#daily-race-hud,#sector-time{display:none!important}
+.game-shell .sector-panel{
+  --sector-radius:12px;--sector-inset:1px;--sector-inner-radius:calc(var(--sector-radius) - var(--sector-inset));
+  position:absolute;z-index:5;top:12px;right:12px;width:min(310px,calc(100% - 24px));
+  display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;
+  border:var(--sector-inset) solid var(--border);border-radius:var(--sector-radius);
+  background:rgb(23 23 23 / 88%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  color:var(--text-primary);box-shadow:none;pointer-events:none;
+}
+.sector-panel-sectors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-bottom:1px solid var(--border)}
+.sector-chip{display:flex;min-width:0;align-items:center;justify-content:center;padding:4px 8px;background:var(--surface-2);color:var(--text-secondary);border:0;border-radius:0}
+.sector-chip+.sector-chip{border-left:1px solid var(--border)}
+.sector-chip:first-child{border-start-start-radius:var(--sector-inner-radius)}
+.sector-chip:last-child{border-start-end-radius:var(--sector-inner-radius)}
+.sector-chip-label{font:400 var(--text-label)/1.2 var(--font-body)}
+/* Sector times and state descriptions remain accessible without crowding the strip. */
+.sector-chip-time,.sector-panel-time>.sector-panel-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.sector-chip[data-state="personal-best"]{background:var(--green-600);color:var(--brand-contrast)}
+.sector-chip[data-state="slower"]{background:var(--amber-400);color:var(--amber-950)}
+.sector-chip[data-state="track-record"]{background:var(--purple-800);color:var(--text-primary)}
+.sector-panel-clock{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:77px;padding:18px 16px;border-bottom:1px solid var(--border)}
+.sector-panel-lap{display:flex;flex-direction:column;gap:2px}
+.sector-panel-lap strong{order:-1;color:var(--text-primary);font:400 var(--type-5)/1 var(--font-heading);font-variant-numeric:tabular-nums}
+.sector-panel-label{color:var(--text-secondary);font:400 var(--text-label)/1.2 var(--font-body);letter-spacing:0;text-transform:uppercase}
+.sector-panel-lap>.sector-panel-label{font-size:var(--text-body)}
+.sector-panel-time{display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.sector-panel-time strong{color:var(--text-primary);font:400 var(--type-6)/1 var(--font-heading);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.sector-panel-delta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;min-height:36px;padding:8px 16px;border-radius:0 0 var(--sector-inner-radius) var(--sector-inner-radius)}
+.sector-panel-last-lap{border-radius:0;box-shadow:inset 0 -1px var(--border)}
+.sector-panel-last-lap[hidden]{display:none!important}
+.sector-panel-last-lap .sector-panel-label{font:400 var(--text-label)/1.2 var(--font-body);letter-spacing:0;text-transform:uppercase}
+.sector-panel-last-lap strong{color:var(--text-primary);font:400 var(--type-5)/1 var(--font-heading);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.sector-panel-delta strong{color:var(--text-primary);font:400 var(--type-5)/1 var(--font-heading);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.sector-panel-delta[data-state="faster"]{background:linear-gradient(90deg,var(--background-2) 30%,var(--green-950))}
+.sector-panel-delta[data-state="slower"]{background:linear-gradient(90deg,var(--background-2) 30%,var(--red-950))}
