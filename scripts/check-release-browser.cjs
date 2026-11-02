@@ -16,7 +16,7 @@ const {launchBrowser}=require('./browser.cjs');
   await page.locator('#release-notes-panel .language-selector__trigger').click();
   await page.locator('#release-notes-panel [data-language="en"]').click();
   assert.match(await page.textContent('#release-notes-title'),/new in LPR/,'English can be selected from the first-visit release notes');
-  assert.match(await page.textContent('#release-notes-list'),/Rolling start/,'Release note items update to English immediately');
+  assert.match(await page.textContent('#release-notes-list'),/Five drivers at once/,'Release note items update to English immediately');
   assert.equal(await page.locator('#release-notes-panel [data-language="en"]').getAttribute('aria-pressed'),'true');
   await page.locator('#release-notes-panel .language-selector__trigger').click();
   await page.locator('#release-notes-panel [data-language="fi"]').click();

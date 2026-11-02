@@ -25,7 +25,7 @@ const {launchBrowser}=require('./browser.cjs');
     const source=fs.readFileSync(path.join(__dirname,'../game.js'),'utf8').replaceAll('\r\n','\n').replace('  reset();\n  openTestScene','  window.__chatGame={held,readInput};\n  reset();\n  openTestScene');
     return route.fulfill({contentType:'text/javascript',body:source});
    });
-   await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
+   await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-11-02-new-server'));
   await page.goto(origin);await page.waitForFunction(()=>window.__chatGame,null,{polling:50});
   if(await page.locator('#left-rail').evaluate(node=>node.classList.contains('is-collapsed')))await page.locator('#rail-collapse').click();
   if(await page.locator('#release-notes-panel').isVisible())await page.locator('#release-notes-close').click();

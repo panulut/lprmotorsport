@@ -32,7 +32,7 @@ const {launchBrowser}=require('./browser.cjs');
    const second=route.request().url().endsWith(ids[1]),speed=second?20:10;
    return route.fulfill({json:{format:'lpr-live-v1',sceneRevision:revision,hz:120,nickname:second?'Second Driver':'Live Driver',lap:2,bestLapMs:500,lapStates:[{lap:1,startTick:0,bestLapMs:0},{lap:2,startTick:60,bestLapMs:500}],track:recorder.track,frames:[[...frame.slice(0,4),speed,0,frame[6]],[120,...frame.slice(1,4),speed,0,frame[6]]],inputs:[[0,1,0,0,false,false,true]]}});
   });
-  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
+  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-11-02-new-server'));
   await page.goto(origin);
   await page.locator('#active-drivers-list a').first().waitFor();
   assert.equal(await page.locator('#active-drivers-list a').count(),2);

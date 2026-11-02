@@ -31,7 +31,7 @@ const {launchBrowser}=require('./browser.cjs');
    if(url.pathname.startsWith('/spectate/'))return r.fulfill({json:{format:'lpr-live-v1',sceneRevision:revision,hz:120,nickname:rows[0].nickname,lap:1,track:recorder.track,frames:[frame,[120,...frame.slice(1)]],inputs:[[0,1,0,0,false,false,true]]}});
    return r.fulfill({json:{onlineCount:10,messages:[{id:'1',at:Date.now(),nickname:'Varikko',text:'Terve!'}]}});
   });
-  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
+  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-11-02-new-server'));
   await page.goto(origin);await page.waitForFunction(()=>document.querySelector('#championship-fastest li'),null,{polling:100});
   const dir=path.resolve(__dirname,'../artifacts/dashboard');fs.mkdirSync(dir,{recursive:true});
   async function check(label){

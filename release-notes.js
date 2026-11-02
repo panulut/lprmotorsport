@@ -2,6 +2,36 @@
   'use strict';
   const releases = [
     {
+      id: '2026-11-02-new-server',
+      date: '2.11.2026',
+      fi: {
+        title: 'Uutta LPR Motorsissa',
+        items: [
+          ['Oma osoite', 'Peli löytyy nyt osoitteesta lprmotorsports.me. Vanha osoite ohjaa automaattisesti uuteen.'],
+          ['Uusia kehittäjiä', 'Pelin kehitystiimi on kasvanut, joten päivityksiä ja korjauksia tulee jatkossa entistä nopeammin.'],
+          ['Uudistettu käyttöliittymä', 'Valikot, tili ja ajoasetukset ovat nyt yhdessä paikassa. Ajonäyttö näyttää kierroksen, sektorit ja auton vauriot selkeämmin.'],
+          ['Uusi tarkastuspalvelin', 'Kierrosajat tarkastetaan nyt tehokkaammalla palvelimella, joka pysyy vakaana myös useamman kuljettajan ajaessa yhtä aikaa.'],
+          ['Viisi kuljettajaa kerrallaan', 'Virallisia, tuloslistalle kelpaavia ajoja voi ajaa yhtä aikaa viisi kuljettajaa aiemman kahden sijaan.'],
+          ['Tasaisempi ajo', 'Hetkelliset nykäykset eivät enää hidasta autoa tai muuta kierrosta harjoituskierrokseksi heikommillakaan laitteilla.'],
+          ['Sulavampi liveseuranta', 'Toisen kuljettajan ajo näkyy tasaisena ilman pysähdyksiä ja hyppäyksiä.'],
+          ['Parempi tietoturva', 'Selain estää peliä lähettämästä tietoja muualle kuin pelin omille palvelimille, mikä suojaa tiliäsi mahdollisilta hyökkäyksiltä.']
+        ]
+      },
+      en: {
+        title: 'What’s new in LPR Motors',
+        items: [
+          ['Our own address', 'The game now lives at lprmotorsports.me. The old address redirects there automatically.'],
+          ['New developers', 'The development team has grown, so updates and fixes will arrive faster from now on.'],
+          ['Refreshed interface', 'Menus, your account and driving settings now live in one place. The driving display shows your lap, sectors and car damage more clearly.'],
+          ['New verification server', 'Lap times are now checked on a more powerful server that stays stable when several drivers are on track.'],
+          ['Five drivers at once', 'Up to five drivers can now take official, leaderboard-eligible runs at the same time, up from two.'],
+          ['Smoother driving', 'Brief stutters no longer slow your car down or turn your lap into a practice lap, even on less powerful devices.'],
+          ['Smoother live spectating', 'Other drivers’ runs play back evenly, without freezes or jumps.'],
+          ['Better security', 'Your browser now blocks the game from sending data anywhere except the game’s own servers, protecting your account against potential attacks.']
+        ]
+      }
+    },
+    {
       id: '2026-10-27-major-update',
       date: '27.10.2026',
       fi: {

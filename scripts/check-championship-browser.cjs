@@ -29,7 +29,7 @@ const {launchBrowser}=require('./browser.cjs');
   });
   await page.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
   await page.route('https://lpr-leaderboard.panu-musakka.workers.dev/**',route=>route.fulfill({contentType:'application/json',body:'{}'}));
-  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
+  await page.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-11-02-new-server'));
   await page.goto(origin);
   await page.waitForFunction(()=>document.querySelector('#championship-fastest li')?.textContent.includes('Panu'),null,{polling:20});
   await page.evaluate(()=>{window.__raceRow=document.querySelector('#championship-fastest li');});
