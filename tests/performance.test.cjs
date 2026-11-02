@@ -37,4 +37,34 @@ for (const refresh of [60, 120, 144, 240]) {
   frameContext.frame(2000);
   assert.equal(renders, before, 'Hidden tabs do not render');
 }
+{
+  // Long frames must not silently slow the verified simulation down against the server clock.
+  let simulated = 0, steps = 0, maxStepsPerFrame = 0;
+  const frameContext = { window: {}, document: { hidden: false }, lastFrame: 0, car: {},
+    requestAnimationFrame() {}, update(dt) { simulated += dt; steps++; }, updateSteamTarget() {},
+    syncAudio() {}, audio: { update() {} }, renderDriveHud() {},
+    renderer: { render() {} } };
+  vm.createContext(frameContext);
+  vm.runInContext(frameSource, frameContext);
+  const frame = now => { const before = steps; frameContext.frame(now); maxStepsPerFrame = Math.max(maxStepsPerFrame, steps - before); };
+  let now = 0;
+  // 20 s at 60 Hz with a 250 ms hitch every second (headless Chrome showed 150–250 ms maxima).
+  for (let second = 0; second < 20; second++) {
+    for (let i = 0; i < 45; i++) frame(now += 1000 / 60);
+    frame(now += 250);
+  }
+  for (let i = 0; i < 60; i++) frame(now += 1000 / 60);
+  assert(Math.abs(simulated - now / 1000) < .05, `Hitches are caught up: simulated ${simulated.toFixed(3)} s of ${(now / 1000).toFixed(3)} s`);
+  assert(maxStepsPerFrame <= 24, 'Catch-up stays bounded per frame');
+  // A single multi-second stall drops only the time beyond the backlog limit.
+  const beforeStall = simulated;
+  frame(now += 5000);
+  for (let i = 0; i < 120; i++) frame(now += 1000 / 60);
+  const recovered = simulated - beforeStall;
+  assert(Math.abs(recovered - 3) < .05, `Long stalls keep at most one second of backlog: ${recovered.toFixed(3)} s`);
+  // A device rendering at 8 fps still keeps real time (24 steps per frame covers 5 fps).
+  const beforeSlow = simulated, slowStart = now;
+  for (let i = 0; i < 80; i++) frame(now += 125);
+  assert(Math.abs((simulated - beforeSlow) - (now - slowStart) / 1000) < .02, 'Slow devices keep real elapsed time');
+}
 console.log('Rendering budget and refresh-rate checks passed');

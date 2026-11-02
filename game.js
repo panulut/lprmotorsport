@@ -1089,6 +1089,10 @@
   let lastPresentation = null;
   // Fixed physics step; existing timed-v1 scoring remains on the wall clock.
   const STEP = 1 / 120, STEP_MS = 1000 / 120;
+  // Verified runs are judged against the server's wall clock, so a long frame must not
+  // silently slow the simulation down. Catch up over following frames, bounded per frame
+  // so a slow device cannot spiral; only stalls longer than the backlog limit are dropped.
+  const MAX_STEPS_PER_FRAME = 24, MAX_BACKLOG_SECONDS = 1;
   let simTick = 0, accumulator = 0;
   function resetSpectatorPresentation(){
     clearInput();accumulator=0;lastFrame=performance.now();lastPresentation=null;
@@ -1146,9 +1150,9 @@
       window.LPRAnalytics?.sample('menu',false,false);
       return;
     }
-    accumulator += Math.min((now - lastFrame) / 1000, .1);
+    accumulator = Math.min(accumulator + Math.max(0, now - lastFrame) / 1000, MAX_BACKLOG_SECONDS);
     lastFrame = now;
-    while (accumulator >= STEP) {
+    for (let steps = 0; accumulator >= STEP && steps < MAX_STEPS_PER_FRAME; steps++) {
       accumulator -= STEP;
       simTick++;
       update(STEP, simTick * STEP_MS, now);

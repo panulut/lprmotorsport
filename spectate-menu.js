@@ -47,7 +47,12 @@
    Array.isArray(r.inputs)&&r.inputs.length>0&&r.inputs.length<=601&&
    r.inputs.every(f=>Array.isArray(f)&&f.length===7&&f.slice(0,4).every(Number.isFinite)&&f.slice(4).every(v=>typeof v==='boolean'));
  }
- function tickAt(now){return recording?Math.max(recording.frames[0][0],Math.min(recording.frames.at(-1)[0],anchorTick+(now-anchorAt)*.12)):0;}
+ // Live frames arrive in 60-tick batches, about once per poll pause plus a network round
+ // trip. Play a fixed distance behind the newest frame and steer towards it with a small
+ // speed change, so arrival jitter neither freezes the car at the buffer end nor jumps it.
+ const PLAYOUT_DELAY_TICKS=240,RESYNC_TICKS=360,MAX_RATE_CHANGE=.08,RATE_HORIZON_TICKS=240;
+ let playbackRate=1;
+ function tickAt(now){return recording?Math.max(recording.frames[0][0],Math.min(recording.frames.at(-1)[0],anchorTick+(now-anchorAt)*.12*playbackRate)):0;}
  async function reconnect(gen,expiredId){
   // A crash or restart creates a fresh verified session. Follow the player,
   // not the expired verification session, until the viewer chooses to leave.
@@ -71,8 +76,11 @@
    if(data.sceneRevision!==window.LPRDrivingRevision){recording=null;connection('Kuljettajan peliversio poikkeaa katselimesta. Päivitä sivu.');return;}
    if(data.frames?.length<2||!data.inputs?.length){connection('Odotetaan kuljettajan liikkeellelähtöä…');return;}
    if(!valid(data))throw Error();
-   const now=performance.now(),end=data.frames.at(-1)[0],previous=recording?tickAt(now):end-90;
-   anchorTick=end-previous>180?end-90:previous;anchorAt=now;recording=data;connection('');
+   const now=performance.now(),target=Math.max(data.frames[0][0],data.frames.at(-1)[0]-PLAYOUT_DELAY_TICKS);
+   const current=recording?tickAt(now):null,error=current===null?0:target-current;
+   if(current===null||Math.abs(error)>RESYNC_TICKS){anchorTick=target;playbackRate=1;}
+   else{anchorTick=current;playbackRate=1+Math.max(-MAX_RATE_CHANGE,Math.min(MAX_RATE_CHANGE,error/RATE_HORIZON_TICKS));}
+   anchorAt=now;recording=data;connection('');
    $('#spectate-label').textContent=t('watchingDriver',{name:data.nickname});
   }catch(error){if(gen===generation&&!document.hidden)connection('Seurantayhteys katkesi. Yhdistetään uudelleen…');}
   finally{clearTimeout(timeout);if(gen===generation){controller=null;if(watching&&!document.hidden)pollTimer=setTimeout(poll,500);}}
