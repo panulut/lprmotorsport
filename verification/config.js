@@ -6,4 +6,4 @@ window.LPRVerificationConfig = localDemo
  ? {service:window.location.origin,leaderboard:window.location.origin,mode:'local-demo',demo:true}
  : loopback
   ? {service:'http://127.0.0.1:8081',leaderboard:'http://127.0.0.1:8788',mode:'local'}
-  : {service:'https://lpr-verification.onrender.com',leaderboard:'https://lpr-verified.panu-musakka.workers.dev',mode:'production'};
+  : {service:'https://lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',leaderboard:'https://lpr-verified.panu-musakka.workers.dev',mode:'production'};

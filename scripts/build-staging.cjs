@@ -4,6 +4,7 @@ const {protocol}=require('../verification/protocol.mjs');
 const production=new Set([
  'panulut.github.io',
  'lpr-verification.onrender.com',
+ 'lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',
  'lpr-verified.panu-musakka.workers.dev',
  'lpr-leaderboard.panu-musakka.workers.dev'
 ]);
@@ -35,7 +36,7 @@ function buildStaging(env=process.env,destination,{allowLoopback=false}={}){
   const policy=changed.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
   if(!policy)throw Error('Content-Security-Policy missing: '+htmlFile);
   let testPolicy=policy;
-  for(const [productionURL,testOrigin] of [['https://lpr-verification.onrender.com',service],['https://lpr-verified.panu-musakka.workers.dev',leaderboard],['https://lpr-leaderboard.panu-musakka.workers.dev',analytics]]){
+  for(const [productionURL,testOrigin] of [['https://lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',service],['https://lpr-verified.panu-musakka.workers.dev',leaderboard],['https://lpr-leaderboard.panu-musakka.workers.dev',analytics]]){
    if(!testPolicy.includes(' '+productionURL+' '))throw Error('Content-Security-Policy endpoint missing: '+productionURL);
    testPolicy=testPolicy.replace(' '+productionURL+' ',' '+testOrigin+' ');
   }

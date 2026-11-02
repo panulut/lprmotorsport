@@ -4,10 +4,12 @@ const {gameFiles}=require('../scripts/build.cjs');
 const {createServer:createVerificationServer}=require('../verification/server.cjs');
 const {createLocalLeaderboard}=require('../verification/local-leaderboard.cjs');
 const {run:runRemoteCheck,request:remoteRequest}=require('../scripts/check-verified-remote.cjs');
+const productionSource=fs.readFileSync(path.resolve(__dirname,'../verification/config.js'),'utf8');
 
 for(const bad of [
  'https://panulut.github.io',
  'https://lpr-verification.onrender.com',
+ 'https://lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',
  'https://lpr-verified.panu-musakka.workers.dev',
  'https://lpr-leaderboard.panu-musakka.workers.dev',
  'https://latest.example',
@@ -209,7 +211,7 @@ async function testEarlyInitFailureAndErrorHandling(secret){
   for(const feature of ['accounts','guests','guest-promotion','timing-panel','championship','chat-tickets','replays','spectate']){
    assert(manifest.features.includes(feature),`Missing staging manifest feature: ${feature}`);
   }
-  assert(fs.readFileSync(path.resolve(__dirname,'../verification/config.js'),'utf8').includes('https://lpr-verification.onrender.com'),'Production source stays unchanged');
+  assert.equal(fs.readFileSync(path.resolve(__dirname,'../verification/config.js'),'utf8'),productionSource,'Staging build must preserve the production source');
   console.log('PASS: staging endpoint isolation, production URL rejection, test banner and revision manifest');
 
   const secret='staging-integration-test-secret-0123456789abcdef';

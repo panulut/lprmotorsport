@@ -32,7 +32,7 @@ function build(destination=path.join(root,'dist')) {
     return /\.(?:jpg|png|webp|svg|woff2)$/i.test(baseName)||/license\.(?:md|txt)$/i.test(baseName)||/(?:^|-)ofl\.txt$/i.test(baseName);
   }});
   // A release always points to real services, even when previewed on localhost.
-  fs.writeFileSync(path.join(target,'verification/config.js'),`window.LPRVerificationConfig=${JSON.stringify({service:'https://lpr-verification.onrender.com',leaderboard:'https://lpr-verified.panu-musakka.workers.dev',mode:'production'})};\n`);
+  fs.writeFileSync(path.join(target,'verification/config.js'),`window.LPRVerificationConfig=${JSON.stringify({service:'https://lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',leaderboard:'https://lpr-verified.panu-musakka.workers.dev',mode:'production'})};\n`);
   fs.writeFileSync(path.join(target,'data/track-data.js'),dataScript(doc));
   fs.writeFileSync(path.join(target,'verification/revision.js'),`window.LPRDrivingRevision=${JSON.stringify(require('../verification/world.cjs').revision)};\n`);
   return target;

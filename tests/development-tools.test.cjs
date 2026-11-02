@@ -81,7 +81,7 @@ async function check(production){
         assert.equal((await fetch(base+route,{headers:{referer:base+'/?demo=1'}})).status,404,route);
       const config=await(await fetch(base+'/verification/config.js')).text();
       assert.doesNotMatch(config,/local-demo|Aino Korhonen|demo:true/);
-      assert.match(config,/lpr-verification\.onrender\.com/);
+      assert.match(config,/lpr-verification-prod\.[a-z0-9-]+\.swedencentral\.azurecontainerapps\.io/);
     }else{
       const preview=await(await fetch(base+'/api/dev/design-preview')).json();
       assert.equal(preview.mode,'demo-only');
@@ -157,6 +157,10 @@ async function check(production){
   assert.equal(releaseConfig.includes('127.0.0.1'),false);
   assert.equal(releaseConfig.includes('localhost'),false);
   assert.match(releaseConfig,/"mode":"production"/);
+  const sourceConfig={location:{hostname:'production.example',search:''}};
+  vm.runInNewContext(fs.readFileSync(path.join(root,'verification/config.js'),'utf8'),{window:sourceConfig});
+  const builtConfig={};vm.runInNewContext(releaseConfig,{window:builtConfig});
+  assert.equal(JSON.stringify(builtConfig.LPRVerificationConfig),JSON.stringify(sourceConfig.LPRVerificationConfig),'Built and source production endpoints must match');
   await check(false);await check(true);
   console.log('PASS: game build, separate editor, local write protection and project data save');
 })().catch(e=>{console.error(e);process.exitCode=1;});
