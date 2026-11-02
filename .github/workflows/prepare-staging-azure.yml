@@ -7,6 +7,12 @@ on:
         description: Publish validated staging image to GHCR (no service deployment)
         type: boolean
         default: false
+  push:
+    branches: [fix/staging-azure-integration]
+    paths: [.github/workflows/prepare-staging-azure.yml]
+
+env:
+  SOURCE_COMMIT: 2704bb1961bfd889004a8d80c13471c80cff8cf0
 
 permissions:
   contents: read
@@ -22,6 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.SOURCE_COMMIT }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -33,17 +40,17 @@ jobs:
           npm run test:chat
           npm run prepare:staging-azure
         env:
-          LPR_TEST_GIT_COMMIT: ${{ github.sha }}
+          LPR_TEST_GIT_COMMIT: ${{ env.SOURCE_COMMIT }}
       - name: Build the same source for Azure
         run: |
           docker build --file Dockerfile.verification \
-            --build-arg LPR_RELEASE_COMMIT="$GITHUB_SHA" \
-            --tag "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA" .
+            --build-arg LPR_RELEASE_COMMIT="$SOURCE_COMMIT" \
+            --tag "ghcr.io/panulut/lprmotorsport/verification:staging-$SOURCE_COMMIT" .
       - name: Scan the release image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           version: v0.76.1
-          image-ref: ghcr.io/panulut/lprmotorsport/verification:staging-${{ github.sha }}
+          image-ref: ghcr.io/panulut/lprmotorsport/verification:staging-${{ env.SOURCE_COMMIT }}
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
@@ -57,7 +64,7 @@ jobs:
           trap 'docker rm -f lpr-staging-smoke >/dev/null 2>&1 || true' EXIT
           docker run -d --name lpr-staging-smoke -p 127.0.0.1:18081:8081 \
             -e VERIFICATION_SECRET -e VERIFICATION_METRICS_TOKEN -e GAME_ORIGINS \
-            "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA"
+            "ghcr.io/panulut/lprmotorsport/verification:staging-$SOURCE_COMMIT"
           node <<'JS'
           const assert=require('node:assert/strict');
           (async()=>{
@@ -67,7 +74,7 @@ jobs:
               await new Promise(r=>setTimeout(r,1000));
             }
             assert(health?.ready);assert.equal(health.maxSessions,2);assert.equal(health.activeSessions,0);
-            assert.equal(health.commit,process.env.GITHUB_SHA);
+            assert.equal(health.commit,process.env.SOURCE_COMMIT);
             assert.equal(health.revision,require('./verification/world.cjs').revision);
             assert.equal(health.protocol,require('./verification/protocol.mjs').protocol);
             assert.equal((await fetch(base+'/health',{headers:{Origin:process.env.GAME_ORIGINS}})).status,200);
@@ -80,12 +87,12 @@ jobs:
           test "$(docker inspect --format '{{.State.ExitCode}}' lpr-staging-smoke)" = 0
       - uses: actions/upload-artifact@v4
         with:
-          name: staging-${{ github.sha }}
+          name: staging-${{ env.SOURCE_COMMIT }}
           path: artifacts/integration/staging-release
       - name: Publish only the validated image
-        if: inputs.publish_image
+        if: inputs.publish_image || github.event_name == 'push'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_REPOSITORY_OWNER" --password-stdin
-          docker push "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA"
+          docker push "ghcr.io/panulut/lprmotorsport/verification:staging-$SOURCE_COMMIT"
