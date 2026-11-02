@@ -280,6 +280,68 @@ async function replayRoute(request,env,url,reply,headers,readBody,revision){
  }
  return reply({error:'Not found'},404);
 }
+// Messages keep their author only server-side, so an admin can remove a message,
+// block its author and close guest chat without exposing identities publicly.
+const chatModerationSchema=[
+ 'CREATE TABLE IF NOT EXISTS verified_chat_authors (id TEXT PRIMARY KEY,player_hash TEXT NOT NULL,at INTEGER NOT NULL)',
+ 'CREATE INDEX IF NOT EXISTS verified_chat_author_player ON verified_chat_authors(player_hash)',
+ 'CREATE TABLE IF NOT EXISTS verified_chat_blocks (player_hash TEXT PRIMARY KEY,nickname TEXT NOT NULL,created_ms INTEGER NOT NULL)',
+ 'CREATE TABLE IF NOT EXISTS verified_chat_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL)'
+];
+const CHAT_MESSAGE_ID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+// Checked when a chat ticket is issued and again when a message is stored, so a block
+// or a closed guest chat also stops tickets that were issued before it.
+async function chatRefusal(db,playerHash,guest){
+ if(playerHash&&await db.prepare('SELECT 1 FROM verified_chat_blocks WHERE player_hash=?').bind(playerHash).first())
+  return {error:'Chat blocked',code:'chat_blocked'};
+ if(guest&&(await db.prepare("SELECT value FROM verified_chat_settings WHERE key='guests'").first())?.value==='off')
+  return {error:'Guest chat is closed',code:'chat_guests_closed'};
+ return null;
+}
+const orphanChatAuthors=db=>db.prepare('DELETE FROM verified_chat_authors WHERE id NOT IN (SELECT id FROM verified_chat_messages)');
+async function chatAdminRoute(request,env,url,reply,retentionMs){
+ if(!await admin(request,env))return reply({error:'Unauthorized'},401);
+ const db=env.DB,now=Date.now();
+ if(request.method==='GET'){
+  const [messages,blocks,guests]=await Promise.all([
+   db.prepare(`SELECT m.id,m.nickname,m.text,m.at,a.player_hash,b.player_hash IS NOT NULL AS blocked
+    FROM verified_chat_messages m LEFT JOIN verified_chat_authors a ON a.id=m.id LEFT JOIN verified_chat_blocks b ON b.player_hash=a.player_hash
+    WHERE m.at>? ORDER BY m.at DESC,m.id DESC LIMIT 100`).bind(now-retentionMs).all(),
+   db.prepare('SELECT player_hash,nickname,created_ms FROM verified_chat_blocks ORDER BY created_ms DESC LIMIT 200').all(),
+   db.prepare("SELECT value FROM verified_chat_settings WHERE key='guests'").first()
+  ]);
+  return reply({messages:messages.results.map(row=>({...row,blocked:!!row.blocked})),blocks:blocks.results,guestsOpen:guests?.value!=='off'});
+ }
+ if(request.method!=='POST')return reply({error:'Method not allowed'},405);
+ const remove=url.searchParams.get('delete'),block=url.searchParams.get('block'),unblock=url.searchParams.get('unblock'),guests=url.searchParams.get('guests');
+ if(remove!==null){
+  if(!CHAT_MESSAGE_ID.test(remove))return reply({error:'Invalid message'},400);
+  await db.batch([db.prepare('DELETE FROM verified_chat_messages WHERE id=?').bind(remove),db.prepare('DELETE FROM verified_chat_authors WHERE id=?').bind(remove)]);
+  return reply({deleted:true});
+ }
+ if(block!==null){
+  // Block the author of one message and remove everything they still have in the room.
+  if(!CHAT_MESSAGE_ID.test(block))return reply({error:'Invalid message'},400);
+  const author=await db.prepare('SELECT a.player_hash,m.nickname FROM verified_chat_authors a JOIN verified_chat_messages m ON m.id=a.id WHERE a.id=?').bind(block).first();
+  if(!author)return reply({error:'Message author unknown'},404);
+  await db.batch([
+   db.prepare('INSERT OR REPLACE INTO verified_chat_blocks(player_hash,nickname,created_ms) VALUES (?,?,?)').bind(author.player_hash,author.nickname,now),
+   db.prepare('DELETE FROM verified_chat_messages WHERE id IN (SELECT id FROM verified_chat_authors WHERE player_hash=?)').bind(author.player_hash),
+   db.prepare('DELETE FROM verified_chat_authors WHERE player_hash=?').bind(author.player_hash)
+  ]);
+  return reply({blocked:true});
+ }
+ if(unblock!==null){
+  if(!validPlayer(unblock))return reply({error:'Invalid player'},400);
+  await db.prepare('DELETE FROM verified_chat_blocks WHERE player_hash=?').bind(unblock).run();
+  return reply({unblocked:true});
+ }
+ if(guests==='on'||guests==='off'){
+  await db.prepare("INSERT INTO verified_chat_settings(key,value) VALUES ('guests',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(guests).run();
+  return reply({guestsOpen:guests==='on'});
+ }
+ return reply({error:'Unknown action'},400);
+}
 // Daily competition is separate from the all-time lap leaderboard. No browser scores.
 const championshipSchema=[
  `CREATE TABLE IF NOT EXISTS championship_laps (
@@ -418,13 +480,13 @@ const schema=[...guestSchema,...replaySchema,
  'CREATE INDEX IF NOT EXISTS verified_order ON verified_laps(revision,lap_ticks,issued_ms,session_id,lap)',
  'CREATE INDEX IF NOT EXISTS verified_owner_time ON verified_laps(player_hash,issued_ms)',
  'CREATE TABLE IF NOT EXISTS verified_limits (key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires INTEGER NOT NULL)',
- accountSchema,sessionSchema,sessionIndex,chatStorageSchema,chatStorageIndex,...championshipSchema
+ accountSchema,sessionSchema,sessionIndex,chatStorageSchema,chatStorageIndex,...chatModerationSchema,...championshipSchema
 ];
 const accountsReady=new WeakSet();
 const ensureAccounts=async db=>{
  if(accountsReady.has(db))return;
  // Cache completion only: never share request-owned I/O promises across Worker requests.
- for(const sql of [accountSchema,sessionSchema,sessionIndex,chatStorageSchema,chatStorageIndex,...guestSchema,...moderationSchema,...championshipSchema,'CREATE INDEX IF NOT EXISTS verified_owner_time ON verified_laps(player_hash,issued_ms)'])await db.prepare(sql).run();
+ for(const sql of [accountSchema,sessionSchema,sessionIndex,chatStorageSchema,chatStorageIndex,...chatModerationSchema,...guestSchema,...moderationSchema,...championshipSchema,'CREATE INDEX IF NOT EXISTS verified_owner_time ON verified_laps(player_hash,issued_ms)'])await db.prepare(sql).run();
  accountsReady.add(db);
 };
 // Cloudflare Workers caps PBKDF2 at 100 000 iterations. If sign-ins exceed the plan's CPU limit,
@@ -458,6 +520,7 @@ export default {
   await ensureAccounts(env.DB);
   await env.DB.batch(retentionStatements(env.DB,revision));
   await env.DB.prepare('DELETE FROM verified_chat_messages WHERE at<=?').bind(Date.now()-CHAT_RETENTION_MS).run();
+  await orphanChatAuthors(env.DB).run();
   await env.DB.prepare('DELETE FROM verified_limits WHERE expires < ?').bind(Date.now()).run();
  },
  async fetch(request,env){
@@ -493,18 +556,26 @@ export default {
      if(typeof message?.id!=='string'||!/^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.test(message.id)||
       !validName(baseName)||nickname!==baseName&&nickname!==`${baseName} (vierailija)`||
       typeof message.text!=='string'||!message.text.trim()||message.text.length>280||/[\p{Cc}\p{Cf}]/u.test(message.text)||
-      !Number.isSafeInteger(message.at)||message.at<=now-CHAT_RETENTION_MS||message.at>now+5000)return reply({error:'Invalid message'},400);
+      !Number.isSafeInteger(message.at)||message.at<=now-CHAT_RETENTION_MS||message.at>now+5000||
+      message.owner!==undefined&&!validPlayer(message.owner))return reply({error:'Invalid message'},400);
+     // A verification server older than chat moderation sends no owner; its messages can
+     // still be deleted, but their author cannot be blocked.
+     const refusal=await chatRefusal(env.DB,message.owner,nickname!==baseName);
+     if(refusal)return reply(refusal,403);
      await env.DB.batch([
       env.DB.prepare('INSERT OR IGNORE INTO verified_chat_messages(id,nickname,text,at) VALUES (?,?,?,?)')
        .bind(message.id,nickname,message.text,message.at),
+      ...(message.owner?[env.DB.prepare('INSERT OR IGNORE INTO verified_chat_authors(id,player_hash,at) VALUES (?,?,?)').bind(message.id,message.owner,message.at)]:[]),
       env.DB.prepare('DELETE FROM verified_chat_messages WHERE at<=?').bind(now-CHAT_RETENTION_MS),
       env.DB.prepare(`DELETE FROM verified_chat_messages WHERE id NOT IN
-       (SELECT id FROM verified_chat_messages ORDER BY at DESC,id DESC LIMIT 100)`)
+       (SELECT id FROM verified_chat_messages ORDER BY at DESC,id DESC LIMIT 100)`),
+      orphanChatAuthors(env.DB)
      ]);
      return reply({saved:true});
     }
     return reply({error:'Method not allowed'},405);
    }
+   if(url.pathname==='/api/verified/admin/chat')return await chatAdminRoute(request,env,url,reply,CHAT_RETENTION_MS);
    if(url.pathname.startsWith('/api/verified/replays/')||url.pathname.startsWith('/api/verified/admin/'))return await replayRoute(request,env,url,reply,headers,body,revision);
    const limit=async(id,max,windowMs)=>{
     const result=await env.DB.prepare('INSERT INTO verified_limits(key,attempts,expires) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1 RETURNING attempts').bind(id,Date.now()+windowMs).first();
@@ -650,18 +721,9 @@ export default {
     ]);
     return reply({nickname:data.nickname,token,expiresAt,guest:true,series},201);
    }
-   if(url.pathname==='/api/verified/guest-chat-ticket'){
-    if(request.method!=='POST')return reply({error:'POST required'},405);
-    const now=Date.now(),ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
-    if(await limit(`guest-chat:${ip}:${Math.floor(now/60000)}`,30,120000))return reply({error:'Too many requests'},429);
-    const data=await body(request,2048);
-    if(!accountName(data?.nickname))return reply({error:'Invalid nickname'},400);
-    if(await env.DB.prepare('SELECT 1 FROM verified_accounts WHERE name_key=?').bind(nameKey(data.nickname)).first())
-     return reply({error:'Nickname taken'},409);
-    const expiresAt=now+CHAT_TICKET_MS,playerHash=randomHex()+randomHex();
-    return reply({protocol,nickname:data.nickname,expiresInMs:CHAT_TICKET_MS,
-     ticket:await sign({kind:'guest-chat',protocol,playerHash,nickname:data.nickname,issuedAt:now,expiresAt},env.VERIFICATION_SECRET)});
-   }
+   // Guests chat only through a guest session (/api/verified/guest), whose stable identity
+   // can be blocked. Anonymous per-request chat tickets could not be moderated.
+   if(url.pathname==='/api/verified/guest-chat-ticket')return reply({error:'Guest chat requires a guest session',code:'gone'},410);
    if(!['/api/verified/start','/api/verified/chat-ticket','/api/verified/laps','/api/verified/logout','/api/verified/report'].includes(url.pathname))return reply({error:'Not found'},404);
    if(request.method!=='POST')return reply({error:'POST required'},405);
    const token=request.headers.get('Authorization')?.replace(/^Bearer /,'');
@@ -681,6 +743,8 @@ export default {
    await env.DB.prepare('DELETE FROM verified_limits WHERE expires < ?').bind(now).run();
    if(url.pathname==='/api/verified/chat-ticket'){
     // Short-lived, so a logout or a stolen ticket cannot post for long.
+    const refusal=await chatRefusal(env.DB,playerHash,!!owner.guest);
+    if(refusal)return reply(refusal,403);
     const expiresAt=now+CHAT_TICKET_MS;
     return reply({protocol,nickname:owner.nickname,expiresInMs:CHAT_TICKET_MS,
      ticket:await sign({kind:owner.guest?'guest-chat':'chat',protocol,playerHash,nickname:owner.nickname,issuedAt:now,expiresAt},env.VERIFICATION_SECRET)});

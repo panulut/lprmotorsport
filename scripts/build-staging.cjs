@@ -29,8 +29,17 @@ function buildStaging(env=process.env,destination,{allowLoopback=false}={}){
  for(const htmlFile of ['index.html','replay.html']){
   const filePath=path.join(target,htmlFile);
   const original=fs.readFileSync(filePath,'utf8');
-  const changed=original.replace('<body>',`<body>\n${banner}`);
+  let changed=original.replace('<body>',`<body>\n${banner}`);
   if(changed===original)throw Error('Test banner injection failed: '+htmlFile);
+  // The Content-Security-Policy may only allow the isolated test services.
+  const policy=changed.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/)?.[1];
+  if(!policy)throw Error('Content-Security-Policy missing: '+htmlFile);
+  let testPolicy=policy;
+  for(const [productionURL,testOrigin] of [['https://lpr-verification.onrender.com',service],['https://lpr-verified.panu-musakka.workers.dev',leaderboard],['https://lpr-leaderboard.panu-musakka.workers.dev',analytics]]){
+   if(!testPolicy.includes(' '+productionURL+' '))throw Error('Content-Security-Policy endpoint missing: '+productionURL);
+   testPolicy=testPolicy.replace(' '+productionURL+' ',' '+testOrigin+' ');
+  }
+  changed=changed.replace(policy,testPolicy);
   fs.writeFileSync(filePath,changed);
  }
  for(const file of gameFiles){

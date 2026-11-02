@@ -26,6 +26,8 @@ const { translateAdmin } = require('../scripts/translate-admin.cjs');
         const counters = { capacityRejected: 1, startRateRejected: 0, practiceLaps: 2, processingTimeouts: 0, lagTerminations: 0 };
         const fixtures = {
           '/api/verified/admin/laps': {results:[]},
+          '/api/verified/admin/chat': { guestsOpen: true, blocks: [{ player_hash: 'b'.repeat(64), nickname: 'Häiritsijä', created_ms: now }],
+            messages: [{ id: '00000000-0000-4000-8000-000000000000', nickname: 'Päivä', text: 'Hei <b>kaikki</b>', at: now, player_hash: 'c'.repeat(64), blocked: false }] },
           '/api/admin/summary': { totals, daily: [{ day: '2026-10-26', ...totals }], states: [{ state: 'driving', ms: 60000 }], devices: [{ device: 'desktop', sessions: 2 }], players: [{ nickname: 'Päivä', player_hash: hash, ...totals }] },
           '/api/admin/capacity-history': { totals: { lastReportAt: now, ...counters }, daily: [], since: now },
           '/api/admin/capacity': { activeSessions: 1, maxSessions: 10, counters, since: now, observedAt: now },
@@ -42,6 +44,16 @@ const { translateAdmin } = require('../scripts/translate-admin.cjs');
       await page.locator('#laps table').waitFor();
       assert.equal(await page.locator('#token').inputValue(), '');
       assert.match(await page.locator('#states').textContent(), language === 'en' ? /Driving/ : /Ajaminen/);
+      await page.locator('#chat-admin table').waitFor();
+      assert.match(await page.locator('#chat-admin').textContent(), language === 'en' ? /Writer.*Message.*Delete message.*Block writer/ : /Kirjoittaja.*Viesti.*Poista viesti.*Estä kirjoittaja/);
+      assert.match(await page.locator('#chat-admin').textContent(), /Hei <b>kaikki<\/b>/, 'chat text is shown as text, not markup, and is not translated');
+      assert.equal(await page.locator('#chat-admin b').count(), 0);
+      assert.match(await page.locator('#chat-blocks').textContent(), language === 'en' ? /Häiritsijä.*Lift block/ : /Häiritsijä.*Pura esto/);
+      const chatDialog = page.waitForEvent('dialog');
+      const chatClick = page.locator('#chat-admin button').first().click();
+      const chatConfirmation = await chatDialog;
+      assert.match(chatConfirmation.message(), language === 'en' ? /^Delete this message/ : /^Poistetaanko tämä viesti/);
+      await chatConfirmation.dismiss(); await chatClick;
       await page.locator('#players button').click();
       await page.locator('#events table').waitFor();
       assert.match(await page.locator('#events').textContent(), language === 'en' ? /State changed/ : /Tilan vaihto/);

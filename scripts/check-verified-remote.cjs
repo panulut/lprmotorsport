@@ -100,14 +100,11 @@ async function run({
     assert.equal(guestChatTicket.nickname,nickname);
     const guestChatPost=await call(service,'/api/chat',{origin,token:guestChatTicket.ticket,body:{text:`Guest start ${runId}`}});
     assert.equal(guestChatPost.message.nickname,`${nickname} (vierailija)`);
-    const anonName=`ChatG${runId}`;
-    const anonGuestTicket=await call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname:anonName}});
-    assert.equal(anonGuestTicket.nickname,anonName);
-    const anonChatPost=await call(service,'/api/chat',{origin,token:anonGuestTicket.ticket,body:{text:`Anon guest ${runId}`}});
-    assert.equal(anonChatPost.message.nickname,`${anonName} (vierailija)`);
+    // Anonymous chat tickets cannot be moderated; guests chat only through a guest session.
+    await expectFailure(call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname:`ChatG${runId}`}}),410,'Anonymous guest chat ticket');
     report.featureChecks.guest={nickname,displayNickname:`${nickname} (vierailija)`,resumed:resumed.token===created.token};
     report.featureChecks.chat.guestTicketVerified=true;
-    report.featureChecks.chat.anonymousGuestTicketVerified=true;
+    report.featureChecks.chat.anonymousGuestTicketRejected=true;
     auth=created;
    }else{
     auth=await call(leaderboard,'/api/verified/account',{origin,body:{nickname,password,create:true,series:'human'}});
@@ -115,7 +112,7 @@ async function run({
     if(i===1){
      await Promise.all([
       expectFailure(call(leaderboard,'/api/verified/guest',{origin,body:{nickname,series:'human'}}),409,'Guest registration with registered account nickname'),
-      expectFailure(call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname}}),409,'Guest chat ticket with registered account nickname')
+      expectFailure(call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname}}),410,'Anonymous guest chat ticket with registered account nickname')
      ]);
      const accountChatTicket=await call(leaderboard,'/api/verified/chat-ticket',{origin,token:auth.token,body:{}});
      assert.equal(accountChatTicket.nickname,nickname);
@@ -271,7 +268,7 @@ async function run({
   const promotedChatPost=await call(service,'/api/chat',{origin,token:promotedChatTicket.ticket,body:{text:`Promoted finish ${runId}`}});
   assert.equal(promotedChatPost.message.nickname,promotedPlayer.nickname);
   const [,chatHistory,presence]=await Promise.all([
-   expectFailure(call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname:promotedPlayer.nickname}}),409,'Guest chat ticket for newly promoted nickname'),
+   expectFailure(call(leaderboard,'/api/verified/guest-chat-ticket',{origin,body:{nickname:promotedPlayer.nickname}}),410,'Anonymous guest chat ticket for newly promoted nickname'),
    call(service,'/api/chat',{origin}),
    call(service,`/api/chat/presence?visitor=${randomUUID()}`,{origin})
   ]);

@@ -243,6 +243,8 @@
   "Liikaa viestejä. Odota minuutti.": "Too many messages. Wait a minute.",
   "Tämä nimimerkki kuuluu rekisteröityneelle käyttäjälle. Valitse vierailijalle toinen nimimerkki.": "This nickname belongs to a registered user. Choose a different nickname as a guest.",
   "Viestiä ei lähetetty. Yritä uudelleen.": "Message was not sent. Try again.",
+  "Ylläpito on estänyt tämän tunnuksen viestit.": "The moderators have blocked messages from this account.",
+  "Chat on nyt avoinna vain tilin luoneille pelaajille.": "Chat is currently open only to players with an account.",
   "Päivän kisa": "Daily race",
   "Päiväkisa": "Daily",
   "Kuljettajat verkossa": "Online Drivers",

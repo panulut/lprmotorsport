@@ -272,7 +272,7 @@ async function testEarlyInitFailureAndErrorHandling(secret){
   assert.equal(report.featureChecks.timingPanel.verifiedPlayers,2);
   assert.equal(report.featureChecks.championship.pastDayFinalVerified,true);
   assert.equal(report.featureChecks.chat.guestTicketVerified,true);
-  assert.equal(report.featureChecks.chat.anonymousGuestTicketVerified,true);
+  assert.equal(report.featureChecks.chat.anonymousGuestTicketRejected,true);
   assert.equal(report.featureChecks.chat.accountTicketVerified,true);
   assert.equal(report.featureChecks.chat.promotedTicketVerified,true);
   assert.equal(report.featureChecks.chat.takenNicknameRejected,true);

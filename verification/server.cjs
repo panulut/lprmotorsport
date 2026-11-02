@@ -28,6 +28,12 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
   try{
    response=await fetch(chatStorageURLParsed,{method:operation==='write'?'POST':'GET',
     headers:{Authorization:'Bearer '+token},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000)});
+   // A moderation refusal is a final answer for the writer, not a storage outage.
+   if(operation==='write'&&response.status===403){
+    const code=(await response.json().catch(()=>({})))?.code;
+    if(code==='chat_blocked'||code==='chat_guests_closed')
+     throw Object.assign(fail(403,code==='chat_blocked'?'Chat blocked':'Guest chat is closed'),{code,moderation:true});
+   }
    if(!response.ok)throw Error('HTTP '+response.status);
    const data=await response.json();
    if(operation==='read'&&(!Array.isArray(data.messages)||data.messages.length>100||
@@ -35,6 +41,7 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
     throw Error('Invalid chat history');
    return data;
   }catch(error){
+   if(error.moderation)throw error;
    console.error('Chat storage request failed',operation,error.message);
    throw fail(503,'Chat storage unavailable');
   }
@@ -71,7 +78,8 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
     const data=await readJSON(req,2048);
     let identity;try{identity=await verify(req.headers.authorization?.replace(/^Bearer /,''),secret);}catch{throw fail(401,'Sign in required');}
     const result=chat.post(identity,req.socket.remoteAddress||'unknown',data);
-    try{if(chatStorageURLParsed)await chatStorage('write',result.message);}
+    // The author stays inside the signed server-to-server write so moderation can block them.
+    try{if(chatStorageURLParsed)await chatStorage('write',{...result.message,owner:identity.playerHash});}
     catch(error){chat.discard(result.message.id);throw error;}
     return reply(201,result);
    }

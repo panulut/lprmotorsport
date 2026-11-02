@@ -57,6 +57,14 @@ function client(storage = new Map()) {
     assert.equal(forwarded[1].options.redirect,'error','Credentials cannot follow upstream redirects');
     assert.equal((await admin('/api/verified/admin/laps',env.ANALYTICS_ADMIN_TOKEN,'DELETE')).status,405);
     assert.equal(forwarded.length,2);
+    assert.equal((await admin('/api/verified/admin/chat','wrong')).status,401,'Chat moderation requires the admin key');
+    assert.equal(forwarded.length,2,'A rejected key is never forwarded');
+    assert.equal((await admin('/api/verified/admin/chat?guests=off',env.ANALYTICS_ADMIN_TOKEN,'POST')).status,200);
+    assert.equal(forwarded[2].url,'https://lpr-verified.panu-musakka.workers.dev/api/verified/admin/chat?guests=off');
+    assert.equal(forwarded[2].options.method,'POST');
+    assert.equal(forwarded[2].options.headers.Authorization,'Bearer '+env.VERIFIED_ADMIN_TOKEN);
+    assert.notEqual((await admin('/api/verified/admin/other',env.ANALYTICS_ADMIN_TOKEN)).status,200);
+    assert.equal(forwarded.length,3,'Only listed moderation routes are forwarded with the admin key');
   } finally { globalThis.fetch=originalFetch; }
   assert.equal((await worker.fetch(new Request('https://service.test/api/admin/summary'),{DB:binding})).status,503);
   assert.equal((await send(payload)).status,200);

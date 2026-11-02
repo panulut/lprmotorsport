@@ -7,7 +7,7 @@ gameFiles.push('chat.js','sidebar.js','sidebar-compact.css','championship.js','s
 gameFiles.push('design-tokens.css','components.css','sector-panel.js','sector-panel.css');
 gameFiles.push('icons.js','language-selector.js','language-selector.css','keycap-press.js');
 gameFiles.push('crash-notice.css');
-gameFiles.push('formatters.js');
+gameFiles.push('formatters.js','local-entry.js');
 gameFiles.push('sidebar-settings.css');
 gameFiles.push('auth-feedback.css');
 gameFiles.push('series-controls.css');

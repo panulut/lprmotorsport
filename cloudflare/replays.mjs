@@ -89,7 +89,7 @@ export async function reportReplay(env,data,playerHash,revision,now,reply){
  if(!inserted.meta.changes)return reply({error:'Already reported'},409);
  return reply({reported:true});
 }
-async function admin(request,env){
+export async function admin(request,env){
  if(typeof env.ANALYTICS_ADMIN_TOKEN!=='string'||env.ANALYTICS_ADMIN_TOKEN.length<32)return false;
  const a=await hash(request.headers.get('Authorization')?.replace(/^Bearer /,'')||''),b=await hash(env.ANALYTICS_ADMIN_TOKEN);
  let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;

@@ -66,7 +66,19 @@ ei pyynnön sisällöstä. Uloskirjautunut tai väärennetty tunniste ei saa uut
 Render tallentaa viestit `lpr-verified`-Workerin D1-tietokantaan allekirjoitetulla
 palvelinten välisellä pyynnöllä. `CHAT_STORAGE_URL` osoittaa Workerin
 `/api/verified/chat-storage`-osoitteeseen; se on asetettu `render.yaml`-tiedostossa.
-Worker luo chat-taulun automaattisesti. Julkaise muutokset sekä Render-palveluun
+Worker luo chat-taulun automaattisesti.
+
+Chatin valvonta tehdään ylläpitosivulla (`/admin` analytiikka-Workerissa, osio
+Chatin valvonta). Siellä voi poistaa viestin, estää viestin kirjoittajan (hänen
+kaikki viestinsä poistuvat ja vanhatkin chat-liput lakkaavat toimimasta) ja sulkea
+chatin vierailijoilta. Palvelin välittää kirjoittajan tunnisteen vain allekirjoitetussa
+tallennuspyynnössä; julkinen chat ei näytä sitä. Vierailijat kirjoittavat vain
+vierailijasessiolla, joten jokainen kirjoittaja voidaan estää. Anonyymi
+`/api/verified/guest-chat-ticket` palauttaa 410. Julkaise ensin Worker, sitten palvelin:
+vanha palvelin ei lähetä kirjoittajaa, joten sen viestit voi poistaa mutta kirjoittajaa
+ei voi estää.
+
+Julkaise muutokset sekä Render-palveluun
 että `npm run build:verified-worker` -komennon tuottama Worker-koodi; Renderin
 automaattijulkaisu on pois käytöstä, joten julkaisu käynnistetään erikseen.
 Julkaise päivitetty palvelin, Worker (`npm run build:verified-worker`) sekä

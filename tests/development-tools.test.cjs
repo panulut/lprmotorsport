@@ -5,7 +5,9 @@ const {build,root}=require('../scripts/build.cjs');
 const {createServer}=require('../server.js');
 const vm=require('node:vm');
 const gameHtml=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const entry=gameHtml.match(/<script id="local-game-entry">([\s\S]*?)<\/script>/)[1];
+assert.match(gameHtml,/<script id="local-game-entry" src="local-entry.js"><\/script>\s*<!--[\s\S]*?-->\s*<meta http-equiv="Content-Security-Policy"/,
+  'The file:// redirect runs before the Content-Security-Policy, which forbids inline scripts');
+const entry=fs.readFileSync(path.join(root,'local-entry.js'),'utf8');
 for(const protocol of ['file:','http:','https:']){
   let destination;
   vm.runInNewContext(entry,{window:{location:{protocol,replace(url){destination=url;}}}});

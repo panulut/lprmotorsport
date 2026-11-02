@@ -37,15 +37,8 @@ const {revision}=require('../verification/world.cjs');
   const chatTicket=await verify((await chatGrant.json()).ticket,secret);
   assert.equal(chatTicket.kind,'chat');assert.equal(chatTicket.nickname,'Panu','The chat ticket always carries the account nickname');
   assert.equal(chatTicket.playerHash,stored.player_hash);assert(chatTicket.expiresAt-chatTicket.issuedAt<=10*60000,'Chat tickets are short-lived');
-  const guestGrant=await post('/api/verified/guest-chat-ticket',{nickname:'Vierailija'});
-  assert.equal(guestGrant.status,200);
-  const guestTicket=await verify((await guestGrant.json()).ticket,secret);
-  assert.equal(guestTicket.kind,'guest-chat');assert.equal(guestTicket.nickname,'Vierailija');
-  assert.notEqual(guestTicket.playerHash,stored.player_hash,'Guest chat identity is separate from registered accounts');
-  assert(guestTicket.expiresAt-guestTicket.issuedAt<=10*60000,'Guest chat tickets are short-lived');
-  assert.equal((await post('/api/verified/guest-chat-ticket',{nickname:'Eve'})).status,409,'Guests cannot claim a registered nickname');
-  assert.equal((await post('/api/verified/guest-chat-ticket',{nickname:'eVe'})).status,409,'Registered nicknames remain reserved regardless of case');
-  assert.equal((await post('/api/verified/guest-chat-ticket',{nickname:' <script>'})).status,400,'Guest tickets require a valid nickname');
+  // Guests chat through a guest session; anonymous per-request tickets could not be moderated.
+  assert.equal((await post('/api/verified/guest-chat-ticket',{nickname:'Vierailija'})).status,410,'Anonymous guest chat tickets are no longer issued');
   assert.equal((await post('/api/verified/chat-ticket',{},outsider)).status,401,'A browser without the account cannot chat as Panu');
   const forged=await receipt(await hash(outsider),'Panu','1'.repeat(32),7000);
   assert.equal((await post('/api/verified/laps',{receipt:forged,replay},outsider)).status,401,'Laps without an account are not stored');

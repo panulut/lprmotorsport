@@ -13,16 +13,18 @@ const {launchBrowser}=require('./browser.cjs');
    localStorage.setItem('lpr-account',JSON.stringify({nickname:'Test Driver',token:'a'.repeat(64),expiresAt:Date.now()+3600000,series:'human'}));
    localStorage.setItem('lpr-chat-visible','true');
   });
-  await page.route('**/verification/config.js*',r=>r.fulfill({contentType:'text/javascript',body:`window.LPRVerificationConfig={service:'https://service.test',leaderboard:'https://board.test'};`}));
+  // Loopback origins pass the page's Content-Security-Policy; the routes below answer them.
+  const service='http://127.0.0.1:9',board='http://127.0.0.1:10';
+  await page.route('**/verification/config.js*',r=>r.fulfill({contentType:'text/javascript',body:`window.LPRVerificationConfig={service:'${service}',leaderboard:'${board}'};`}));
   const rows=Array.from({length:10},(_,i)=>({nickname:'Driver '+(i+1)+' with a long name',speedRank:i+1,volumeRank:i+1,rank:i+1,bestMs:65000+i*100,laps:20-i,points:100-i}));
   const ids=rows.map((_,i)=>(i+1).toString(16).padStart(32,'0'));
-  await page.route('https://board.test/**',r=>{
+  await page.route(board+'/**',r=>{
    const url=new URL(r.request().url());
    if(url.pathname.endsWith('/championship'))return r.fulfill({json:{today:'2026-10-27',day:'2026-10-27',month:'2026-10',serverNow:Date.now(),endsAt:Date.now()+3600000,final:false,fastest:rows,mostLaps:rows,monthly:rows,me:{streak:5,bestStreak:10,todayLaps:8,activeToday:true,selectedDay:{points:30,breakdown:{speed:10,volume:10,participation:5,milestones:3,streak:2}}}}});
    return r.fulfill({json:{protocol:'driving-v1',revision,results:rows.map((row,i)=>({nickname:row.nickname,lap_ms:row.bestMs,lap:1,session_id:ids[i],replay_available:true}))}});
   });
   const {world}=createWorld(),recorder=new (require('../verification/replay.cjs').Recorder)(world,revision),frame=recorder.frame();
-  await page.route('https://service.test/**',r=>{
+  await page.route(service+'/**',r=>{
    const url=new URL(r.request().url());
    if(url.pathname==='/health')return r.fulfill({json:{revision,protocol:'driving-v1'}});
    if(url.pathname==='/spectate')return r.fulfill({json:{results:rows.map((row,i)=>({id:ids[i],nickname:row.nickname}))}});

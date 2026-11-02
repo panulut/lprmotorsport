@@ -2,11 +2,10 @@
 <html lang="fi">
   <head>
     <meta charset="UTF-8" />
-    <script id="local-game-entry">
-      if (window.location.protocol === 'file:') {
-        window.location.replace('http://localhost:8000/' + (window.location.search || ''));
-      }
-    </script>
+    <script id="local-game-entry" src="local-entry.js"></script>
+    <!-- Defence in depth: no inline scripts, and data may only be sent to the game's own services.
+         Update connect-src with verification/config.js and analytics.js endpoints. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' data: blob:; connect-src 'self' https://lpr-verification.onrender.com https://lpr-verified.panu-musakka.workers.dev https://lpr-leaderboard.panu-musakka.workers.dev http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#07110f" />
     <meta name="description" content="LPR Motorsport Lap Challenge – aja kierros Formula Student -radalla." />

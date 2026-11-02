@@ -84,9 +84,14 @@
   clearTimeout(timer);
   void refresh();
  }
+ // Keep the service's refusal code (e.g. a moderation block) so the player sees why.
+ async function failure(response,label,extra={}){
+  let code;try{code=(await response.json())?.code;}catch{}
+  return Object.assign(Error(label+' HTTP '+response.status),{status:response.status,code,...extra});
+ }
  async function request(options){
   const response=await fetch(endpoint,{...options,signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw Object.assign(Error('Chat HTTP '+response.status),{status:response.status});
+  if(!response.ok)throw await failure(response,'Chat');
   return response.json();
  }
  // The account service signs session identities into short-lived tickets.
@@ -96,7 +101,7 @@
   ticket=null;
   const response=await fetch(window.LPRVerificationConfig.leaderboard+'/api/verified/chat-ticket',{
    method:'POST',headers:{Authorization:'Bearer '+identity.token},signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw Object.assign(Error('Chat ticket HTTP '+response.status),{status:response.status,signIn:response.status===401});
+  if(!response.ok)throw await failure(response,'Chat ticket',{signIn:response.status===401});
   const data=await response.json();
   if(typeof data?.ticket!=='string'||!Number.isSafeInteger(data.expiresInMs))throw Error('Invalid chat ticket');
   if(chatIdentity()?.token!==identity.token)throw Object.assign(Error('Chat identity changed'),{signIn:true});
@@ -150,7 +155,7 @@
    await post(login,text);
    if(input.value.trim()===text)input.value='';
    status.textContent=t('Viesti lähetetty');void refresh();
-  }catch(error){status.textContent=t(error.signIn?'Kirjaudu uudelleen ennen lähettämistä.':error.status===409?'Tämä nimimerkki kuuluu rekisteröityneelle käyttäjälle. Valitse vierailijalle toinen nimimerkki.':error.status===429?'Liikaa viestejä. Odota minuutti.':'Viestiä ei lähetetty. Yritä uudelleen.');}
+  }catch(error){status.textContent=t(error.signIn?'Kirjaudu uudelleen ennen lähettämistä.':error.code==='chat_blocked'?'Ylläpito on estänyt tämän tunnuksen viestit.':error.code==='chat_guests_closed'?'Chat on nyt avoinna vain tilin luoneille pelaajille.':error.status===409?'Tämä nimimerkki kuuluu rekisteröityneelle käyttäjälle. Valitse vierailijalle toinen nimimerkki.':error.status===429?'Liikaa viestejä. Odota minuutti.':'Viestiä ei lähetetty. Yritä uudelleen.');}
   finally{sending=false;syncIdentity();}
  });
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden)void refresh();});
