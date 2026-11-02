@@ -91,6 +91,8 @@ export default {
   try{
    if(!env.DB||!validPlayer(revision)||typeof env.VERIFICATION_SECRET!=='string'||env.VERIFICATION_SECRET.length<32)return reply({error:'Verification not configured'},503);
    const url=new URL(request.url);
+   // A deployment preflight must not create tables or require a login.
+   if(url.pathname==='/api/verified/health'&&request.method==='GET')return reply({ready:true,protocol,revision,commit:env.RELEASE_COMMIT||null});
    await ensureAccounts(env.DB);
    if(url.pathname==='/api/verified/chat-storage'){
     const now=Date.now(),credential=request.headers.get('Authorization')?.replace(/^Bearer /,'');

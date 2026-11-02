@@ -27,7 +27,7 @@ const {driver}=require('../tests/helpers-driving.cjs');
    if(firstHealth){firstHealth=false;await healthGate;}
    await route.continue();
   });
-  await page.route('https://lpr-leaderboard.panu-musakka.workers.dev/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({version:'lut-20261011-v3',results:[]})}));
+  await context.route('https://lpr-leaderboard.panu-musakka.workers.dev/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({version:'lut-20261011-v3',results:[]})}));
   await page.route('**/game.js?*',route=>{
    let source=fs.readFileSync(path.join(__dirname,'../game.js'),'utf8').replaceAll('\r\n','\n');
    source=source.replace('  function readInput() {','  function readInput() {\n    if(window.__input)return {...window.__input};');
@@ -46,7 +46,7 @@ const {driver}=require('../tests/helpers-driving.cjs');
   const startArtifacts=path.resolve(__dirname,'../artifacts/verification');fs.mkdirSync(startArtifacts,{recursive:true});
   if(guestMode){
    await page.click('#leaderboard-practice');
-   await page.fill('#leaderboard-guest-name','Browser Driver');await page.selectOption('#leaderboard-guest-series','human');await page.click('#leaderboard-guest-start');
+   await page.fill('#leaderboard-guest-name','Browser Driver');await page.locator('#leaderboard-guest-series-human').check();await page.click('#leaderboard-guest-start');
    await page.waitForFunction(()=>window.LPRLeaderboard.identity?.guest,null,{polling:20}).catch(async error=>{console.error({errors,status:await page.textContent('#leaderboard-status'),guest:await page.evaluate(()=>!!window.LPRLeaderboard.identity?.guest)});throw error;});
    assert.equal(board.db.prepare('SELECT COUNT(*) n FROM verified_accounts').get().n,0);
    assert(!await page.evaluate(()=>window.LPRVerifiedDriving.active),'Guest selection keeps the lobby open');
@@ -143,6 +143,7 @@ const {driver}=require('../tests/helpers-driving.cjs');
    if(record){delete record.trace;delete record.referenceTrace;localStorage.setItem(key,JSON.stringify(record));}
   });
   const recoveryPage=await context.newPage();
+  await recoveryPage.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
   recoveryPage.on('pageerror',error=>errors.push('recovery: '+error.message));
   await recoveryPage.route('**/verification/config.js*',route=>route.fulfill({contentType:'text/javascript',body:`window.LPRVerificationConfig=${JSON.stringify({service:serviceURL,leaderboard:boardURL})};`}));
   await recoveryPage.route('**/game.js?*',route=>{
@@ -152,7 +153,7 @@ const {driver}=require('../tests/helpers-driving.cjs');
    return route.fulfill({contentType:'text/javascript',body:source});
   });
   await recoveryPage.addInitScript(()=>localStorage.setItem('lpr-release-notes-seen','2026-10-27-major-update'));
-  await recoveryPage.goto(origin);
+  await recoveryPage.goto(origin,{waitUntil:'domcontentloaded'});
   await recoveryPage.waitForFunction(()=>window.LPRLeaderboard?.accountIdentity,null,{timeout:10000,polling:50});
   await recoveryPage.click('#leaderboard-drive');
   await recoveryPage.waitForFunction(()=>!!window.LPRLeaderboard?.identity,null,{timeout:10000,polling:50});

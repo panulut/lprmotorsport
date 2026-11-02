@@ -35,6 +35,14 @@ function client(storage = new Map()) {
   const worker = (await import(pathToFileURL(path.join(__dirname,'../cloudflare/worker.mjs')).href)).default;
   const { db, binding } = database();
   const env = { DB:binding, ANALYTICS_ADMIN_TOKEN:'secret-'.repeat(10) };
+  const testOrigin='https://lpr-motorsport-test-a1gg.onrender.com';
+  const isolated={...env,GAME_ORIGINS:' '+testOrigin+' '};
+  const preflight=origin=>new Request('https://service.test/api/analytics',{method:'OPTIONS',headers:{Origin:origin}});
+  assert.equal((await worker.fetch(preflight(testOrigin),env)).status,403);
+  const allowed=await worker.fetch(preflight(testOrigin),isolated);
+  assert.equal(allowed.status,204);assert.equal(allowed.headers.get('Access-Control-Allow-Origin'),testOrigin);
+  assert.equal((await worker.fetch(preflight('https://panulut.github.io'),isolated)).status,403);
+  assert.equal((await worker.fetch(preflight(testOrigin),{...env,GAME_ORIGINS:''})).status,403);
   const now = Date.now(), token = 'a'.repeat(64), session = 'b'.repeat(64);
   const hash = value=>createHash('sha256').update(value).digest('hex');
   let sequence = 1;

@@ -32,13 +32,15 @@ export default {
     ctx.waitUntil((async () => { await ensureAnalytics(env.DB); await cleanAnalytics(env.DB); await capacitySchema(env.DB); await env.DB.prepare('DELETE FROM capacity_history WHERE bucket < ?').bind(Date.now()-90*86400000).run(); })());
   },
   async fetch(request, env) {
+    const origins = env.GAME_ORIGINS === undefined ? ORIGINS
+      : new Set(env.GAME_ORIGINS.split(',').map(value => value.trim()).filter(Boolean));
     const origin = request.headers.get('Origin');
     const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Vary': 'Origin' };
-    if (ORIGINS.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+    if (origins.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
     const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers });
     const url = new URL(request.url);
     // Browsers send Origin on same-origin DELETE/POST too, e.g. from the /admin page.
-    if (origin && !ORIGINS.has(origin) && origin !== url.origin) return reply({ error: 'Origin denied' }, 403);
+    if (origin && !origins.has(origin) && origin !== url.origin) return reply({ error: 'Origin denied' }, 403);
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: { ...headers, 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
     }

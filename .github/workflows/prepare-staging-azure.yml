@@ -1,0 +1,91 @@
+name: Prepare UI and Azure staging release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_image:
+        description: Publish validated staging image to GHCR (no service deployment)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/fix/staging-azure-integration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: |
+          npm run test:azure-verification
+          npm run test:staging
+          npm run test:analytics
+          npm run test:chat
+          npm run prepare:staging-azure
+        env:
+          LPR_TEST_GIT_COMMIT: ${{ github.sha }}
+      - name: Build the same source for Azure
+        run: |
+          docker build --file Dockerfile.verification \
+            --build-arg LPR_RELEASE_COMMIT="$GITHUB_SHA" \
+            --tag "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA" .
+      - name: Scan the release image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          version: v0.76.1
+          image-ref: ghcr.io/panulut/lprmotorsport/verification:staging-${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
+      - name: Check container startup, isolation and shutdown
+        run: |
+          set -euo pipefail
+          export VERIFICATION_SECRET="$(openssl rand -hex 32)"
+          export VERIFICATION_METRICS_TOKEN="$(openssl rand -hex 32)"
+          export GAME_ORIGINS=https://lpr-motorsport-test-a1gg.onrender.com
+          trap 'docker rm -f lpr-staging-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name lpr-staging-smoke -p 127.0.0.1:18081:8081 \
+            -e VERIFICATION_SECRET -e VERIFICATION_METRICS_TOKEN -e GAME_ORIGINS \
+            "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA"
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const base='http://127.0.0.1:18081';let health;
+            for(let i=0;i<30;i++){
+              try{const r=await fetch(base+'/health');if(r.ok){health=await r.json();break;}}catch{}
+              await new Promise(r=>setTimeout(r,1000));
+            }
+            assert(health?.ready);assert.equal(health.maxSessions,2);assert.equal(health.activeSessions,0);
+            assert.equal(health.commit,process.env.GITHUB_SHA);
+            assert.equal(health.revision,require('./verification/world.cjs').revision);
+            assert.equal(health.protocol,require('./verification/protocol.mjs').protocol);
+            assert.equal((await fetch(base+'/health',{headers:{Origin:process.env.GAME_ORIGINS}})).status,200);
+            assert.equal((await fetch(base+'/health',{headers:{Origin:'https://panulut.github.io'}})).status,403);
+            assert.equal((await fetch(base+'/metrics')).status,401);
+            assert.equal((await fetch(base+'/metrics',{headers:{Authorization:'Bearer '+process.env.VERIFICATION_METRICS_TOKEN}})).status,200);
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          JS
+          docker stop --time 10 lpr-staging-smoke
+          test "$(docker inspect --format '{{.State.ExitCode}}' lpr-staging-smoke)" = 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-${{ github.sha }}
+          path: artifacts/integration/staging-release
+      - name: Publish only the validated image
+        if: inputs.publish_image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_REPOSITORY_OWNER" --password-stdin
+          docker push "ghcr.io/panulut/lprmotorsport/verification:staging-$GITHUB_SHA"

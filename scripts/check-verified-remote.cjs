@@ -7,6 +7,7 @@ const {createWorld,revision}=require('../verification/world.cjs');
 const {driver}=require('../tests/helpers-driving.cjs');
 const {testURL}=require('./build-staging.cjs');
 const LiveClient=require('../experiment/live-client.js');
+const {protocol}=require('../verification/protocol.mjs');
 async function request(base,route,{token,body,method=body?'POST':'GET',origin,timeout=25000}={}){
  const response=await fetch(base+route,{method,headers:{...(origin?{Origin:origin}:{}),...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(timeout)});
  const raw=await response.text();
@@ -63,11 +64,24 @@ async function run({
  try{
   const manifest=await call(origin,'/staging.json');
   assert.equal(manifest.environment,'staging');assert.equal(manifest.revision,revision,'Test page must match this checkout');
+  assert.equal(manifest.protocol,protocol,'Test page protocol must match this checkout');
+  if(!allowLoopback)assert.match(manifest.commit||'',/^[a-f0-9]{40}$/,'Test page must identify its full source commit');
   service=testURL(manifest.service,{allowLoopback});
   leaderboard=testURL(manifest.leaderboard,{allowLoopback});
   report.service=service;report.leaderboard=leaderboard;report.commit=manifest.commit;
   const health=await call(service,'/health',{origin,timeout:healthTimeoutMs});
-  assert.equal(health.revision,revision);assert(health.ready&&health.streaming);assert.equal(health.activeSessions,0,'Wait until other testers finish');
+  assert.equal(health.revision,revision);assert.equal(health.protocol,protocol);assert(health.ready&&health.streaming);assert.equal(health.activeSessions,0,'Wait until other testers finish');
+  assert(count<=health.maxSessions,'Requested players exceed live admission');
+  if(!allowLoopback)assert.equal(health.maxSessions,2,'This staging check requires the two-session deployment');
+  const workerHealth=await call(leaderboard,'/api/verified/health',{origin});
+  assert.equal(workerHealth.ready,true);
+  assert.equal(workerHealth.revision,revision,'Worker simulation must match before creating accounts');
+  assert.equal(workerHealth.protocol,protocol,'Worker protocol must match before creating accounts');
+  if(!allowLoopback){
+   assert.equal(health.commit,manifest.commit,'Azure source commit must match the test page');
+   assert.equal(workerHealth.commit,manifest.commit,'Worker source commit must match the test page');
+  }
+  report.preflight={service:health,worker:workerHealth};
   progress({phase:'preparing',revision});
   const batches=fixture(),runId=randomBytes(4).toString('hex');
   report.runId=runId;

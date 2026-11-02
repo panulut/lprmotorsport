@@ -22,3 +22,5 @@ jobs:
           # node:sqlite (leaderboard tests) needs a current Node release.
           node-version: 24
       - run: npm run ${{ matrix.suite }}
+      - if: matrix.suite == 'test:staging'
+        run: npm run test:azure-verification

@@ -1,5 +1,10 @@
 # Kahden pelaajan testiympäristö
 
+> UI-uudistuksen ja Azuren yhteisjulkaisun ajantasainen valmistelu, nykytilan
+> auditointi ja hyväksyttävät kohdemuutokset:
+> [STAGING-AZURE-20261102.md](STAGING-AZURE-20261102.md).
+> Alla oleva Render-varmennuksen kuvaus on aiemman testiympäristön historiaa.
+
 Testi käyttää integraatiohaaraa `integration/main-updates-20261025`; mainia ei
 julkaista. Renderin palvelin on erillinen tuotannosta, ja Cloudflaren
 `lpr-verified-test` sekä `lpr-analytics-test` käyttävät testitietokantaa
