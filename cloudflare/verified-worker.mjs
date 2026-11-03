@@ -1,6 +1,6 @@
 import {databaseNowSQL,guestSchema,guestNameSQL,principalJoins,principalExists,sessionOwner,identityReply,uploadFailure} from './guests.mjs';
 import {championshipSchema,championship,championshipEntry,claimChampionshipEntries} from './championship.mjs';
-import {replaySchema,moderationSchema,replayStatements,replayRoute,retentionStatements,reportReplay,seriesFor,seriesOf,SERIES} from './replays.mjs';
+import {replaySchema,moderationSchema,replayStatements,replayRoute,retentionStatements,reportReplay,seriesFor,seriesOf,SERIES,bestReplayQuery} from './replays.mjs';
 import {chatModerationSchema,chatRefusal,orphanChatAuthors,chatAdminRoute} from './chat-moderation.mjs';
 import {sign,verify,hash,protocol,validPlayer,validName} from '../verification/protocol.mjs';
 import {allowedName} from '../verification/name-policy.mjs';
@@ -143,9 +143,8 @@ export default {
    if(url.pathname==='/api/verified/leaderboard'&&request.method==='GET'){
     const series=url.searchParams.get('series')||'human';
     if(!SERIES.includes(series))return reply({error:'Invalid series'},400);
-    const rows=await env.DB.prepare(`SELECT ${guestNameSQL} AS nickname,l.lap_ticks,l.sector1,l.sector2,l.sector3,l.session_id,l.lap,
-     CASE WHEN r.pinned=1 THEN 1 ELSE 0 END AS replay_available FROM verified_laps l JOIN verified_replays r USING(session_id,lap) ${principalJoins}
-     WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND ${seriesOf('l.player_hash')}=? AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap) ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap LIMIT 10`).bind(revision,series).all();
+    const rows=await env.DB.prepare(`SELECT nickname,lap_ticks,sector1,sector2,sector3,session_id,lap,1 AS replay_available
+     FROM (${bestReplayQuery(true)}) ORDER BY lap_ticks,issued_ms,session_id,lap LIMIT 10`).bind(revision,series).all();
     return reply({protocol,revision:revision,series,results:rows.results.map(row=>({...row,lap_ms:row.lap_ticks*1000/120}))});
    }
    if(url.pathname==='/api/verified/timing-panel'&&request.method==='GET'){

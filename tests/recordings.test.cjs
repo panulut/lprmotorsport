@@ -29,7 +29,7 @@ const assert=require('node:assert/strict');
    board.db.prepare('INSERT INTO verified_replays VALUES (?,?,?,?,?,?,?)').run(sessionId,lap,payload,await hash(payload),now+86400000,0,'unreviewed');
   }
   assert.equal((await post('/api/verified/laps',{receipt:signed,replay:payload})).status,200);
-  const fullTop=await(await fetch(base+'/api/verified/leaderboard')).json();assert.equal(fullTop.results.length,10);assert(fullTop.results.every(r=>r.replay_available===1));
+  const fullTop=await(await fetch(base+'/api/verified/leaderboard')).json();assert.equal(fullTop.results.length,1);assert(fullTop.results.every(r=>r.replay_available===1));
   for(const r of fullTop.results)assert.equal((await fetch(base+'/api/verified/replays/'+r.session_id+'/'+r.lap)).status,200,'Every TOP 10 entry has a publicly retrievable recording');
   const publicURL=lap=>base+'/api/verified/replays/'+sessionId+'/'+lap;
   assert.equal((await fetch(publicURL(13))).status,404,'Non-public recordings require administrator access');
@@ -64,7 +64,7 @@ const assert=require('node:assert/strict');
   assert.deepEqual(laps(),[...Array.from({length:20},(_,i)=>i+2),25,1],'The current revision\'s fastest twenty remain, plus the recording awaiting review');
   assert.equal((await fetch(publicURL(2))).status,200,'Top-ten recording stays public');
   assert.equal((await fetch(publicURL(13))).status,404,'Ranks eleven to twenty remain private');
-  // A slower lap is saved as a result, but its recording is never written once twenty faster ones exist.
+  // A slower lap remains a result, but its replay is not retained outside the retained sets.
   const slow=await import('../verification/protocol.mjs').then(async({verify})=>sign({...await verify(await receipt(30),secret),replayHash:await hash(payload)},secret));
   assert.equal((await post('/api/verified/laps',{receipt:slow,replay:payload})).status,200);
   assert.equal(board.db.prepare('SELECT COUNT(*) n FROM verified_laps WHERE lap=30').get().n,1);
@@ -90,8 +90,8 @@ const assert=require('node:assert/strict');
   for(let lap=1;lap<=22;lap++)await seedBot(lap,9000+lap);
   await worker.scheduled({}, {DB:binding,SIMULATION_REVISION:revision});
   const board_=async series=>(await(await fetch(base+'/api/verified/leaderboard'+(series?'?series='+series:''))).json());
-  assert.deepEqual((await board_()).results.map(r=>r.lap),[40,2,3,4,5,6,7,8,9,10],'Faster bots never displace humans');
-  const bots=await board_('bot');assert.equal(bots.series,'bot');assert.deepEqual(bots.results.map(r=>r.lap),[1,2,3,4,5,6,7,8,9,10]);
+  assert.deepEqual((await board_()).results.map(r=>r.lap),[40],'Faster bots never displace humans');
+  const bots=await board_('bot');assert.equal(bots.series,'bot');assert.deepEqual(bots.results.map(r=>r.lap),[1]);
   assert(bots.results.every(r=>r.session_id===botSession));
   assert.equal((await fetch(base+'/api/verified/leaderboard?series=robot')).status,400);
   const count=session=>board.db.prepare('SELECT COUNT(*) n FROM verified_replays WHERE session_id=?').get(session).n;
@@ -135,7 +135,7 @@ const assert=require('node:assert/strict');
   assert.equal((await move({sessionId:'0'.repeat(32),lap:1,series:'bot'})).status,404);
   assert.equal((await move({sessionId,lap:40,series:'bot'})).status,200);
   assert.equal((await board_()).results.length,0,'The moved account leaves the human series');
-  assert((await board_('bot')).results.every(r=>r.session_id===botSession));
+  assert.deepEqual((await board_('bot')).results.map(r=>r.session_id),[botSession,sessionId]);
   assert.deepEqual(board.db.prepare('SELECT lap FROM verified_replays WHERE session_id=? ORDER BY lap').all(sessionId).map(r=>r.lap),[2,3,4,5,6,7,8,9,10,11,13,25,40],'Previously public and flagged recordings survive category moves');
   // Record exclusions must preserve lap history, daily points and restorable replays.
   const adminPath='/api/verified/admin/laps';

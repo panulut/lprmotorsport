@@ -55,6 +55,18 @@ can retrieve archives from old revisions. Original lap rows and newly accepted
 signed receipts remain even when a non-public replay is not retained. Monitor
 archive growth; the previous fixed-size storage estimate no longer applies.
 
+The leaderboard displays only each driver's fastest eligible replay, identified
+by the stable account/guest principal across sessions. Deduplication happens
+before the ten-driver limit; equal times keep their original arrival order.
+In addition to the existing twenty-lap pool, each series retains the best replay
+of its twenty fastest distinct drivers. Both the ten fastest laps and the ten
+fastest drivers' best laps become public. This preserves multiple watchable laps
+without allowing one driver to block others' recordings. The replay viewer's
+**Kuljettajan muut uusinnat** selector lists that driver's other public recordings
+via `GET /api/verified/replays/:session/:lap/related`. Private, excluded and old
+revision recordings are not exposed through this list. Admin lap diagnostics use
+driver ranks and mark slower personal laps as `not_personal_best`.
+
 ## Sarjat: ihmiset ja botit
 
 - Tilin luonti etenee kahdessa vaiheessa: ensin nimimerkki ja salasana, sitten pakollinen

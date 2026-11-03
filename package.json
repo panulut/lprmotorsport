@@ -43,7 +43,7 @@
     "test:verified": "node tests/verified-driving.test.cjs && node tests/verified-realtime-policy.test.cjs && node tests/verified-accounts.test.cjs && node tests/verified-client.test.cjs",
     "test:verified-browser": "node scripts/check-verified-browser.cjs",
     "test:verified-realtime": "node scripts/check-verified-realtime.cjs",
-    "test:recordings": "node tests/recordings.test.cjs && node tests/replay-viewer.test.cjs",
+    "test:recordings": "node tests/recordings.test.cjs && node tests/verified-leaderboard.test.cjs && node tests/replay-viewer.test.cjs",
     "test:verification-capacity": "node tests/track-nearest.test.cjs && node tests/recorder-parity.test.cjs && node tests/verification-metrics.test.cjs && node tests/admin-capacity.test.cjs && node tests/capacity-history.test.cjs",
     "measure:verification-capacity": "node scripts/measure-verification-capacity.cjs",
     "load:verification": "node scripts/load-verification.cjs",

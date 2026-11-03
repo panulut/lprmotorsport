@@ -118,6 +118,7 @@
   "Edelliset": "Previous",
   "Seuraavat": "Next",
   "Kierroksen uusinta": "Lap replay",
+  "Kuljettajan muut uusinnat": "Driver's other replays",
   "Uusinta kuljettajan paikalta": "Driver view replay",
   "Palvelimella tallennettu auton liike radalla": "Server-recorded vehicle movement on the track",
   "Kuljettajan suora seuranta": "Live driver spectating",

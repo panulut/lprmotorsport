@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const sample={format:'lpr-replay-v1',hz:120,metresPerWorldUnit:.1,startTick:120,endTick:240,track:[[0,0],[100,0],[100,100]],frames:[[120,0,0,0,10,0],[180,50,0,0,10,0],[240,100,0,0,10,0]],inputs:[[120,1,0,0,false,false,true],[180,0,1,-.5,true,true,true]]};
-function fixture({admin=false,response=sample,error=0,driver=false,account=null,reportStatus=200}={}){
+function fixture({admin=false,response=sample,error=0,driver=false,account=null,reportStatus=200,related=[]}={}){
  const nodes=new Map(),requests=[],draws=[],renders=[],times=[];let animate;
- function node(id){if(!nodes.has(id))nodes.set(id,{hidden:true,value:id==='#speed'?'1':'',checked:false,textContent:'',append(){},replaceChildren(...children){this.textContent=children.map(child=>child.textContent||'').join('');},setAttribute(){},getContext(){return new Proxy({},{get:(_,method)=>(...args)=>{if(method==='translate')draws.push(args);},set:()=>true});}});return nodes.get(id);}
+ function node(id){if(!nodes.has(id))nodes.set(id,{hidden:true,value:id==='#speed'?'1':'',checked:false,textContent:'',children:[],append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;this.textContent=children.map(child=>child.textContent||'').join('');},setAttribute(){},getContext(){return new Proxy({},{get:(_,method)=>(...args)=>{if(method==='translate')draws.push(args);},set:()=>true});}});return nodes.get(id);}
  const document={querySelector:node,createElement:()=>node(Symbol()),createTextNode:text=>({textContent:text}),addEventListener(){}};
  class Renderer{resize(){}updatePeople(time){times.push(time);}render(car,time){renders.push({car,snapshot:JSON.parse(JSON.stringify(car)),time});}}
- const context={window:{LPRIcon:()=>({textContent:''}),LPRVerificationConfig:{leaderboard:'https://board.test'},LPRDrivingRevision:'revision',LPRReplayPose:require('../replay-pose.js'),LPRRenderer3D:driver?Renderer:undefined},document,location:{search:admin?'?admin=1':'?session='+'a'.repeat(32)+'&lap=2'},URLSearchParams,Node:class {},AbortSignal,console,performance:{now:()=>0},requestAnimationFrame:f=>{animate=f;},localStorage:{getItem:key=>key==='lpr-account'&&account?JSON.stringify(account):null},fetch:async(url,options)=>{requests.push({url,options});if(url.endsWith('/api/verified/report'))return {ok:reportStatus===200,status:reportStatus,json:async()=>({})};return {ok:!error,status:error,json:async()=>url.includes('offset=')?{results:[],hasMore:false}:response};}};
+ const context={window:{LPRIcon:()=>({textContent:''}),LPRVerificationConfig:{leaderboard:'https://board.test'},LPRDrivingRevision:'revision',LPRReplayPose:require('../replay-pose.js'),LPRRenderer3D:driver?Renderer:undefined},document,location:{search:admin?'?admin=1':'?session='+'a'.repeat(32)+'&lap=2'},URLSearchParams,Node:class {},AbortSignal,console,performance:{now:()=>0},requestAnimationFrame:f=>{animate=f;},localStorage:{getItem:key=>key==='lpr-account'&&account?JSON.stringify(account):null},fetch:async(url,options)=>{requests.push({url,options});if(url.endsWith('/related'))return {ok:true,json:async()=>({results:related})};if(url.endsWith('/api/verified/report'))return {ok:reportStatus===200,status:reportStatus,json:async()=>({})};return {ok:!error,status:error,json:async()=>url.includes('offset=')?{results:[],hasMore:false}:response};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../replay.js'),'utf8'),context);
  return {node,requests,draws,renders,times,advance:time=>animate(time)};
 }
@@ -17,6 +17,14 @@ const settle=()=>new Promise(r=>setImmediate(r));
  f.node('#play').onclick();f.advance(200);assert.match(f.node('#clock').textContent,/0.850/,'Pause holds the selected frame');
  f.node('#restart').onclick();assert.match(f.node('#clock').textContent,/0.000/);
  f.node('#speed').value='4';f.node('#play').onclick();f.advance(300);assert.match(f.node('#clock').textContent,/1.000/);assert.match(f.node('#play').textContent,/Toista/,'End of lap pauses playback');
+ const multiple=fixture({related:[{session_id:'a'.repeat(32),lap:2,lap_ms:1000},{session_id:'c'.repeat(32),lap:3,lap_ms:1100}]});await settle();
+ assert.equal(multiple.node('#driver-replays').hidden,false);
+ assert.equal(multiple.node('#driver-replay').children.length,2);
+ assert.equal(multiple.node('#driver-replay').value,'a'.repeat(32)+':2');
+ multiple.node('#driver-replay').value='c'.repeat(32)+':3';multiple.node('#driver-replay').onchange();await settle();
+ assert(multiple.requests.some(r=>r.url.endsWith('/replays/'+'c'.repeat(32)+'/3')),'Selecting another lap loads its replay');
+ assert.equal(multiple.node('#viewer').hidden,false);
+ assert.equal(f.node('#driver-replays').hidden,true,'Single replays need no selector');
  const pose=require('../replay-pose.js');
  const first=pose.capture({steerAngle:.1,suspension:{pitch:.02,roll:.04,heave:.03,centreHeight:.3,motionRatio:.7,wheels:Array.from({length:4},()=>({z:.01,travel:.02,load:100}))}});
  const second=pose.capture({steerAngle:.3,suspension:{pitch:.06,roll:.08,heave:.05,centreHeight:.3,motionRatio:.7,wheels:Array.from({length:4},()=>({z:.03,travel:.04,load:200}))}});

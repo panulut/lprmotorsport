@@ -28,15 +28,22 @@ export const REPLAY_LIMIT=20;
 const ranked=`FROM verified_laps l JOIN verified_replays r USING(session_id,lap)
  ${principalJoins} WHERE ${principalExists} AND l.revision=? AND ${seriesOf('l.player_hash')}=? AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap)`;
 const order='ORDER BY l.lap_ticks,l.issued_ms,l.session_id,l.lap';
+// Stable identities deduplicate accounts and guests across driving sessions.
+export const bestReplayQuery=(publicOnly=false)=>`SELECT * FROM (SELECT l.player_hash,${guestNameSQL} AS nickname,
+ l.session_id,l.lap,l.lap_ticks,l.issued_ms,l.sector1,l.sector2,l.sector3,
+ ROW_NUMBER() OVER (PARTITION BY l.player_hash ${order}) AS player_order
+ ${ranked} ${publicOnly?'AND r.pinned=1':''}) WHERE player_order=1`;
 const top=limit=>SERIES.map(()=>`SELECT session_id,lap FROM (SELECT l.session_id,l.lap ${ranked} ${order} LIMIT ${limit})`).join(' UNION ALL ');
+const playerTop=limit=>SERIES.map(()=>`SELECT session_id,lap FROM (${bestReplayQuery()} ORDER BY lap_ticks,issued_ms,session_id,lap LIMIT ${limit})`).join(' UNION ALL ');
 const topValues=revision=>SERIES.flatMap(series=>[revision,series]);
 export function retentionStatements(db,revision){
- const kept=top(REPLAY_LIMIT),values=topValues(revision);
+ // Keep the existing multi-lap pool and also reserve space for distinct drivers.
+ const kept=top(REPLAY_LIMIT)+' UNION ALL '+playerTop(REPLAY_LIMIT),values=[...topValues(revision),...topValues(revision)];
  return [
   // Preserve all previously public evidence, including older revisions.
   db.prepare('INSERT OR IGNORE INTO verified_record_archive SELECT session_id,lap FROM verified_replays WHERE pinned=1'),
   // Sticky pin: a top-ten recording stays public while it remains among its series' retained set.
-  db.prepare(`UPDATE verified_replays SET pinned=1 WHERE (session_id,lap) IN (${top(10)})`).bind(...values),
+  db.prepare(`UPDATE verified_replays SET pinned=1 WHERE (session_id,lap) IN (${top(10)} UNION ALL ${playerTop(10)})`).bind(...values),
   db.prepare('INSERT OR IGNORE INTO verified_record_archive SELECT session_id,lap FROM verified_replays WHERE pinned=1'),
   db.prepare(`UPDATE verified_replays SET pinned=0 WHERE pinned=1 AND (session_id,lap) NOT IN (${kept})`).bind(...values),
   db.prepare(`DELETE FROM verified_replays WHERE review!='flagged' AND NOT EXISTS (SELECT 1 FROM verified_record_archive e WHERE e.session_id=verified_replays.session_id AND e.lap=verified_replays.lap) AND (session_id,lap) NOT IN (${kept}) AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=verified_replays.session_id AND x.lap=verified_replays.lap)`).bind(...values),
@@ -48,11 +55,11 @@ export async function replayStatements(env,lap,data,now,login){
  if(lap.replayHash&&data.replay!==undefined){
   if(typeof data.replay!=='string'||data.replay.length>900000||(data.replay.length%4!==0||!/^[A-Za-z0-9+/]*={0,2}$/.test(data.replay))||await hash(data.replay)!==lap.replayHash)
    throw Object.assign(Error('Recording does not match the signed lap'),{status:400});
-  // Skip the write when the lap cannot enter its series' retained set.
+  // Count drivers here so one driver's many faster laps cannot block another's replay.
   statements.push(env.DB.prepare(`INSERT OR IGNORE INTO verified_replays
    (session_id,lap,payload,payload_hash,expires_ms) SELECT ?,?,?,?,?
    WHERE EXISTS (SELECT 1 FROM verified_laps WHERE session_id=? AND lap=?)
-   AND (SELECT COUNT(*) FROM (SELECT 1 ${ranked} AND (l.lap_ticks,l.issued_ms,l.session_id,l.lap)<(?,?,?,?) LIMIT ${REPLAY_LIMIT}))<${REPLAY_LIMIT}
+   AND (SELECT COUNT(DISTINCT l.player_hash) ${ranked} AND (l.lap_ticks,l.issued_ms,l.session_id,l.lap)<(?,?,?,?))<${REPLAY_LIMIT}
    ${login?`AND EXISTS (SELECT 1 FROM verified_login_sessions WHERE token_hash=? AND expires_ms>MAX(?,${databaseNowSQL}) AND secret_hash=? AND player_hash=?)`:''}`)
    .bind(lap.sessionId,lap.lap,data.replay,lap.replayHash,lap.issuedAt+30*86400000,lap.sessionId,lap.lap,
     lap.revision,await seriesFor(env.DB,lap.playerHash),lap.lapTicks,lap.issuedAt,lap.sessionId,lap.lap,
@@ -122,10 +129,13 @@ export async function replayRoute(request,env,url,reply,headers,readBody,revisio
   else if(!row.pinned)reasons.push('outside_public_set');
   let rank=null;
   if(!reasons.length){
-   const better=await env.DB.prepare(`SELECT COUNT(*) n ${ranked} AND r.pinned=1
-    AND (l.lap_ticks,l.issued_ms,l.session_id,l.lap)<(?,?,?,?)`)
+   const best=await env.DB.prepare(`SELECT session_id,lap FROM (${bestReplayQuery(true)}) WHERE player_hash=(SELECT player_hash FROM verified_laps WHERE session_id=? AND lap=?)`)
+    .bind(revision,row.series,id,lap).first();
+   if(best?.session_id!==id||best?.lap!==lap)reasons.push('not_personal_best');
+   const better=await env.DB.prepare(`SELECT COUNT(*) n FROM (${bestReplayQuery(true)})
+    WHERE (lap_ticks,issued_ms,session_id,lap)<(?,?,?,?)`)
     .bind(revision,row.series,row.lap_ticks,row.issued_ms,id,lap).first();
-   rank=better.n+1;if(rank>10)reasons.push('outside_top_ten');
+   if(!reasons.length){rank=better.n+1;if(rank>10)reasons.push('outside_top_ten');}
   }
   return reply({...row,status:reasons.length?'not_listed':'listed',rank,reasons,last_upload_failure:failure});
  }
@@ -180,6 +190,19 @@ export async function replayRoute(request,env,url,reply,headers,readBody,revisio
    ...retentionStatements(env.DB,revision)
   ]);
   return reply({ok:true,series:data.series});
+ }
+ // A public replay is also the entry point to that driver's other public laps.
+ const related=url.pathname.match(/^\/api\/verified\/replays\/([a-f0-9]{32})\/([1-9][0-9]{0,5})\/related$/);
+ if(related){
+  if(request.method!=='GET')return reply({error:'GET required'},405);
+  const anchor=await env.DB.prepare(`SELECT l.player_hash FROM verified_laps l JOIN verified_replays r USING(session_id,lap)
+   ${principalJoins} WHERE ${principalExists} AND l.revision=? AND r.pinned=1 AND l.session_id=? AND l.lap=?
+   AND NOT EXISTS (SELECT 1 FROM verified_lap_exclusions x WHERE x.session_id=l.session_id AND x.lap=l.lap)`)
+   .bind(revision,related[1],Number(related[2])).first();
+  if(!anchor)return reply({error:'Recording unavailable'},404);
+  const rows=await env.DB.prepare(`SELECT l.session_id,l.lap,l.lap_ticks ${ranked} AND r.pinned=1 AND l.player_hash=? ${order} LIMIT 20`)
+   .bind(revision,await seriesFor(env.DB,anchor.player_hash),anchor.player_hash).all();
+  return reply({results:rows.results.map(row=>({session_id:row.session_id,lap:row.lap,lap_ms:row.lap_ticks*1000/120}))});
  }
  const match=url.pathname.match(/^\/api\/verified\/(admin\/)?replays\/([a-f0-9]{32})\/([1-9][0-9]{0,5})$/);
  if(match){

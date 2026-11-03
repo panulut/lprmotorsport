@@ -91,13 +91,30 @@
  };
  async function load(id,lap,privateReplay=false,label=''){
   const gen=++generation;pause();message('Ladataan uusintaa…');$('#report').hidden=true;reportTarget=null;
+  $('#driver-replays').hidden=true;
   try{
    if(!/^[a-f0-9]{32}$/.test(id)||!Number.isSafeInteger(Number(lap))||Number(lap)<1)throw Error('Virheellinen tallenteen osoite.');
    const r=await api('/api/verified/'+(privateReplay?'admin/':'')+'replays/'+id+'/'+lap);
    if(gen!==generation)return;if(!valid(r))throw Error('Tallenne on vioittunut tai sen muotoa ei tueta.');
    recording=r;elapsed=0;driverUnavailable=false;resetCamera();$('#view-note').textContent='';$('#viewer').hidden=false;draw();message(label||'Palvelimen varmentama kierros · '+seconds().toFixed(3)+' s');
-   if(!privateReplay)showReport(id,lap);
+   if(!privateReplay){showReport(id,lap);void relatedReplays(id,lap,gen);}
   }catch(error){if(gen===generation){recording=null;$('#viewer').hidden=true;message(error.message);}}
+ }
+ async function relatedReplays(id,lap,gen){
+  try{
+   const data=await api('/api/verified/replays/'+id+'/'+lap+'/related');
+   if(gen!==generation||!Array.isArray(data.results)||data.results.length<2)return;
+   const select=$('#driver-replay');select.replaceChildren();
+   for(const row of data.results){
+    if(!/^[a-f0-9]{32}$/.test(row.session_id)||!Number.isSafeInteger(row.lap)||row.lap<1||!Number.isFinite(row.lap_ms))continue;
+    const option=document.createElement('option');option.value=row.session_id+':'+row.lap;
+    option.textContent=(row.lap_ms/1000).toFixed(3)+' s · '+(window.LPRI18n?.t('Kierros')||'Kierros')+' '+row.lap;
+    select.append(option);
+   }
+   select.value=id+':'+lap;
+   select.onchange=()=>{const [session,number]=select.value.split(':');void load(session,Number(number));};
+   $('#driver-replays').hidden=false;
+  }catch{ /* The current replay remains usable if the additional list is unavailable. */ }
  }
  async function list(){
   const gen=++generation;message('Ladataan suorituksia…');

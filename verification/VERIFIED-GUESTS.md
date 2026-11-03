@@ -80,9 +80,11 @@ Rank, revision, review or category changes can make them private, but automatic
 cleanup cannot delete their evidence. Administrators can retrieve old archived
 replays. Deletion would require an explicit separate operator/data-erasure policy.
 
-Other recordings retain the existing policy: current revision's fastest twenty
-per category, plus flagged/excluded recordings; slower artifacts may never be
-written. Lap rows and receipt evidence remain. Public TOP 10 still requires a
+Other recordings retain the current revision's fastest twenty per category,
+plus the best recording of each of its twenty fastest distinct drivers and
+flagged/excluded recordings. Slower artifacts may not be retained. Lap rows and
+receipt evidence remain. Public TOP 10 shows one personal best per stable
+principal and still requires a
 current-revision, non-excluded result and pinned replay. Archiving is **not** a
 verification bypass. Storage grows with former public records instead of having
 a fixed twenty-record ceiling; monitor D1 size and cost before release. Old

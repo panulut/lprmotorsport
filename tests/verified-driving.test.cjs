@@ -97,7 +97,7 @@ const {driver}=require('./helpers-driving.cjs');
    const saved=await post(boardURL,'/api/verified/laps',{receipt,replay});assert.equal(saved.status,200);assert.equal((await saved.json()).saved,!(guestMode&&receipt===receipts[0]));
    assert.equal((await(await post(boardURL,'/api/verified/laps',{receipt,replay})).json()).saved,false,'Receipt retries never duplicate a lap');
   }
-  const rows=await(await fetch(boardURL+'/api/verified/leaderboard')).json();assert.equal(rows.results.length,2);
+  const rows=await(await fetch(boardURL+'/api/verified/leaderboard')).json();assert.equal(rows.results.length,1);assert.equal(board.db.prepare('SELECT COUNT(*) n FROM verified_laps').get().n,2,'Both laps remain saved');
   assert.equal((await post(boardURL,'/api/verified/laps',{lapMs:12345})).status,403,'Unsigned client scores are never accepted');
   const wrongTicket=await sign({...await verify(ticket,secret),revision:'b'.repeat(64)},secret);
   assert.equal((await post(serviceURL,'/sessions',{ticket:wrongTicket,revision})).status,401);
