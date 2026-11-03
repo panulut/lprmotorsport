@@ -45,6 +45,12 @@ const {launchBrowser}=require('./browser.cjs');
      }
     }
     if(document.documentElement.scrollWidth>innerWidth+1)failures.push('horizontal scroll');
+    // Every Top 10 row with a recording must offer a visible replay link.
+    for(const link of document.querySelectorAll('#verified-list li:not([hidden]) .replay-link')){
+     const icon=link.querySelector('.ph-icon').getBoundingClientRect();
+     if(icon.width<12||icon.height<12||!/^replay\.html\?session=[a-f0-9]{32}&lap=\d+$/.test(link.getAttribute('href')))failures.push('replay link hidden '+link.closest('li').textContent);
+    }
+    if(!document.querySelector('#verified-list li:not([hidden]) .replay-link'))failures.push('no replay links');
     return {failures,box:{width:box.width,height:box.height},sizes:[...document.querySelectorAll('.championship-grid > section')].map(n=>({height:n.clientHeight,scroll:n.scrollHeight}))};
    });
    await page.screenshot({path:path.join(dir,label+'.png')});

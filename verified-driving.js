@@ -94,7 +94,7 @@
     time.className='standing-time';time.textContent=` · ${formatLapTime(row.lap_ms)}`;
     li.append(name,time);
     if(row.replay_available&&/^[a-f0-9]{32}$/.test(row.session_id)&&Number.isSafeInteger(row.lap)){
-     const replay=document.createElement('a');replay.append(window.LPRIcon('play'),document.createTextNode(' '+t('Katso uusinta','Watch replay')));replay.className='replay-link';
+     const replay=document.createElement('a');replay.append(window.LPRIcon('play'),document.createTextNode(' '+t('Katso uusinta','Watch replay')));replay.className='replay-link';replay.title=t('Katso uusinta','Watch replay');
      replay.href='replay.html?session='+row.session_id+'&lap='+row.lap;replay.target='_blank';replay.rel='noopener';li.append(replay);
     }
     list.append(li);

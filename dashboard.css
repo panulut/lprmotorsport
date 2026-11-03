@@ -35,7 +35,8 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 #settings-dialog #verified-list li {padding:5px 0;grid-template-columns:20px minmax(0,1fr) auto auto;flex-wrap:nowrap;gap:3px;min-width:0;}
 #verified-list .standing-name {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
 #verified-list .standing-time {flex-shrink:0;white-space:nowrap;}
-#verified-list .replay-link {font-size:0;padding:4px;}
+#verified-list .replay-link {font-size:0;display:inline-flex;align-self:center;margin:-4px 0;align-items:center;justify-content:center;flex-shrink:0;min-width:28px;min-height:24px;padding:4px;border-radius:5px;color:var(--brand);text-decoration:none;}
+#verified-list .replay-link:hover,#verified-list .replay-link:focus-visible {background:var(--surface-2);}
 #settings-dialog .verified-standings > p:has(small) {display:none;}
 .dashboard-pager {display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:5px;font-size:10px;color:var(--text-secondary);}
 #settings-dialog .dashboard-pager[hidden] {display:none;}
@@ -195,7 +196,7 @@ body.chat-open #settings-dialog:not(.spectating) {width:calc(100% - 316px);max-w
 .chat-panel .chat-public-notice{display:block;margin:0;padding:2px 8px;border-left:3px solid var(--status-info);color:var(--text-secondary);font-size:var(--text-caption);line-height:var(--line-body)}
 .chat-panel #chat-status{font-size:var(--text-caption)}
 
-#verified-list .replay-link .ph-icon{width:1em;height:1em}
+#verified-list .replay-link .ph-icon{width:16px;height:16px}
 #dashboard-details-open .ph-icon{width:16px;height:16px}
 
 /* Persistent left rail: chat controls stay directly above the driver card. */
