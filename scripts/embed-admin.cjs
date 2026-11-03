@@ -12,4 +12,9 @@ const english = 'const ADMIN_HTML_EN = ' + JSON.stringify(translateAdmin(html)) 
 updated = /^const ADMIN_HTML_EN = .*;$/m.test(updated)
   ? updated.replace(/^const ADMIN_HTML_EN = .*;$/m, () => english)
   : updated + '\n' + english + '\n';
+// The Worker is pasted as one file, so the shared nickname policy is inlined between markers.
+const policy = fs.readFileSync(path.join(root, 'verification/name-policy.mjs'), 'utf8').replace(/\r\n/g, '\n').replace(/^export /gm, '').trim();
+const policyBlock = /^\/\/ BEGIN name-policy[^\n]*\n[\s\S]*?^\/\/ END name-policy/m;
+if (!policyBlock.test(updated)) throw Error('Missing name-policy markers in cloudflare/worker.mjs');
+updated = updated.replace(policyBlock, block => block.split('\n')[0].trimEnd() + '\n' + policy + '\n// END name-policy');
 fs.writeFileSync(worker, updated);

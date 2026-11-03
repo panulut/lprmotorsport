@@ -3,6 +3,7 @@ import {championshipSchema,championship,championshipEntry,claimChampionshipEntri
 import {replaySchema,moderationSchema,replayStatements,replayRoute,retentionStatements,reportReplay,seriesFor,seriesOf,SERIES} from './replays.mjs';
 import {chatModerationSchema,chatRefusal,orphanChatAuthors,chatAdminRoute} from './chat-moderation.mjs';
 import {sign,verify,hash,protocol,validPlayer,validName} from '../verification/protocol.mjs';
+import {allowedName} from '../verification/name-policy.mjs';
 // npm run build:verified-worker inlines the protocol and the simulation revision into a pasteable bundle.
 const BUILD_REVISION='';
 
@@ -232,6 +233,8 @@ export default {
      return reply({...await newSession(env.DB,account,env.VERIFICATION_SECRET),created:false});
     }
     if(data.create!==true)return reply({error:'Account not found'},404);
+    // Existing accounts keep signing in; only a newly chosen name must pass the policy.
+    if(!allowedName(data.nickname))return reply({error:'Nickname not allowed',code:'name_not_allowed'},422);
     if(claimant&&!claimant.guest)return reply({error:'Session already registered'},409);
     const series=claimant?await seriesFor(env.DB,claimant.player_hash):data.series??'human';
     if(claimant&&data.series!==undefined&&data.series!==series)return reply({error:'Guest series cannot change during registration'},409);
@@ -270,6 +273,7 @@ export default {
     }
     const data=await body(request,2048),series=data?.series;
     if(!accountName(data?.nickname)||!SERIES.includes(series))return reply({error:'Nickname and series required'},400);
+    if(!allowedName(data.nickname))return reply({error:'Nickname not allowed',code:'name_not_allowed'},422);
     if(await env.DB.prepare('SELECT 1 FROM verified_accounts WHERE name_key=?').bind(nameKey(data.nickname)).first())return reply({error:'Nickname taken'},409);
     const playerHash=randomHex()+randomHex(),token=randomHex()+randomHex(),expiresAt=now+24*3600000;
     await env.DB.batch([

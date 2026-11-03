@@ -316,6 +316,7 @@
   "Kirjoita vähintään 8 merkin salasana.": "Enter a password of at least 8 characters.",
   "Väärä salasana tälle nimimerkille.": "Wrong password for this nickname.",
   "Nimimerkki on jo varattu. Kirjaudu sen salasanalla tai valitse toinen nimimerkki.": "This nickname is already taken. Sign in with its password or choose another nickname.",
+  "Tätä nimimerkkiä ei voi käyttää. Valitse toinen nimimerkki.": "This nickname cannot be used. Choose another nickname.",
   "Liian monta kirjautumisyritystä. Odota hetki ja yritä uudelleen.": "Too many sign-in attempts. Wait a moment and try again.",
   "Tarkista nimimerkki ja salasana.": "Check your nickname and password.",
   "Kirjautuminen ei onnistunut juuri nyt. Yritä uudelleen.": "Signing in failed right now. Please try again.",

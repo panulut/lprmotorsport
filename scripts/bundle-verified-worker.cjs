@@ -10,10 +10,11 @@ const { revision } = require('../verification/world.cjs');
 
 const replays = read('cloudflare/replays.mjs').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const protocol = read('verification/protocol.mjs').replace(/^export /gm, '');
+const namePolicy = read('verification/name-policy.mjs').replace(/^export /gm, '');
 let worker = read('cloudflare/verified-worker.mjs');
 const importLine = /^import \{[^}]*\} from '\.\.\/verification\/protocol\.mjs';\n/m;
 if (!importLine.test(worker)) throw Error('verified-worker.mjs must import ../verification/protocol.mjs');
-worker = worker.replace(importLine, '').replace(/^import .*replays\.mjs';\n/m,'').replace(/^import .*chat-moderation\.mjs';\n/m,'').replace(/^import .*championship\.mjs';\n/m,'').replace(/^import .*guests\.mjs';\n/m,'');
+worker = worker.replace(importLine, '').replace(/^import .*name-policy\.mjs';\n/m,'').replace(/^import .*replays\.mjs';\n/m,'').replace(/^import .*chat-moderation\.mjs';\n/m,'').replace(/^import .*championship\.mjs';\n/m,'').replace(/^import .*guests\.mjs';\n/m,'');
 const chatModerationCode=read('cloudflare/chat-moderation.mjs').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const guestCode=read('cloudflare/guests.mjs').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const championshipCode=read('cloudflare/championship.mjs').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
@@ -28,6 +29,8 @@ fs.writeFileSync(output, [
   `// Simulation revision ${revision} (rebuild and repaste whenever the physics changes).`,
   '// --- verification/protocol.mjs ---',
   protocol.trim(),
+  '// --- verification/name-policy.mjs ---',
+  namePolicy.trim(),
   guestCode.trim(),
   replays.trim(),
   chatModerationCode.trim(),

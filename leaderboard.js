@@ -209,6 +209,7 @@
   const signInError = (status, name) => status === 404 ? t('Tunnusta ei löytynyt. Valitse Luo käyttäjätunnus luodaksesi uuden tunnuksen.')
     : status === 401 ? t('Väärä salasana tälle nimimerkille.')
     : status === 409 ? t('Nimimerkki on jo varattu. Kirjaudu sen salasanalla tai valitse toinen nimimerkki.')
+    : status === 422 ? t('Tätä nimimerkkiä ei voi käyttää. Valitse toinen nimimerkki.')
     : status === 429 ? t('Liian monta kirjautumisyritystä. Odota hetki ja yritä uudelleen.')
     : status === 400 ? t('Tarkista nimimerkki ja salasana.')
     : t('Kirjautuminen ei onnistunut juuri nyt. Yritä uudelleen.');
@@ -265,7 +266,7 @@
         identity = await signIn(name, password.value, creating);
       } catch (error) {
         // A taken or invalid nickname must be fixed on the credentials step.
-        if (creating && (error.status === 409 || error.status === 400)) createStep = 1;
+        if (creating && [400,409,422].includes(error.status)) createStep = 1;
         status.textContent = signInError(error.status, name);
         showAccount();
         return;
