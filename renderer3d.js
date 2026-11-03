@@ -383,7 +383,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
 
     // Wide flat terrain and distinct bands make the approaching road readable at speed.
     terrainEnabled=false;
-    quad([-2200,-.4,-2200],[6500,-.4,-2200],[6500,-.4,6500],[-2200,-.4,6500],[.095,.235,.155]);
+    const groundWidth=Math.max(6500,window.LPRCampus.bounds.width+1000),groundDepth=Math.max(6500,window.LPRCampus.bounds.height+1000);
+    quad([-2200,-.4,-2200],[groundWidth,-.4,-2200],[groundWidth,-.4,groundDepth],[-2200,-.4,groundDepth],window.LPRCampus.groundColor || [.095,.235,.155]);
     terrainEnabled=true;
     terrain?.groundTiles((x,z,size)=>quad([x,-.39,z],[x+size,-.39,z],
       [x+size,-.39,z+size],[x,-.39,z+size],[.095,.235,.155]));
@@ -479,6 +480,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
       box(x,26,z,4,5,4,i % 8 === 0 ? [.03,.68,.43] : [.03,.16,.13]);
     }
 
+    if(window.LPRCampus.hasAmenities!==false){
     // Tervahaudanpuisto: the truck, tub and their crowd share this world frame.
     const saunaMeshStart=data.length;
     const site = window.LPRCampus.saunaSite;
@@ -1029,6 +1031,10 @@ window.LPRRenderer3D = class LPRRenderer3D {
     box(2015.5,-1,16,8,2,3,railWood);
     box(2015.5,-3,19,8,2,3,railWood);
     box(1999,19,-13.3,5,4,.3,[1,.73,.32]);
+    } else {
+      this.saunaStop=this.poolStop={x:-100000,y:-100000};
+      this.spectatorMeshes=[];this.saunaGuestMeshes=[];
+    }
     this.vertexCount = data.length / 6;
     const shadowSource=new Float32Array(terrain?.mesh(shadows,6)||shadows);
     this.shadowCount = shadowSource.length / 6;
@@ -2236,6 +2242,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
       gl.bufferSubData(gl.ARRAY_BUFFER,mesh.start*4,vertices);
       this.expandSpatialBounds(this.worldSpatial,mesh.start,vertices);
     }
+    if(campus.hasAmenities===false)return;
     const sauna=campus.vehicleBounds.at(-1).body;
     if(this.saunaArtwork?.source && this.saunaArtwork.poseKey!==signature(sauna)) {
       this.saunaArtwork.poseKey=signature(sauna);
@@ -2281,12 +2288,14 @@ window.LPRRenderer3D = class LPRRenderer3D {
   spectatorPose(mesh,index,now) { return window.LPRPeople.pose(mesh,index,now); }
 
   updatePeople(now) {
+    if(window.LPRCampus.hasAmenities===false)return;
     this.peopleTime=now;
     this.peopleModel ||= window.LPRPeople.create();
     this.peopleModel.update(now);
   }
 
   drawSpectators(car, now) {
+    if(window.LPRCampus.hasAmenities===false)return;
     const frame=this.spectatorFrame,vertices=[],time=now/1000;
     for(const [index,mesh] of this.spectatorMeshes.entries()) {
       const {forward,side,yaw,walking,elevation,phase}=this.spectatorPose(mesh,index,this.peopleTime ?? now);

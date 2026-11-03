@@ -13,6 +13,7 @@ gameFiles.push('auth-feedback.css');
 gameFiles.push('series-controls.css');
 gameFiles.push('client-download.js','client-download.css');
 gameFiles.push('numeric-typography.css','spectator-layout.css','mobile-layout.css');
+gameFiles.push('tracks/monaco.js','tracks/monaco-practice.js','tracks/monaco.css','tracks/MONACO-LICENSE.md');
 function readDocument(){return {version:1,objects:validate(JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8')))};}
 function dataScript(doc=readDocument()){return `window.LPRTrackData=${JSON.stringify(doc)};\n`;}
 function build(destination=path.join(root,'dist')) {
@@ -36,6 +37,7 @@ function build(destination=path.join(root,'dist')) {
   fs.writeFileSync(path.join(target,'verification/config.js'),`window.LPRVerificationConfig=${JSON.stringify({service:'https://lpr-verification-prod.agreeablesky-be9aabca.swedencentral.azurecontainerapps.io',leaderboard:'https://lpr-verified.panu-musakka.workers.dev',mode:'production'})};\n`);
   fs.writeFileSync(path.join(target,'data/track-data.js'),dataScript(doc));
   fs.writeFileSync(path.join(target,'verification/revision.js'),`window.LPRDrivingRevision=${JSON.stringify(require('../verification/world.cjs').revision)};\n`);
+  fs.writeFileSync(path.join(target,'monaco.html'),require('./monaco-page.cjs').monacoPage(fs.readFileSync(path.join(root,'index.html'),'utf8')));
   return target;
 }
 module.exports={build,readDocument,dataScript,gameFiles,root};

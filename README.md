@@ -345,3 +345,37 @@ samassa kohdassa valinnan poistaminen lopettaa keräyksen ja keskeyttää ajon.
 Ylläpidon suojattu raportti ja palvelimen käyttöönotto:
 [cloudflare/README.md](cloudflare/README.md#vapaaehtoinen-pelianalytiikka-20102026).
 Testit: `npm run test:analytics`.
+
+## Monaco practice circuit
+
+The main menu's **Monaco · harjoittelu** link opens `monaco.html`. Run `npm run dev`
+and open `http://localhost:8000/monaco.html`, or run `npm run build` to include the
+page in `dist/` and use `npm run preview`. The development server generates the
+page from the existing HTML shell so keyboard, touch and gamepad controls stay aligned.
+
+The circuit uses a 3.337 km source polyline projected into the game's 10 units/metre
+scale and resampled to 960 points (minor corner cutting reduces the sampled length).
+It has an 8 m road, continuous physical barriers, directional start/finish,
+three split sectors, a tunnel roof, stylised waterfront buildings and harbour yachts.
+It is a **flat approximation**, without surveyed elevation, variable road widths,
+pit lane, exact building facades or a complete real-world replica.
+
+This first version is local practice. Personal times/sectors use separate Monaco
+storage keys; no Monaco times, analytics or accounts are sent to the existing
+Skinnarila services. The practice page excludes all online activity scripts and
+limits connections to its own origin. Verified laps, online rankings, replays and
+multiplayer for Monaco require a later server-side track protocol and separate standings.
+The authoritative Skinnarila physics sources and revision are unchanged.
+
+Layout source: [Tomislav Bacinger / f1-circuits](https://github.com/bacinger/f1-circuits/blob/master/circuits/mc-1929.geojson),
+blob `8110ae66e45c01c0516b5c10eed3768a92a61e86`; source retained in
+`tracks/monaco-source.geojson`. The MIT notice is in `tracks/MONACO-LICENSE.md`
+and accompanies the browser build. Nominal circuit length is also documented by
+[Formula 1](https://www.formula1.com/en/racing/2026/monaco).
+
+Validation: `npm run test:monaco` sweeps the actual car collision footprint around
+the complete centreline, checks wall impact, finish direction, storage isolation,
+script ordering and the full generated render mesh. Existing finish, vehicle,
+bodywork, view culling, timing, determinism and staging suites were also checked.
+The development browser did not provide WebGL, so rendered driving, mobile layout
+and a complete manually driven lap still need verification on a WebGL-capable browser.

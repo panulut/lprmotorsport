@@ -70,7 +70,7 @@
   // Legacy split detection is centered on track indices 70 and 130. Stored
   // PBs carry the exact progress sampled at their gates; these landmarks are
   // the geometry-based fallback for older sector-only records.
-  const defaultSectorProgress = [0, trackDistances[70] / trackLength, trackDistances[130] / trackLength, 1];
+  const defaultSectorProgress = [0, trackDistances[Math.round(POINTS*70/240)] / trackLength, trackDistances[Math.round(POINTS*130/240)] / trackLength, 1];
   const renderer = new LPRRenderer3D(canvas, document.querySelector('#cockpit'), track);
   const dynamics = new VehicleDynamics();
   const audio = new LPRGameAudio();
@@ -97,9 +97,11 @@
   const keyboard = new Set();
   const touchPointers = new Map();
   let activePad = null;
-  let best = Number(localStorage.getItem('lpr-best-time-lut-20261011-v3')) || 0;
+  const bestTimeKey=window.LPRTrackConfig?.bestTimeKey || 'lpr-best-time-lut-20261011-v3';
+  const bestSectorsKey=window.LPRTrackConfig?.bestSectorsKey || 'lpr-best-sectors-lut-20261011-v3';
+  let best = Number(localStorage.getItem(bestTimeKey)) || 0;
   let storedSectors = null;
-  try { storedSectors = JSON.parse(localStorage.getItem('lpr-best-sectors-lut-20261011-v3')); } catch {}
+  try { storedSectors = JSON.parse(localStorage.getItem(bestSectorsKey)); } catch {}
   if (!storedSectors || storedSectors.lapTime !== best || storedSectors.revision !== window.LPRDrivingRevision) best = 0;
   let demoBest = 0;
   const storedBestSectorsCandidate = window.LPRLapTiming.validSectors(storedSectors?.sectors);
@@ -156,8 +158,8 @@
     } : null;
     timing.setBest(sectors, checkpoints, denseTrace, window.LPRDrivingRevision, lapTime || total, defaultSectorProgress);
     rememberLocalReference();
-    localStorage.setItem('lpr-best-time-lut-20261011-v3', String(best));
-    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify({
+    localStorage.setItem(bestTimeKey, String(best));
+    localStorage.setItem(bestSectorsKey, JSON.stringify({
       lapTime: best, sectors: timing.best, revision: window.LPRDrivingRevision,
       ...(denseTrace ? { trace: denseTrace } : previousReference || {})
     }));
@@ -176,7 +178,7 @@
     }, lapTime, sectors, trace, window.LPRDrivingRevision);
     if (!record || !timing.setReferenceTrace(trace, window.LPRDrivingRevision, lapTime)) return false;
     rememberLocalReference();
-    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify(record));
+    localStorage.setItem(bestSectorsKey, JSON.stringify(record));
     return true;
   }
   let lastLiveDeltaAt = 0, lastLiveDelta = undefined;
@@ -976,15 +978,15 @@
         window.LPRAnalytics?.event('lap_start');
         if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
       }
-      else if (car.lapTimingArmed && car.stage === 0 && nearest.index > 55 && nearest.index < 85) {
+      else if (car.lapTimingArmed && car.stage === 0 && nearest.index*240/POINTS > 55 && nearest.index*240/POINTS < 85) {
         car.stage = 1;
         showSector(now - car.lapStart, lapProgress, now);
       }
-      else if (car.lapTimingArmed && car.stage === 1 && nearest.index > 115 && nearest.index < 145) {
+      else if (car.lapTimingArmed && car.stage === 1 && nearest.index*240/POINTS > 115 && nearest.index*240/POINTS < 145) {
         car.stage = 2;
         showSector(now - car.lapStart, lapProgress, now);
       }
-      else if (car.lapTimingArmed && car.stage === 2 && nearest.index > 175 && nearest.index < 205) car.stage = 3;
+      else if (car.lapTimingArmed && car.stage === 2 && nearest.index*240/POINTS > 175 && nearest.index*240/POINTS < 205) car.stage = 3;
       else if (car.lapTimingArmed && car.stage === 3 && crossedFinishLine) {
         const lapTime = now - car.lapStart;
         if (lapTime > 5000) {
