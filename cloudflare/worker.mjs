@@ -4,7 +4,7 @@ const VERSION = 'lut-20261024-v4';
 // Plausibility floor: the circuit cannot be lapped flat out in under 30 s, and no sector in under 5 s.
 // This blocks absurd submissions; it is not proof of driving (see verification/ for that).
 const MIN_LAP_MS = 30000, MIN_SECTOR_MS = 5000;
-const ORIGINS = new Set(['https://panulut.github.io', 'http://localhost:8000', 'http://127.0.0.1:8000']);
+const ORIGINS = new Set(['https://panulut.github.io', 'https://lprmotorsports.me', 'http://localhost:8000', 'http://127.0.0.1:8000']);
 // Admin dashboard routes forwarded to the verified leaderboard Worker after the admin key check.
 const VERIFIED_ADMIN_ROUTES = new Set(['/api/verified/admin/laps', '/api/verified/admin/chat']);
 // BEGIN name-policy: generated from verification/name-policy.mjs by npm run build:worker
