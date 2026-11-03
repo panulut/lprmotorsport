@@ -1,0 +1,33 @@
+{
+  "name": "lpr-lap-challenge-desktop",
+  "productName": "LPR Lap Challenge",
+  "version": "1.0.0",
+  "description": "LPR Lap Challenge Windows-sovelluksena",
+  "author": "Panu Musakka",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "me.lprmotorsports.lapchallenge",
+    "productName": "LPR Lap Challenge",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["main.js", "offline.html", "build/icon.png"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LPR Lap Challenge",
+      "artifactName": "LPR-Lap-Challenge-Setup.${ext}"
+    }
+  }
+}
