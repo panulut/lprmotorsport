@@ -1637,8 +1637,14 @@ window.LPRRenderer3D = class LPRRenderer3D {
   updateSuspension(car, now) {
     // Rendering reads physics; presentation rate cannot drive suspension.
     const state=car.suspension || {pitch:0,roll:0};
+    // Presentation only: the stiff Formula Student setup rolls about 1° per g,
+    // which is invisible from the cockpit. Draw body and camera roll 4x larger
+    // (about 3° at the assisted grip limit, capped at 6°); wheels, tyre loads
+    // and lap times are unaffected.
+    const VISUAL_ROLL_GAIN=4, VISUAL_ROLL_LIMIT=6*Math.PI/180;
+    const roll=Math.max(-VISUAL_ROLL_LIMIT,Math.min(VISUAL_ROLL_LIMIT,(state.roll || 0)*VISUAL_ROLL_GAIN));
     const c=Math.cos(car.angle),s=Math.sin(car.angle),cp=Math.cos(state.pitch),sp=Math.sin(state.pitch);
-    const cr=Math.cos(state.roll),sr=Math.sin(state.roll);
+    const cr=Math.cos(roll),sr=Math.sin(roll);
     const forward=[c*cp,sp,s*cp],right=[-s*cr-c*sp*sr,cp*sr,c*cr-s*sp*sr];
     const up=[s*sr-c*sp*cr,cp*cr,-c*sr-s*sp*cr];
     return {forward,right,up,heave:(state.heave || 0)*10,centreHeight:(state.centreHeight || 0)*10};
