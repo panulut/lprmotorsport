@@ -25,6 +25,35 @@ async function hash(value) {
 }
 const validName = value => typeof value==='string' && /^[\p{L}\p{N} _.-]{1,24}$/u.test(value);
 const validPlayer = value => typeof value==='string' && /^[a-f0-9]{64}$/.test(value);
+// --- verification/name-policy.mjs ---
+// Public nickname policy, applied when a new name is chosen (account, guest, legacy leaderboard).
+// Inlined into both pasteable Workers by scripts/bundle-verified-worker.cjs and scripts/embed-admin.cjs:
+// keep this file free of imports.
+//
+// Names are folded before matching so common evasions still hit: case, accents, full-width
+// letters, separators ("n.e e_k"), digits for letters ("n33k"), Cyrillic/Greek look-alikes
+// and stretched letters ("neeeekeri"). Add new entries in folded form (see nameSkeleton).
+const NAME_LEET={0:'o',1:'i',3:'e',4:'a',5:'s',6:'g',7:'t',9:'g'};
+const NAME_CONFUSABLES={'а':'a','в':'b','е':'e','ё':'e','к':'k','м':'m','н':'h','о':'o','р':'p','с':'c','т':'t','у':'y','х':'x','і':'i','ї':'i','ј':'j','ѕ':'s','ԁ':'d','ԛ':'q','ԝ':'w',
+ 'α':'a','β':'b','ε':'e','η':'n','ι':'i','κ':'k','μ':'m','ν':'v','ο':'o','ρ':'p','τ':'t','υ':'u','χ':'x','ϲ':'c'};
+// Matched against the skeleton with repeated letters squeezed ("neekeri" -> "nekeri").
+const NAME_SQUEEZED=['neker','nekru','niger','niga','nigr','neger','fagot','trany','mutakuon','ratipa','vinosilm','hitler','siegheil','wetbak','raghead','towelhead','chink'];
+// Matched against the unsqueezed skeleton where squeezing would also hit ordinary names.
+const NAME_PLAIN=['ryssa','hintti'];
+// Matched against the raw lowercase text with separators removed (digits kept as digits).
+const NAME_RAW=['1488'];
+function nameSkeleton(name){
+ const folded=String(name).normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/[\s_.-]+/g,'');
+ return [...folded].map(c=>NAME_LEET[c]??NAME_CONFUSABLES[c]??c).join('');
+}
+// Latin mixed with Cyrillic or Greek letters is how look-alike names impersonate others ("Pаnu").
+const mixedScripts=name=>/\p{Script=Latin}/u.test(name)&&/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(name);
+function allowedName(name){
+ if(typeof name!=='string'||mixedScripts(name))return false;
+ const plain=nameSkeleton(name),squeezed=plain.replace(/(.)\1+/g,'$1');
+ const raw=name.normalize('NFKC').toLowerCase().replace(/[\s_.-]+/g,'');
+ return !NAME_SQUEEZED.some(word=>squeezed.includes(word))&&!NAME_PLAIN.some(word=>plain.includes(word))&&!NAME_RAW.some(word=>raw.includes(word));
+}
 // A guest is a durable principal, not a nickname. Promotion adds an account with
 // the SAME player_hash; immutable laps and signed evidence never need rewriting.
 const guestSchema=[
@@ -674,6 +703,8 @@ export default {
      return reply({...await newSession(env.DB,account,env.VERIFICATION_SECRET),created:false});
     }
     if(data.create!==true)return reply({error:'Account not found'},404);
+    // Existing accounts keep signing in; only a newly chosen name must pass the policy.
+    if(!allowedName(data.nickname))return reply({error:'Nickname not allowed',code:'name_not_allowed'},422);
     if(claimant&&!claimant.guest)return reply({error:'Session already registered'},409);
     const series=claimant?await seriesFor(env.DB,claimant.player_hash):data.series??'human';
     if(claimant&&data.series!==undefined&&data.series!==series)return reply({error:'Guest series cannot change during registration'},409);
@@ -712,6 +743,7 @@ export default {
     }
     const data=await body(request,2048),series=data?.series;
     if(!accountName(data?.nickname)||!SERIES.includes(series))return reply({error:'Nickname and series required'},400);
+    if(!allowedName(data.nickname))return reply({error:'Nickname not allowed',code:'name_not_allowed'},422);
     if(await env.DB.prepare('SELECT 1 FROM verified_accounts WHERE name_key=?').bind(nameKey(data.nickname)).first())return reply({error:'Nickname taken'},409);
     const playerHash=randomHex()+randomHex(),token=randomHex()+randomHex(),expiresAt=now+24*3600000;
     await env.DB.batch([
