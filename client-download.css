@@ -1,0 +1,19 @@
+/* Browser vs PC client choice, shown inside the start menu modal like the release notes. */
+#client-download-open { padding: .55rem .85rem; border: 1px solid currentColor; border-radius: .5rem; background: transparent; color: inherit; cursor: pointer; }
+#client-download-open[hidden], #client-download-panel[hidden], #client-download-panel [hidden] { display: none !important; }
+#client-download-panel { position: absolute; inset: 0; z-index: 101; display: grid; place-items: center; padding: clamp(1rem, 4vw, 2rem); overflow: auto; overscroll-behavior: contain; background: rgb(23 23 23 / 98%); color: var(--text-primary); }
+.client-download-content { width: min(100%, 40rem); text-align: center; }
+.client-download-content > img { width: min(12rem, 50%); margin-bottom: .75rem; }
+#client-download-title { margin: 0 0 .5rem; font-size: var(--text-title-medium); }
+.client-download-intro { margin: 0 0 1.5rem; color: var(--text-secondary); line-height: var(--line-body); }
+.client-download-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: left; }
+.client-download-option { display: flex; flex-direction: column; gap: .6rem; padding: 1.1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); }
+.client-download-option p { margin: 0; color: var(--text-secondary); font-size: var(--text-label); line-height: var(--line-body); }
+.client-download-option a, .client-download-option button, #client-download-continue { display: block; padding: .75rem 1rem; border-radius: var(--radius-sm); font: inherit; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
+#client-download-link { border: 1px solid var(--brand); background: var(--brand); color: var(--brand-contrast); }
+#client-download-link:hover { background: var(--brand-hover); }
+#client-download-browser, #client-download-continue { border: 1px solid var(--border-hover); background: transparent; color: var(--text-primary); }
+#client-download-browser:hover, #client-download-continue:hover { background: var(--gray-alpha-100); }
+#client-download-started { display: grid; gap: 1rem; justify-items: center; }
+#client-download-started p { margin: 0; max-width: 32rem; line-height: var(--line-body); }
+@media (max-width: 640px) { .client-download-choices { grid-template-columns: 1fr; } }

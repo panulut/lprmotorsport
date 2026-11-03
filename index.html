@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="series-controls.css?v=auth-series-unified-20261030" />
     <link rel="stylesheet" href="sidebar-settings.css?v=figma-settings-20261030" />
     <link rel="stylesheet" href="release-notes.css?v=20261027-language-switch" />
+    <link rel="stylesheet" href="client-download.css?v=20261103" />
     <link rel="stylesheet" href="language-selector.css?v=20261030" />
     <link rel="stylesheet" href="crash-notice.css?v=restart-r-notice-20261030" />
     <link rel="stylesheet" href="numeric-typography.css?v=stack-tabular-times-20261030" />
@@ -66,6 +67,7 @@
     <script src="spectate-menu.js?v=playout-buffer-20261102" defer></script>
     <script src="game.js?v=frame-catchup-20261102" defer></script>
     <script src="release-notes.js?v=20261102" defer></script>
+    <script src="client-download.js?v=20261103" defer></script>
   </head>
   <body>
     <main class="app">
@@ -259,6 +261,7 @@
       <div class="dialog-head">
         <div class="race-heading dashboard-brand"><img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true"><h2 id="leaderboard-title">Skinnarila<span>GP</span></h2><p class="race-eyebrow">LPR MOTORSPORT · AIKA-AJO</p></div>
         <div class="dialog-actions">
+        <button id="client-download-open" type="button" hidden>PC-sovellus</button>
         <button id="release-notes-open" type="button">Mitä uutta?</button>
         <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#x"></use></svg> <span>Takaisin peliin</span></button>
         </div>
@@ -335,6 +338,27 @@
             </div>
           </div>
           <ol id="release-notes-list"></ol>
+        </div>
+      </section>
+      <section id="client-download-panel" hidden aria-labelledby="client-download-title" role="region">
+        <div class="client-download-content">
+          <img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true">
+          <h2 id="client-download-title" data-client-text="title">Miten haluat pelata?</h2>
+          <p class="client-download-intro" data-client-text="intro"></p>
+          <div class="client-download-choices">
+            <div class="client-download-option">
+              <a id="client-download-link" href="#" rel="noopener" data-client-text="download">Lataa PC-sovellus</a>
+              <p data-client-text="downloadNote"></p>
+            </div>
+            <div class="client-download-option">
+              <button id="client-download-browser" type="button" data-client-text="browser">Jatka selaimessa</button>
+              <p data-client-text="browserNote"></p>
+            </div>
+          </div>
+          <div id="client-download-started" hidden role="status">
+            <p data-client-text="started"></p>
+            <button id="client-download-continue" type="button" data-client-text="continue">Jatka selaimessa</button>
+          </div>
         </div>
       </section>
     </dialog>
