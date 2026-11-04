@@ -349,33 +349,32 @@ Testit: `npm run test:analytics`.
 ## Monaco practice circuit
 
 The main menu's **Monaco · harjoittelu** link opens `monaco.html`. Run `npm run dev`
-and open `http://localhost:8000/monaco.html`, or run `npm run build` to include the
-page in `dist/` and use `npm run preview`. The development server generates the
-page from the existing HTML shell so keyboard, touch and gamepad controls stay aligned.
+and open `http://localhost:8000/monaco.html`, or run `npm run build` and `npm run preview`.
+The development server and build generate the practice page from the existing HTML
+shell, preserving keyboard, touch and gamepad controls.
 
-The circuit uses a 3.337 km source polyline projected into the game's 10 units/metre
-scale and resampled to 960 points (minor corner cutting reduces the sampled length).
-It has an 8 m road, continuous physical barriers, directional start/finish,
-three split sectors, a tunnel roof, stylised waterfront buildings and harbour yachts.
-It is a **flat approximation**, without surveyed elevation, variable road widths,
-pit lane, exact building facades or a complete real-world replica.
+The coordinate-based 3.337 km layout is resampled to 960 points. Version 2 adds
+approximately 42 m of elevation change, a smoothly varying road width (authored
+7.3–12 m estimate), driveable pit entry/lane/exit, garages, landmark buildings,
+waterfront/pool scenery, grandstands and fences. One height field feeds rendering,
+wheel contacts, suspension/camera and grade forces. Per-point widths drive both
+visible road edges and physics. Pit visits invalidate that practice attempt until
+the next forward main finish crossing. Personal bests use separate v2 storage keys.
 
-This first version is local practice. Personal times/sectors use separate Monaco
-storage keys; no Monaco times, analytics or accounts are sent to the existing
-Skinnarila services. The practice page excludes all online activity scripts and
-limits connections to its own origin. Verified laps, online rankings, replays and
-multiplayer for Monaco require a later server-side track protocol and separate standings.
-The authoritative Skinnarila physics sources and revision are unchanged.
+This remains an approximate practice model. Local elevations, road widths, pit
+geometry and architectural dimensions are **not surveyed**. See
+[reference notes](tracks/MONACO-REFERENCE.md) for sources, authored estimates and
+limitations. The MIT layout data and licence are retained in `tracks/` and the
+licence/reference notes accompany the browser build.
 
-Layout source: [Tomislav Bacinger / f1-circuits](https://github.com/bacinger/f1-circuits/blob/master/circuits/mc-1929.geojson),
-blob `8110ae66e45c01c0516b5c10eed3768a92a61e86`; source retained in
-`tracks/monaco-source.geojson`. The MIT notice is in `tracks/MONACO-LICENSE.md`
-and accompanies the browser build. Nominal circuit length is also documented by
-[Formula 1](https://www.formula1.com/en/racing/2026/monaco).
+Monaco has no online accounts, analytics, verified laps, standings, replays, chat
+or spectating; its CSP allows connections only to its own origin. Skinnarila's
+shared authoritative physics files and revision remain unchanged. Monaco online
+support requires a later server-side track protocol and separate standings.
 
-Validation: `npm run test:monaco` sweeps the actual car collision footprint around
-the complete centreline, checks wall impact, finish direction, storage isolation,
-script ordering and the full generated render mesh. Existing finish, vehicle,
-bodywork, view culling, timing, determinism and staging suites were also checked.
-The development browser did not provide WebGL, so rendered driving, mobile layout
-and a complete manually driven lap still need verification on a WebGL-capable browser.
+Run `npm run test:monaco` for whole-route car collision sweeps (main and pit),
+elevation/width continuity, variable-width wheel contacts, uphill/downhill gravity,
+rendered paint/kerb alignment, pit wall openings, landmark clearance, storage and
+script isolation. Existing physics, terrain, timing, determinism, rendering and
+build checks are also applicable. Rendered driving and mobile layout still need
+verification on a WebGL-capable browser; the supplied browser lacked WebGL.

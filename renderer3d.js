@@ -343,27 +343,6 @@ window.LPRRenderer3D = class LPRRenderer3D {
       const ring = [[x-radius,baseHeight,z-radius],[x+radius,baseHeight,z-radius],[x+radius,baseHeight,z+radius],[x-radius,baseHeight,z+radius]];
       for (let i = 0; i < 4; i++) tri(ring[i],ring[(i+1)%4],apex,color.map(v => v * (i % 2 ? .84 : 1)));
     };
-    const smokePuff = (forward, side, height, size, color) => {
-      const sides = 8;
-      const bottom = [], top = [];
-      for (let i = 0; i < sides; i++) {
-        const angle = i * Math.PI * 2 / sides;
-        bottom.push([forward + Math.cos(angle) * size, side + Math.sin(angle) * size, height]);
-        top.push([forward + Math.cos(angle) * size * .82, side + Math.sin(angle) * size * .82, height + size * 1.15]);
-      }
-      for (let i = 0; i < sides; i++) {
-        const next = (i + 1) % sides;
-        quad(vanPoint(bottom[i][0],bottom[i][1],bottom[i][2]),
-             vanPoint(bottom[next][0],bottom[next][1],bottom[next][2]),
-             vanPoint(top[next][0],top[next][1],top[next][2]),
-             vanPoint(top[i][0],top[i][1],top[i][2]),color.map(value => value * (i % 2 ? .88 : 1)));
-      }
-      for (let i = 1; i < sides - 1; i++) {
-        tri(vanPoint(top[0][0],top[0][1],top[0][2]),
-            vanPoint(top[i][0],top[i][1],top[i][2]),
-            vanPoint(top[i+1][0],top[i+1][1],top[i+1][2]),color);
-      }
-    };
     const points = this.track;
     const count = points.length;
     const normals = points.map((_, i) => {
@@ -373,7 +352,11 @@ window.LPRRenderer3D = class LPRRenderer3D {
       const length = Math.hypot(dx, dz);
       return { x: -dz / length, z: dx / length };
     });
-    const at = (i, offset, height) => [points[i].x + normals[i].x * offset, height, points[i].y + normals[i].z * offset];
+    const at = (i, offset, height) => {
+      const road=window.LPRCampus.road,half=road.halfWidthAt?.(i) ?? road.halfWidth;
+      const actual=Math.sign(offset)*(Math.abs(offset)<=road.halfWidth?Math.abs(offset)*half/road.halfWidth:half+Math.abs(offset)-road.halfWidth);
+      return [points[i].x+normals[i].x*actual,height,points[i].y+normals[i].z*actual];
+    };
     const strip = (left, right, height, colorForSegment) => {
       for (let i = 0; i < count; i++) {
         const next = (i + 1) % count;
@@ -384,16 +367,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     // Wide flat terrain and distinct bands make the approaching road readable at speed.
     terrainEnabled=false;
     const groundWidth=Math.max(6500,window.LPRCampus.bounds.width+1000),groundDepth=Math.max(6500,window.LPRCampus.bounds.height+1000);
-    quad([-2200,-.4,-2200],[groundWidth,-.4,-2200],[groundWidth,-.4,groundDepth],[-2200,-.4,groundDepth],window.LPRCampus.groundColor || [.095,.235,.155]);
+    const groundLevel=window.LPRCampus.groundLevel ?? -.4;
+    quad([-2200,groundLevel,-2200],[groundWidth,groundLevel,-2200],[groundWidth,groundLevel,groundDepth],[-2200,groundLevel,groundDepth],window.LPRCampus.groundColor || [.095,.235,.155]);
     terrainEnabled=true;
     terrain?.groundTiles((x,z,size)=>quad([x,-.39,z],[x+size,-.39,z],
-      [x+size,-.39,z+size],[x,-.39,z+size],[.095,.235,.155]));
+      [x+size,-.39,z+size],[x,-.39,z+size],window.LPRCampus.groundColor || [.095,.235,.155]));
     this.obstacleMeshes=[];
     const objectGeometry=(body,draw)=>{
       const start=data.length;draw();
       this.obstacleMeshes.push({body,start,end:data.length});
     };
-    window.LPRCampus.build({ box, quad, materialBox, objectGeometry });
+    const absoluteQuad=(...args)=>{const enabled=terrainEnabled;terrainEnabled=false;try{quad(...args);}finally{terrainEnabled=enabled;}};
+    window.LPRCampus.build({ box, quad, absoluteQuad, materialBox, objectGeometry });
     let objectStart;
     window.LPRTrackObjects?.build({box,quad,groundShadow,beginObject:()=>{objectStart=data.length;},
       endObject:body=>{if(body)this.obstacleMeshes.push({body,start:objectStart,end:data.length});}});
@@ -453,8 +438,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
     tangent.x /= tangentLength; tangent.z /= tangentLength;
     const square = (side, along) => [first.x + normals[0].x * side + tangent.x * along,.18,first.y + normals[0].z * side + tangent.z * along];
     for (let row = 0; row < 3; row++) for (let col = 0; col < 12; col++) {
-      const cellWidth = halfWidth * 2 / 12;
-      const a = -halfWidth + col * cellWidth, b = a + cellWidth;
+      const cellWidth = (window.LPRCampus.road.halfWidthAt?.(0) ?? halfWidth) * 2 / 12;
+      const a = -(window.LPRCampus.road.halfWidthAt?.(0) ?? halfWidth) + col * cellWidth, b = a + cellWidth;
       const f = (row - 1.5) * cellWidth, g = f + cellWidth;
       quad(square(a,f),square(b,f),square(b,g),square(a,g),(row+col)%2 ? [1,1,1] : [.025,.025,.025]);
     }
@@ -496,6 +481,27 @@ window.LPRRenderer3D = class LPRRenderer3D {
       height,
       stop[2] + forwardZ * forward + rightZ * side + sceneOffsetZ
     ];
+    const smokePuff = (forward, side, height, size, color) => {
+      const sides = 8;
+      const bottom = [], top = [];
+      for (let i = 0; i < sides; i++) {
+        const angle = i * Math.PI * 2 / sides;
+        bottom.push([forward + Math.cos(angle) * size, side + Math.sin(angle) * size, height]);
+        top.push([forward + Math.cos(angle) * size * .82, side + Math.sin(angle) * size * .82, height + size * 1.15]);
+      }
+      for (let i = 0; i < sides; i++) {
+        const next = (i + 1) % sides;
+        quad(vanPoint(bottom[i][0],bottom[i][1],bottom[i][2]),
+             vanPoint(bottom[next][0],bottom[next][1],bottom[next][2]),
+             vanPoint(top[next][0],top[next][1],top[next][2]),
+             vanPoint(top[i][0],top[i][1],top[i][2]),color.map(value => value * (i % 2 ? .88 : 1)));
+      }
+      for (let i = 1; i < sides - 1; i++) {
+        tri(vanPoint(top[0][0],top[0][1],top[0][2]),
+            vanPoint(top[i][0],top[i][1],top[i][2]),
+            vanPoint(top[i+1][0],top[i+1][1],top[i+1][2]),color);
+      }
+    };
     const vanPrism = (front, back, left, right, bottom, top, color) => {
       const p = vanPoint;
       const shade = factor => color.map(value => value * factor);
@@ -1181,6 +1187,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
         [outer-.65,.65,1],[outer,.02,.63]];
       for(let i=0;i<points.length;i++) {
         const next=(i+1)%points.length;
+        if(window.LPRCampus.road.edgeOpenAt?.(i,side)){distance+=lengths[i];continue;}
         const u0=distance/repeatLength+(side<0?.5:0);
         const u1=(distance+lengths[i])/repeatLength+(side<0?.5:0);
         for(let band=0;band<profile.length-1;band++) {
@@ -1243,8 +1250,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
     };
     let distance=0;
     for(let i=0;i<points.length;i++) {
-      segment(i,-edgeLine,-edgeLine+.9,0,1,distance);
-      segment(i,edgeLine-.9,edgeLine,0,1,distance);
+      if(!window.LPRCampus.road.edgeOpenAt?.(i,-1))segment(i,-edgeLine,-edgeLine+.9,0,1,distance);
+      if(!window.LPRCampus.road.edgeOpenAt?.(i,1))segment(i,edgeLine-.9,edgeLine,0,1,distance);
       // Clip every dash against the road segments, so paint follows bends
       // instead of connecting its endpoints with a chord across the asphalt.
       const end=distance+lengths[i];

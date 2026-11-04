@@ -7,3 +7,5 @@
 .monaco-practice .app{margin-left:0!important}.monaco-practice #lap-panel{left:16px}.monaco-practice #verification-status{display:none}
 
 .monaco-menu-button{position:fixed;bottom:14px;right:18px;z-index:30;background:#142125;color:#e9eee2;border:1px solid #61716b;border-radius:8px;padding:10px 14px;cursor:pointer}.monaco-practice .game-shell{width:100%}
+
+.monaco-pit-help{font-size:13px;color:#d3d9c8;border-left:2px solid #c4e99b;padding-left:12px}

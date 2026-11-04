@@ -13,7 +13,7 @@ gameFiles.push('auth-feedback.css');
 gameFiles.push('series-controls.css');
 gameFiles.push('client-download.js','client-download.css');
 gameFiles.push('numeric-typography.css','spectator-layout.css','mobile-layout.css');
-gameFiles.push('tracks/monaco.js','tracks/monaco-practice.js','tracks/monaco.css','tracks/MONACO-LICENSE.md');
+gameFiles.push('tracks/monaco-reference.js','tracks/monaco.js','tracks/monaco-practice.js','tracks/monaco.css','tracks/MONACO-LICENSE.md','tracks/MONACO-REFERENCE.md');
 function readDocument(){return {version:1,objects:validate(JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8')))};}
 function dataScript(doc=readDocument()){return `window.LPRTrackData=${JSON.stringify(doc)};\n`;}
 function build(destination=path.join(root,'dist')) {

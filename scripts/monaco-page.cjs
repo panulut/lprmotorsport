@@ -4,7 +4,7 @@ function monacoPage(html){
   return html.replace(/<script\b[^>]*src="([^"?]+)(?:\?[^" ]*)?"[^>]*><\/script>/g,(tag,src)=>excluded.has(src)?'':tag)
     .replace(/<title>[^<]*<\/title>/,'<title>Monaco · LPR Motorsport</title>')
     .replace(/connect-src [^;]+;/,"connect-src 'self';")
-    .replace(/(<script src="shared\/track-objects.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco.js" defer></script>')
+    .replace(/(<script src="shared\/track-objects.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-reference.js" defer></script>\n    <script src="tracks/monaco.js" defer></script>')
     .replace('<script src="game.js','<link rel="stylesheet" href="tracks/monaco.css" />\n    <script src="tracks/monaco-practice.js" defer></script>\n    <script src="game.js')
     .replace('<body>','<body class="monaco-practice">');
 }

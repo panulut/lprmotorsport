@@ -619,6 +619,7 @@
     saunaLife.leave();
     car = { x: LPRCampus.launchPosition.x, y: LPRCampus.launchPosition.y, angle: startAngle, speed: 0, lap: lapNumber, lapStart: 0, lapTimingArmed:false, stage: 0, started: false, offroad: false, damage:0, crashed:false, pool:false, poolX:0, poolZ:0 };
     dynamics.reset(car);
+    if(LPRCampus.roadAt){car.grassFraction=grassContact(car);dynamics.createSuspension(car);}
     dynamics.parameters.tractionControlEnabled=tractionControlEnabled;
     car.tcEnabled=tractionControlEnabled;
     car.wheelPage=0;
@@ -828,6 +829,7 @@
   }
 
   function nearestTrack(x, y) {
+    if(LPRCampus.monaco){const q=LPRCampus.monaco.mainQuery(x,y),index=q.segment.index;return {index,distance:q.distance,along:trackDistances[index]+q.t*(trackDistances[index+1]-trackDistances[index])};}
     let bestDist = Infinity;
     let index = 0;
     let along = 0;
@@ -859,14 +861,15 @@
         const x = state.x + (axle * forwardX - side * forwardY) * scale;
         const y = state.y + (axle * forwardY + side * forwardX) * scale;
         const contact = nearestTrack(x, y);
-        const distance = contact.distance;
+        const localRoad=LPRCampus.roadAt?.(x,y) || LPRCampus.road;
+        const distance=localRoad.distance ?? contact.distance;
         const loop=trackDistances[POINTS];
         const ribAlong=contact.along*(Math.round(loop*p.metresPerWorldUnit/.45)*.45)/(loop*p.metresPerWorldUnit);
         heights.push((window.LPRTrackObjects?.terrain?.heightAt(x,y)||0)*p.metresPerWorldUnit+
-          dynamics.kerbHeight(distance,ribAlong,LPRCampus.road));
-        if (distance >= ROAD_HALF && distance <= KERB_OUTER) kerbTires++;
+          dynamics.kerbHeight(distance,ribAlong,localRoad));
+        if (distance >= localRoad.halfWidth && distance <= localRoad.kerbOuter && localRoad.kerbOuter>localRoad.halfWidth) kerbTires++;
         const blend = window.LPRTrackObjects?.onAsphalt(x,y) ? 0 :
-          Math.max(0, Math.min(1, (distance - KERB_OUTER) / (SHOULDER_OUTER - KERB_OUTER)));
+          Math.max(0, Math.min(1, (distance - localRoad.kerbOuter) / (localRoad.shoulderOuter - localRoad.kerbOuter)));
         total += blend * blend * (3 - 2 * blend);
       }
     }
@@ -942,6 +945,7 @@
     let crossedFinishLine = false;
     for (let i = 0; i < steps; i++) {
       car.grassFraction = grassContact(car);
+      if(LPRCampus.isPitLane?.(car.x,car.y))car.pitLapInvalid=true;
       const previous = { x:car.x, y:car.y, angle:car.angle };
       dynamics.step(car, input, dt / steps, car.grassFraction);
       const collision=window.LPRCampus.resolveObstacleCollision(car, previous, contact=>{
@@ -968,7 +972,13 @@
     car.offroad = car.grassFraction > .5;
     let completedLap = false;
     if (car.crashed) return;
-    if (!car.crashed && nearest.distance < ROAD_HALF && car.speed > 2.2) {
+    if(car.pitLapInvalid&&crossedFinishLine){
+      car.pitLapInvalid=false;car.lapTimingArmed=true;car.lapStart=now;car.stage=0;
+      timing.reset();startSectorPanel();crossedFinishLine=false;
+      showNotice(t('Varikkokierros päättyi. Uusi ajanottokierros alkoi.'),2500);
+    }
+    const localHalfWidth=LPRCampus.road.halfWidthAt?.(nearest.index) ?? ROAD_HALF;
+    if (!car.crashed && nearest.distance < localHalfWidth && car.speed > 2.2) {
       if (!car.lapTimingArmed && crossedFinishLine) {
         car.lapTimingArmed=true;
         car.lapStart=now;

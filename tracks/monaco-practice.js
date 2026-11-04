@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $=s=>document.querySelector(s),dialog=$('#settings-dialog');
-  window.LPRDrivingRevision='monaco-v1:'+window.LPRDrivingRevision;
+  window.LPRDrivingRevision=window.LPRTrackConfig.id+':'+window.LPRDrivingRevision;
   const menuButton=document.createElement('button');menuButton.className='monaco-menu-button';menuButton.textContent='Monaco · valikko';menuButton.onclick=()=>dialog.showModal();document.body.append(menuButton);
   const brand=document.querySelector('#lap-panel .lap-panel-branding');
   brand?.setAttribute('aria-label','LPR Motorsport Monaco');
@@ -14,9 +14,10 @@
   const menu=document.createElement('section');menu.className='monaco-menu';
   menu.innerHTML=`<p class="monaco-kicker">RIVIERA / HARJOITTELU</p><h3>Senttien peli.</h3>
     <p>Monacon katurata Formula Student -autolla. Kapeat kaiteet, Fairmontin neulansilmä, tunneli ja sataman mutkat.</p>
-    <div class="monaco-stats"><span><b>3,337</b> km ratapohja</span><span><b>8</b> m ajorata</span><span><b>FS</b> Formula Student</span></div>
-    <p class="monaco-note">Tyylitelty, tasainen harjoittelurata. Kierrosajat tallentuvat tähän selaimeen. Harjoittelussa ei ole verkkotuloslistaa.</p>
+    <div class="monaco-stats"><span><b>3,337</b> km ratapohja</span><span><b>42</b> m korkeuseroa</span><span><b>FS</b> Formula Student</span></div>
+    <p class="monaco-note">Korkeuserot, vaihteleva leveys ja ajettava varikkokaista. Paikalliset mitat ja rakennukset ovat arvioita. Kierrosajat tallentuvat tähän selaimeen; varikkokierrosta ei hyväksytä ennätykseksi.</p>
     <button id="monaco-start" type="button">Aja Monacossa</button><a class="monaco-back" href="index.html">Takaisin Skinnarilaan</a>
+    <p class="monaco-pit-help">Varikolle: erkane Rascassen kohdalla. Seuraa varikkokaistaa ja palaa radalle Sainte Dévoten jälkeen.</p>
     <p class="monaco-controls">W / ↑ kaasu · S / ↓ jarru · A D / ← → ohjaus · R uusi yritys. Myös kosketus ja peliohjain.</p>`;
   dialog.append(menu);
   const close=$('#close-settings');close.hidden=false;
