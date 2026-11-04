@@ -1,0 +1,106 @@
+/* Deterministic 120 Hz Monaco-only bicycle dynamics. The legacy dynamics are
+   inherited only for reset/impact APIs; no legacy parameters are mutated. */
+(function(root){
+  'use strict';
+  const Math=root.LPRMath,spec=root.LPRVehicleSpec;
+  if(!Math||spec.id!=='lpr-f1-monaco-v1')throw Error('F1 spec/LPRMath missing');
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),g=9.81;
+  root.VehicleDynamics=class MonacoF1Dynamics extends root.VehicleDynamics {
+    constructor(){
+      super();Object.assign(this.parameters,spec,{peakPower:spec.motorPower*spec.drivetrainEfficiency,
+        maxSpeed:spec.maxMotorRpm*2*Math.PI/60/(spec.finalDriveRatio*spec.gearRatios[7])*spec.tyreDiameter/2,
+        tractionControlEnabled:true});
+      this.aids={tc:true,abs:true,steering:true,...root.LPRF1Aids?.value};
+    }
+    reset(s){super.reset(s);s.gear=1;s.engineRpm=spec.idleRpm;s.shiftRemaining=0;s.absActive=false;s.downforce=0;s.f1=true;}
+    // Quasi-static four-corner loads: terrain height, longitudinal/lateral weight
+    // transfer and aero axle balance. No tyre temperatures, wear or wheel hop.
+    stepSuspension(s,dt){
+      const p=this.parameters,b=s.suspension||this.createSuspension(s),h=s.roadHeights||[0,0,0,0];
+      const aero=.5*p.airDensity*p.downforceArea*s.vx*s.vx;
+      const transfer=p.mass*(s.longitudinalG||0)*g*p.centreOfMassHeight/p.wheelbase;
+      const front=clamp(p.mass*g*p.rearAxle/p.wheelbase-transfer,0,p.mass*g)+aero*p.aeroFrontBalance;
+      const rear=p.mass*g-front+aero;
+      const lateral=p.mass*(s.lateralG||0)*g*p.centreOfMassHeight/p.trackWidth;
+      for(let i=0;i<4;i++){
+        const share=i<2?p.aeroFrontBalance:1-p.aeroFrontBalance;
+        const axle=i<2?front:rear,shift=clamp(lateral*share,-axle/2,axle/2);
+        b.wheels[i].load=Math.max(0,axle/2+(i%2?shift:-shift));
+        b.wheels[i].road=h[i];b.wheels[i].z=h[i];b.wheels[i].travel=0;
+      }
+      b.heave=((h[0]+h[1])*p.rearAxle+(h[2]+h[3])*p.frontAxle)/(2*p.wheelbase);
+      b.pitch=((h[0]+h[1]-h[2]-h[3])/2)/p.wheelbase-(s.longitudinalG||0)*.001;
+      b.roll=(h[1]+h[3]-h[0]-h[2])/(2*p.trackWidth)+(s.lateralG||0)*.001;
+      s.downforce=aero;s.frontAeroLoad=aero*p.aeroFrontBalance;s.rearAeroLoad=aero*(1-p.aeroFrontBalance);
+    }
+    capacities(s,grass=0){
+      const p=this.parameters,mu=p.roadGrip+(p.grassGrip-p.roadGrip)*clamp(grass,0,1);
+      return [0,2].map(i=>s.suspension.wheels.slice(i,i+2).reduce((sum,w)=>sum+mu*p.referenceTyreLoad*Math.pow(Math.max(0,w.load)/p.referenceTyreLoad,p.loadExponent),0));
+    }
+    step(s,input,seconds,grass=0){
+      if(s.crashed)return;
+      const p=this.parameters,dt=Math.min(seconds,1/90),speed=Math.max(0,s.vx);
+      const tc=input.tc??this.aids.tc,abs=input.abs??this.aids.abs,assisted=(input.steeringAssist??this.aids.steering)&&!input.wheel;
+      s.tcEnabled=tc;this.parameters.tractionControlEnabled=tc;
+      this.stepSuspension(s,dt);
+      const [frontLimit,rearLimit]=this.capacities(s,grass),capacity=frontLimit+rearLimit;
+      const gas=clamp(input.gas||0,0,1),brake=clamp(input.brake||0,0,1);
+      const throttle=gas*(1-brake)*(1-.65*(s.damage||0));
+      const steer=clamp(input.steer||0,-1,1),rate=input.analog?12:steer===0||steer*s.steer<0?10:7;
+      s.steer+=clamp(steer-s.steer,-rate*dt,rate*dt);
+      let target=s.steer*p.maxRoadWheelAngle;
+      if(assisted){
+        const v=Math.max(speed,1.5),desired=s.steer*Math.min(v*Math.tan(p.maxRoadWheelAngle)/p.wheelbase,Math.min(frontLimit/p.aeroFrontBalance,rearLimit/(1-p.aeroFrontBalance))/p.mass*(p.assistedSteeringGrip+(p.fastSteeringGrip-p.assistedSteeringGrip)*clamp((speed-20)/40,0,1))/v);
+        const stiffnessScale=Math.max(1,Math.pow((p.mass*g+s.downforce)/(p.mass*g),.75));
+        const under=p.mass/p.wheelbase/stiffnessScale*(p.rearAxle/p.frontCorneringStiffness-p.frontAxle/p.rearCorneringStiffness);
+        target=clamp(Math.atan(p.wheelbase*desired/v)+under*v*desired+Math.abs(s.steer)*.16*(desired-s.yawRate),-p.maxRoadWheelAngle,p.maxRoadWheelAngle);
+      }
+      s.steerAngle+=clamp((target-s.steerAngle)*(1-Math.exp(-22*dt)),-3.5*dt,3.5*dt);
+      const rpmFor=gear=>speed/(p.tyreDiameter/2)*p.finalDriveRatio*p.gearRatios[gear-1]*60/(2*Math.PI);
+      s.shiftRemaining=Math.max(0,s.shiftRemaining-dt);
+      if(!s.shiftRemaining&&s.gear<8&&rpmFor(s.gear)>p.shiftRpm){s.gear++;s.shiftRemaining=p.shiftSeconds;}
+      if(!s.shiftRemaining&&s.gear>1&&rpmFor(s.gear)<7600){s.gear--;s.shiftRemaining=p.shiftSeconds;}
+      s.engineRpm=clamp(rpmFor(s.gear),p.idleRpm,p.maxMotorRpm);
+      const gearForce=p.motorTorque*p.finalDriveRatio*p.gearRatios[s.gear-1]*p.drivetrainEfficiency/(p.tyreDiameter/2);
+      const launch=p.launchForce+(Math.max(0,speed-p.launchFadeSpeed)*p.launchForceSlope);
+      const rawDrive=s.shiftRemaining?0:throttle*Math.min(gearForce,p.peakPower/Math.max(speed,2),launch);
+      const rearAlpha=speed>=8?Math.atan2(s.vy-p.rearAxle*s.yawRate,speed):0;
+      const rearDemand=Math.min(rearLimit,Math.abs(p.rearCorneringStiffness*rearAlpha));
+      const available=Math.sqrt(Math.max(0,rearLimit*rearLimit-rearDemand*rearDemand))*.98;
+      let drive=tc?Math.min(rawDrive,available):rawDrive;
+      // With TC off, excess torque models spinning rears: a reduced longitudinal
+      // and lateral friction budget. This is a torque-capacity approximation.
+      const spinning=!tc&&rawDrive>rearLimit;
+      const rearGrip=rearLimit*(spinning?.78:1);
+      if(spinning)drive=Math.min(drive,rearGrip);
+      s.tcActive=tc&&rawDrive>available+1;s.torqueScale=rawDrive>0?drive/rawDrive:1;
+      const drag=.5*p.airDensity*p.dragArea*speed*speed,rolling=p.rollingResistance*(1+2*grass);
+      const brakeRequest=Math.min(brake*p.peakBrakeForce,p.mass*g*p.maxBrakeG)+(1-gas)*(1-brake)*p.coastBrakeForce*Math.min(1,speed/4);
+      const frontBias=abs?frontLimit/Math.max(capacity,1):p.brakeBias;
+      const requests=[brakeRequest*frontBias,brakeRequest*(1-frontBias)];
+      const locks=[!abs&&requests[0]>frontLimit,!abs&&requests[1]>rearGrip];
+      const limits=[frontLimit*(locks[0]?p.lockedGrip:1),rearGrip*(locks[1]?p.lockedGrip:1)];
+      let fx=[-Math.min(requests[0],limits[0]),drive-Math.min(requests[1],limits[1])];
+      s.absActive=abs&&brake>.01&&brakeRequest>capacity;
+      let fy=[0,0];
+      if(speed>=8){
+        const alpha=Math.atan2(s.vy+p.frontAxle*s.yawRate,speed)-s.steerAngle;
+        const stiffnessScale=Math.max(1,Math.pow((p.mass*g+s.downforce)/(p.mass*g),.75));
+        fy=[-limits[0]*Math.tanh(p.frontCorneringStiffness*stiffnessScale*alpha/Math.max(limits[0],1)),
+          -limits[1]*Math.tanh(p.rearCorneringStiffness*stiffnessScale*rearAlpha/Math.max(limits[1],1))];
+        for(let i=0;i<2;i++){if(locks[i])fy[i]*=.25;const scale=Math.min(1,limits[i]/Math.max(1,Math.hypot(fx[i],fy[i])));fx[i]*=scale;fy[i]*=scale;}
+      }
+      const c=Math.cos(s.steerAngle),sn=Math.sin(s.steerAngle),frontFx=fx[0]*c-fy[0]*sn,frontFy=fx[0]*sn+fy[0]*c;
+      const grade=s.terrainSlope||{forward:0,right:0},gradeG=g/Math.sqrt(1+grade.forward*grade.forward+grade.right*grade.right);
+      const ax=(frontFx+fx[1]-drag-rolling)/p.mass,ay=(frontFy+fy[1])/p.mass;
+      s.vx=clamp(s.vx+(ax+s.vy*s.yawRate-grade.forward*gradeG)*dt,0,p.maxSpeed);
+      if(speed<8){s.yawRate=s.vx*Math.tan(s.steerAngle)/p.wheelbase;s.vy=p.rearAxle*s.yawRate;}
+      else{s.vy=clamp(s.vy+(ay-speed*s.yawRate-grade.right*gradeG)*dt,-40,40);s.yawRate=clamp(s.yawRate+(p.frontAxle*frontFy-p.rearAxle*fy[1])/p.yawInertia*dt,-4,4);}
+      s.longitudinalG=ax/g;s.lateralG=speed<8?s.vx*s.yawRate/g:ay/g;s.tireUse=Math.max(...fx.map((v,i)=>Math.hypot(v,fy[i])/Math.max(limits[i],1)));
+      s.angle+=s.yawRate*dt;const ca=Math.cos(s.angle),sa=Math.sin(s.angle);
+      s.x+=(s.vx*ca-s.vy*sa)*dt/p.metresPerWorldUnit;s.y+=(s.vx*sa+s.vy*ca)*dt/p.metresPerWorldUnit;
+      s.speed=Math.hypot(s.vx,s.vy);s.bodySlip=Math.atan2(s.vy,Math.max(s.vx,.5));
+      this.stepSuspension(s,dt);
+    }
+  };
+})(window);
