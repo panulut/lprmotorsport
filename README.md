@@ -345,3 +345,36 @@ samassa kohdassa valinnan poistaminen lopettaa keräyksen ja keskeyttää ajon.
 Ylläpidon suojattu raportti ja palvelimen käyttöönotto:
 [cloudflare/README.md](cloudflare/README.md#vapaaehtoinen-pelianalytiikka-20102026).
 Testit: `npm run test:analytics`.
+
+## Monaco practice circuit
+
+The main menu's **Monaco · harjoittelu** link opens `monaco.html`. Run `npm run dev`
+and open `http://localhost:8000/monaco.html`, or run `npm run build` and `npm run preview`.
+The development server and build generate the practice page from the existing HTML
+shell, preserving keyboard, touch and gamepad controls.
+
+The coordinate-based 3.337 km layout is resampled to 960 points. Version 2 adds
+approximately 42 m of elevation change, a smoothly varying road width (authored
+7.3–12 m estimate), driveable pit entry/lane/exit, garages, landmark buildings,
+waterfront/pool scenery, grandstands and fences. One height field feeds rendering,
+wheel contacts, suspension/camera and grade forces. Per-point widths drive both
+visible road edges and physics. Pit visits invalidate that practice attempt until
+the next forward main finish crossing. Personal bests use separate v2 storage keys.
+
+This remains an approximate practice model. Local elevations, road widths, pit
+geometry and architectural dimensions are **not surveyed**. See
+[reference notes](tracks/MONACO-REFERENCE.md) for sources, authored estimates and
+limitations. The MIT layout data and licence are retained in `tracks/` and the
+licence/reference notes accompany the browser build.
+
+Monaco has no online accounts, analytics, verified laps, standings, replays, chat
+or spectating; its CSP allows connections only to its own origin. Skinnarila's
+shared authoritative physics files and revision remain unchanged. Monaco online
+support requires a later server-side track protocol and separate standings.
+
+Run `npm run test:monaco` for whole-route car collision sweeps (main and pit),
+elevation/width continuity, variable-width wheel contacts, uphill/downhill gravity,
+rendered paint/kerb alignment, pit wall openings, landmark clearance, storage and
+script isolation. Existing physics, terrain, timing, determinism, rendering and
+build checks are also applicable. Rendered driving and mobile layout still need
+verification on a WebGL-capable browser; the supplied browser lacked WebGL.
