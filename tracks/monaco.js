@@ -293,6 +293,7 @@
       const x=p.x-Math.sin(angle)*distance*side,y=p.y+Math.cos(angle)*distance*side;
       if(clearance(x,y,85))for(let row=0;row<7;row++)oriented(x-Math.sin(angle)*row*11*side,y+Math.cos(angle)*row*11*side,140,4,12,angle,row%2?[.56,.65,.70]:[.38,.50,.59],row*6,heightAt(x,y));
     }
+    window.LPRMonacoTrackside?.build({quad,drape,oriented,heightAt,track,clearance,buildings,project});
   }
   const offsite={x:-100000,y:-100000};
   window.LPRCampus={...base,track,road,roadAt,isPitLane,length:measure(track).reduce((a,b)=>a+b,0),finishGate,finishPostBounds,launchPosition,gantryHalfWidth,crossesFinishLine,

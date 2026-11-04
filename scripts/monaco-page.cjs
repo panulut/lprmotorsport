@@ -5,11 +5,11 @@ function monacoPage(html){
     .replace(/src="shared\/vehicle-spec\.js[^"]*"/,'src="shared/vehicle-spec-f1.js?v=1"')
     .replace(/(<script src="vehicle.js[^>]*><\/script>)/,'$1\n    <script src="shared/vehicle-f1.js?v=1" defer></script>\n    <script src="tracks/monaco-f1-collision.js?v=1" defer></script>')
     .replace(/(<script src="audio.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-f1-audio.js?v=1" defer></script>')
-    .replace(/(<script src="renderer3d.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-f1-renderer.js?v=1" defer></script>')
+    .replace(/(<script src="renderer3d.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-f1-renderer.js?v=1" defer></script>\n    <script src="tracks/monaco-trackside-renderer.js?v=1" defer></script>')
     .replace(/<title>[^<]*<\/title>/,'<title>Monaco · LPR Motorsport</title>')
     // Anchor to the CSP meta: index.html's comment also mentions connect-src, and matching it would swallow the comment's closing -->.
     .replace(/(<meta http-equiv="Content-Security-Policy" content="[^"]*?)connect-src [^;"]+;/,"$1connect-src 'self';")
-    .replace(/(<script src="shared\/track-objects.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-reference.js" defer></script>\n    <script src="tracks/monaco.js" defer></script>')
+    .replace(/(<script src="shared\/track-objects.js[^>]*><\/script>)/,'$1\n    <script src="tracks/monaco-reference.js" defer></script>\n    <script src="tracks/monaco-sponsors.js?v=1" defer></script>\n    <script src="tracks/monaco-trackside.js?v=1" defer></script>\n    <script src="tracks/monaco.js" defer></script>')
     .replace('<script src="game.js','<link rel="stylesheet" href="tracks/monaco.css" />\n    <script src="tracks/monaco-f1-aids.js?v=1" defer></script>\n    <script src="tracks/monaco-practice.js" defer></script>\n    <script src="game.js')
     .replace('<body>','<body class="monaco-practice">');
 }
