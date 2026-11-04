@@ -62,14 +62,14 @@ console.log('PASS: Monaco entry/build isolation, default and persisted aid combi
 // The bot remains an input-only analog controller, not a keyboard skill test.
 // Its speed plan is controller-specific; it must never calibrate tyre grip.
 const {runBot}=require('./monaco-f1-bot.cjs');const result=runBot({record:true});
-assert(!result.failed,result.failed);assert.equal(result.hits,0,'Bot lap stays collision free');assert(result.lapSeconds>80&&result.lapSeconds<100,'Controller regression envelope; 70–75 s remains unmet');
+assert(!result.failed,result.failed);assert.equal(result.hits,0,'Bot lap stays collision free');assert(result.lapSeconds>75&&result.lapSeconds<90,'Clean controller regression envelope; 70–75 s remains unmet');
 // Replay the complete recorded lap from a fresh world, including actual terrain,
 // kerbs, aid state and every suspension/load-history byte. No controller rerun.
 const replay=create(),c=replay.w.LPRCampus;Object.assign(replay.s,c.launchPosition);replay.d.reset(replay.s);
 for(let tick=0;tick<result.inputs.length;tick++){
  const grass=sampleRoad(replay.w,replay.d,replay.s),previous={x:replay.s.x,y:replay.s.y,angle:replay.s.angle};
  replay.d.step(replay.s,result.inputs[tick],1/120,grass);
- c.resolveObstacleCollision(replay.s,previous,contact=>replay.d.applyImpact(replay.s,contact.normal,contact.impactMaterial,contact));
+ assert(!c.resolveObstacleCollision(replay.s,previous,contact=>replay.d.applyImpact(replay.s,contact.normal,contact.impactMaterial,contact)),`replay wall clearance tick ${tick}`);
  assert.equal(JSON.stringify(binary(replay.s)),JSON.stringify(binary(result.states[tick])),`full lap bit replay tick ${tick}`);
 }
 console.log('PASS: input-only, elevated-road, physical-hull complete bot lap and byte-identical replay',JSON.stringify({...result,inputs:undefined,states:undefined}));

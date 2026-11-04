@@ -156,7 +156,7 @@ for(const [kmh,lo,hi] of [[60,2,2.5],[240,4,5]]){
  for(let tick=0;tick<120*30;tick++){
   seed=(Math.imul(seed,1664525)+1013904223)>>>0;
   const analog=tick%480<240;
-  const i={gas:(seed&255)/255,brake:tick%700>600?.7:0,steer:analog?Math.sin(tick/170)*.3:tick%120<30?1:tick%120<60?-1:0,analog,tc:tick%900<600,abs:tick%800<400,steeringAssist:tick%600<400};
+  const i={gas:(seed&255)/255,brake:tick%700>600?.7:0,steer:analog?Math.sin(tick/170)*.3:tick%120<30?1:tick%120<60?-1:0,analog,wheel:analog&&tick%1000<100,tc:tick%900<600,abs:tick%800<400,steeringAssist:tick%600<400};
   // The same externally sampled road drives both replays, with a real height
   // profile plus deterministic kerb/bump changes to exercise load memory.
   const point=a.w.LPRCampus.track[tick%a.w.LPRCampus.track.length],next=a.w.LPRCampus.track[(tick+1)%a.w.LPRCampus.track.length];
@@ -164,6 +164,9 @@ for(const [kmh,lo,hi] of [[60,2,2.5],[240,4,5]]){
   sampleRoad(a.w,a.d,sampler);
   for(const rig of [a,b]){rig.s.roadHeights=[...sampler.roadHeights];rig.s.terrainSlope={...sampler.terrainSlope};}
   a.d.step(a.s,i,dt,0);b.d.step(b.s,i,dt,0);assert.equal(JSON.stringify(binary(a.s)),JSON.stringify(binary(b.s)),`bit-identical tick ${tick}`);
+  // A saved mid-run state contains all solver history; fresh dynamics must
+  // resume it without a hidden controller/road-load dependency.
+  if(tick===1800){b.d=new b.w.VehicleDynamics();b.s=structuredClone(a.s);}
  }
 }
 assert.equal(require('../verification/world.cjs').revision,'3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346','Skinnarila authoritative revision must remain unchanged');

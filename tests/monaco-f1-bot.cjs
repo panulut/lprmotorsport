@@ -1,13 +1,19 @@
 /* Input-only path follower: never sets car pose, velocity or tick clock after
    launch. It uses the same tyre contacts, wall sweeps and gate as the client. */
 const {create,sampleRoad}=require('./helpers-monaco-f1.cjs');
-function runBot({record=false,pace=.97,lookTime=.58,curveA=19,brakeA=20,manual=false,aeroCurve=.005}={}){
- const {w,d,s}=create(),M=w.LPRMath,c=w.LPRCampus,t=c.track,n=t.length,dt=1/120;
+function runBot({record=false,pace=.97,lookTime=.5,curveA=21,brakeA=22,manual=false,aeroCurve=.005}={}){
+ const {w,d,s}=create(),M=w.LPRMath,c=w.LPRCampus,n=c.track.length,dt=1/120;
+ // Smooth only the controller aiming line. Keep the original road queries,
+ // terrain, hull and wall sweeps; the vehicle pose is never projected onto it.
+ const t=c.track.map((a,i)=>{
+  const near=[-2,-1,0,1,2].map(j=>c.track[(i+j+n)%n]);
+  return {x:near.reduce((sum,p)=>sum+p.x,0)/5,y:near.reduce((sum,p)=>sum+p.y,0)/5};
+ });
  const lengths=t.map((a,i)=>M.hypot(t[(i+1)%n].x-a.x,t[(i+1)%n].y-a.y)*.1);
- const tangents=t.map((a,i)=>M.atan2(t[(i+2)%n].y-t[(i+n-2)%n].y,t[(i+2)%n].x-t[(i+n-2)%n].x));
+ const tangents=t.map((a,i)=>M.atan2(t[(i+1)%n].y-a.y,t[(i+1)%n].x-a.x));
  const wrap=a=>M.atan2(M.sin(a),M.cos(a));
- // Integrate the actual arc distances: Monaco sample spacing varies.
- const curvature=t.map((a,i)=>wrap(tangents[(i+2)%n]-tangents[(i+n-2)%n])/[i-2,i-1,i,i+1].reduce((sum,j)=>sum+lengths[(j+n)%n],0));
+ // Curvature and braking distances both follow this continuous aiming line.
+ const curvature=t.map((a,i)=>wrap(tangents[i]-tangents[(i+n-1)%n])/((lengths[i]+lengths[(i+n-1)%n])/2));
  const speedPlan=curvature.map(k=>M.min(79,M.sqrt(curveA/M.max(.002,M.abs(k)-aeroCurve)))*pace);
  for(let pass=0;pass<3;pass++)for(let i=n-1;i>=0;i--)speedPlan[i]=M.min(speedPlan[i],M.sqrt(speedPlan[(i+1)%n]**2+2*brakeA*lengths[i]));
  Object.assign(s,c.launchPosition);d.reset(s);

@@ -85,9 +85,9 @@ commented `shared/vehicle-spec-f1.js` is authoritative for v2 tuning.
 | Same tap, peak yaw rate | 0.006739 rad/s | 0.003956 rad/s | Less high-speed heading disturbance |
 | Downforce speed doubling | Exactly 4× | Exactly 4× | Aero coefficients unchanged |
 | Main / pit physical-hull sweeps | Clear | Clear | Actual F1 hull, including pit offsets |
-| Repeat mixed keyboard/analog/aid sequence | 3600 ticks, identical bytes (original flat-road test) | 3600 ticks, identical bytes including changing road samples | All native Math functions blocked during second solver's stepping |
+| Repeat mixed keyboard/analog/aid sequence | 3600 ticks, identical bytes (original flat-road test) | 3600 ticks, identical bytes including changing road samples and fresh-dynamics checkpoint resume | All native Math functions blocked during second solver's stepping |
 | Complete bot input replay | Not checked | Every state byte identical | Actual terrain, kerbs, suspension, load/slip history and collision sweeps |
-| Bot, all aids, clean controller setting | 90.9583 s, zero contacts (`pace=.95`, `lookTime=.6`) | 90.5750 s, zero contacts (`pace=.97`, `lookTime=.58`) | Controller changes included; 70–75 s target **not met** |
+| Bot, all aids, clean controller setting | 90.9583 s, zero contacts (`pace=.95`, `lookTime=.6`) | 89.4000 s, zero contacts (`pace=.97`, `lookTime=.5`, `curveA=21`, `brakeA=22`) | Controller changes included; 70–75 s target **not met** |
 | v2 slow-corner exit, TC on | — | Minimum delivered drive 47.8%; TC active 19 ticks | Noticeable torque cut; small nonzero rear-slip proxy (peak 0.0149) |
 | Same exit, TC off | — | Peak rear-slip proxy 0.2723; rear slip-angle integral 6.5% higher | Progressive rear work; peak yaw change <0.031 rad/s per tick |
 | TC-off exit, keyboard catch | — | Final body slip <0.01 rad, yaw <0.02 rad/s | Lift after 0.2 s, short opposite-key correction, then release |
@@ -96,11 +96,13 @@ commented `shared/vehicle-spec-f1.js` is authoritative for v2 tuning.
 | Required checks | — | F1 unit, F1 integration, Monaco, legacy physics and deterministic math pass | Skinnarila revision remains unchanged |
 
 The old reference's **93.7917 s** was not reproduced by the current base branch;
-its fresh clean run is **90.9583 s**. The new clean lap is a modest 0.3833 s
+its fresh clean run is **90.9583 s**. The new clean lap is a 1.5583 s
 improvement against that measured base, not a 70–75 s lap. The bot remains an
 analog pure-pursuit centreline controller, not evidence of human keyboard pace.
-It now interpolates pursuit points, uses actual arc distances for curvature and
-samples the same existing kerbs/shoulder blend as the game. Faster pace sweeps
+It smooths five existing samples into a controller-only aiming line, interpolates
+pursuit points, uses actual arc distances for curvature and samples the same
+existing kerbs/shoulder blend as the game. It records 252.69 km/h peak, 2.77 g
+peak and 3.45 m maximum centreline error. The physical road/walls are unchanged. Faster pace sweeps
 still understeer into walls at tight direction changes; the controller/line and
 braking coordination remain the observed limit. No mass, power, base tyre mu,
 aero or track geometry was increased to chase the lap target.
