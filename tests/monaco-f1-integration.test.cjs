@@ -21,7 +21,7 @@ for(const f1 of [false,true]){
  const car={x:100,y:200,angle:.5,vx:20,steerAngle:.2};r.vehiclePose=r.updateSuspension(car,0);r.drawWheels(car,0);
  assert(uploads.length>0&&uploads.every(v=>v.every(Number.isFinite)));
  if(f1){
-  assert.equal(r.f1Meshes.length,3);assert(r.f1Meshes[0].count>1000);
+  assert.equal(r.f1Meshes.length,5);assert(r.f1Meshes[0].count>1000);
   const body=context.window.LPRF1Mesh.body().vertices,tyre=context.window.LPRF1Mesh.wheel(false).vertices;
   const dimension=(a,axis)=>{const x=a.filter((_,i)=>i%6===axis);return (Math.max(...x)-Math.min(...x))*.1;};
   assert(Math.abs(dimension(body,0)-5.2)<1e-9);assert(Math.abs(dimension(body,2)-1.9)<1e-9);
@@ -47,6 +47,8 @@ const pb={window:{LPRDrivingRevision:'f1-test',LPRTrackConfig:context.window.LPR
 vm.createContext(pb);vm.runInContext(fn+';promotePersonalBest(6000,[1000,2000,3000],null,null);',pb);
 const saved=JSON.parse(storage.get('test-sectors'));assert.equal(saved.aids.abs,false);assert.equal(saved.aids.tc,true);assert.equal(saved.vehicle,'lpr-f1-monaco-v1');
 console.log('PASS: Monaco entry/build isolation, default and persisted aid combinations, separate records and actual PB metadata writer');
-const {runBot}=require('./monaco-f1-bot.cjs');const result=runBot();
+// The ABS keeps the rears' side grip in a limit corner, so braking there no longer
+// borrows rotation from an overloaded rear; the bot brakes into hairpins at 95 % pace.
+const {runBot}=require('./monaco-f1-bot.cjs');const result=runBot({pace:.95});
 assert(!result.failed,result.failed);assert.equal(result.hits,0,'Bot lap stays collision free');assert(result.lapSeconds>80&&result.lapSeconds<110,'Conservative bot regression envelope, not the 70–75 s human target');
 console.log('PASS: input-only, elevated-road, physical-hull complete bot lap',JSON.stringify({...result,inputs:undefined,states:undefined}));

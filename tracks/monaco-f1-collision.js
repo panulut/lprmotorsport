@@ -6,7 +6,7 @@
   const box=(f0,f1,s0,s1)=>[[f0,s0],[f1,s0],[f1,s1],[f0,s1]].map(a=>a.map(v=>v*unit));
   function carCollisionParts(state){
     const parts=[box(-2.6,-2.05,-.85,.85),box(2.1,2.6,-.95,.95),
-      box(-2.3,.7,-.70,.70),box(.7,2.5,-.18,.18)];
+      box(-2.3,.7,-.80,.80),box(.7,2.5,-.18,.18)];
     for(const axle of [0,1])for(const side of [-1,1]){
       const f=axle===0?p.frontAxle:-p.rearAxle,s=side*p.trackWidth/2;
       const width=axle===0?p.frontTyreWidth:p.rearTyreWidth;

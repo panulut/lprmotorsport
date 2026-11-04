@@ -29,6 +29,10 @@ const html=monacoPage(fs.readFileSync('index.html','utf8'));
 for(const script of ['leaderboard.js','analytics.js','verified-driving.js','chat.js','spectate-menu.js','championship.js'])assert(!html.includes(`src="${script}`),script+' must not start online activity');
 assert(html.indexOf('tracks/monaco.js')>html.indexOf('src="shared/track-objects.js'));
 assert(html.indexOf('tracks/monaco-practice.js')<html.indexOf('src="game.js'));
+const head=html.slice(0,html.indexOf('<body'));
+assert.equal((head.match(/<!--/g)||[]).length,(head.match(/-->/g)||[]).length,'Every head comment must stay closed, or the page body is swallowed');
+assert.match(html,/<meta http-equiv="Content-Security-Policy" content="[^"]*connect-src 'self';/,'Monaco CSP allows only its own origin');
+assert(!/connect-src[^"]*https:/.test(html.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/)[0]),'Monaco CSP lists no remote services');
 console.log('PASS: Monaco geometry, full centreline car sweep, physical walls, directional finish, isolated storage and practice page');
 
 vm.runInContext(fs.readFileSync('renderer3d.js','utf8'),context);

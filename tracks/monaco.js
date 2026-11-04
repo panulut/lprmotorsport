@@ -13,12 +13,22 @@
   const outline=coordinates.slice(0,-1).map(project),lengths=measure(outline),distances=[0];
   for(const length of lengths)distances.push(distances.at(-1)+length);
   const anchors=reference.profile.map(([index,elevation,width])=>({s:distances[index],elevation:elevation*10,width:width*10}));
+  // Monotone cubic (Fritsch–Carlson) slopes: per-pair smoothstep would flatten every
+  // anchor and steepen each gap, turning long climbs into terraces with sharp creases.
+  const gaps=anchors.slice(0,-1).map((a,i)=>anchors[i+1].s-a.s);
+  const secants=gaps.map((h,i)=>(anchors[i+1].elevation-anchors[i].elevation)/h);
+  const slopes=anchors.map((_,i)=>{
+    // The closed lap wraps: the first and last anchors are the same point.
+    const j=i?i-1:gaps.length-1,k=i<gaps.length?i:0,d0=secants[j],d1=secants[k],h0=gaps[j],h1=gaps[k];
+    return d0*d1<=0?0:3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1);
+  });
   function profile(s){
     let i=0;while(i<anchors.length-2&&anchors[i+1].s<s)i++;
-    const a=anchors[i],b=anchors[i+1],t=Math.max(0,Math.min(1,(s-a.s)/(b.s-a.s)));
-    // Smooth transitions keep crests and changing road widths continuous.
+    const a=anchors[i],b=anchors[i+1],h=b.s-a.s,t=Math.max(0,Math.min(1,(s-a.s)/h));
+    const t2=t*t,t3=t2*t,height=(2*t3-3*t2+1)*a.elevation+(t3-2*t2+t)*h*slopes[i]+(-2*t3+3*t2)*b.elevation+(t3-t2)*h*slopes[i+1];
+    // Widths keep their smooth per-pair transition.
     const blend=t*t*(3-2*t);
-    return {height:a.elevation+(b.elevation-a.elevation)*blend,halfWidth:(a.width+(b.width-a.width)*blend)/2};
+    return {height,halfWidth:(a.width+(b.width-a.width)*blend)/2};
   }
   let segment=0;
   const samples=960;
@@ -83,6 +93,12 @@
     }
   }
   pit.push({...pitAnchors.at(-1),height:exitHeight,halfWidth:35});
+  // Where the lane runs into the main road it must share that surface; otherwise the
+  // nearest-route height switches mid-road and leaves a step at the merge.
+  for(const point of pit){
+    const main=mainQuery(point.x,point.y),merge=Math.max(0,Math.min(1,(main.distance-main.halfWidth-point.halfWidth)/120));
+    point.height=main.height+(point.height-main.height)*merge*merge*(3-2*merge);
+  }
   const pitQuery=makeQuery(segments(pit,false,'pit')),allQuery=makeQuery([...segments(track,true,'main'),...segments(pit,false,'pit')]);
   function roadAt(x,y){
     const main=mainQuery(x,y),branch=pitQuery(x,y);
@@ -126,10 +142,14 @@
   const harbour=harbourCoordinates.map(project);
   const inHarbour=(x,y)=>{let inside=false;for(let i=0,j=harbour.length-1;i<harbour.length;j=i++){const a=harbour[i],b=harbour[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;};
   function triangle(a,b,c,emit,split=true,depth=0){
-    const pairs=[[a,b,c],[b,c,a],[c,a,b]],lengths=pairs.map(([p,q])=>Math.hypot(p[0]-q[0],p[2]-q[2])),index=lengths.indexOf(Math.max(...lengths));
+    const pairs=[[a,b,c],[b,c,a],[c,a,b]],lengths=pairs.map(([p,q])=>Math.hypot(p[0]-q[0],p[2]-q[2]));
+    // Test every edge, not only the longest: a long edge across a flat road says nothing
+    // about a shorter edge spanning a crest, and an unsplit crest leaves road and ground
+    // as differently flattened planes that cut through each other.
+    const errors=pairs.map(([p,q],k)=>lengths[k]>12?Math.abs(heightAt((p[0]+q[0])/2,(p[2]+q[2])/2)-(heightAt(p[0],p[2])+heightAt(q[0],q[2]))/2):0);
+    const longest=lengths.indexOf(Math.max(...lengths)),index=lengths[longest]>180?longest:errors.indexOf(Math.max(...errors));
     const [p,q,r]=pairs[index],mid=p.map((v,i)=>(v+q[i])/2);
-    const error=Math.abs(heightAt(mid[0],mid[2])-(heightAt(p[0],p[2])+heightAt(q[0],q[2]))/2);
-    if(split&&depth<8&&(lengths[index]>180||lengths[index]>40&&error>.05)){
+    if(split&&depth<12&&(lengths[index]>180||errors[index]>.05)){
       triangle(p,mid,r,emit,true,depth+1);triangle(mid,q,r,emit,true,depth+1);return;
     }
     emit(...[a,b,c].map(p=>{const out=p.slice();out[1]+=heightAt(out[0],out[2]);return out;}));
@@ -137,7 +157,7 @@
   function mesh(vertices,stride=8,split=true){
     const out=[];for(let i=0;i<vertices.length;i+=stride*3)triangle(Array.from(vertices.slice(i,i+stride)),Array.from(vertices.slice(i+stride,i+2*stride)),Array.from(vertices.slice(i+2*stride,i+3*stride)),(a,b,c)=>out.push(...a,...b,...c),split);return out;
   }
-  const terrain={active:true,heightAt,sample,triangle,mesh,groundTiles(emit){
+  const terrain={active:true,smoothShading:true,groundOffset:-.9,heightAt,sample,triangle,mesh,groundTiles(emit){
     const size=160,minX=Math.floor((Math.min(...track.map(p=>p.x))-700)/size)*size,minY=Math.floor((Math.min(...track.map(p=>p.y))-700)/size)*size;
     const maxX=Math.max(...track.map(p=>p.x))+700,maxY=Math.max(...track.map(p=>p.y))+700;
     for(let x=minX;x<maxX;x+=size)for(let y=minY;y<maxY;y+=size){
@@ -203,7 +223,7 @@
   }}
   const road={halfWidth:40,kerbOuter:44,shoulderOuter:46,halfWidthAt:i=>track[i].halfWidth,edgeOpenAt:(i,side)=>openEdges.has(`${i}:${side}`)};
   function build({quad,absoluteQuad=quad}){
-    quad=absoluteQuad;
+    const drape=quad;quad=absoluteQuad;
     const oriented=(x,y,w,h,d,angle,color,bottom=0,level=heightAt(x,y))=>{
       const c=Math.cos(angle),s=Math.sin(angle),at=(u,z,v)=>[x+c*u-s*v,z+level,y+s*u+c*v];
       const points=[at(-w/2,bottom,-d/2),at(w/2,bottom,-d/2),at(w/2,bottom,d/2),at(-w/2,bottom,d/2)];
@@ -215,10 +235,14 @@
     // Waterfront stays horizontal while roads and scenery sit at their own elevations.
     polygon(harbourCoordinates,-12,[.035,.36,.49]);
     // Pit asphalt and both boundary lines share the same edge points as collisions.
+    // Draped (tessellated to the height field) a clear 2 cm above the main asphalt, and
+    // left out where it lies wholly on the main road, so the merges do not z-fight.
+    const onMain=p=>{const m=mainQuery(p.x,p.y);return m.distance<m.halfWidth-2;};
     for(let i=0;i<pit.length-1;i++){
       const a=edge(pit,i,-1,0,false),b=edge(pit,i+1,-1,0,false),c=edge(pit,i+1,1,0,false),d=edge(pit,i,1,0,false);
-      const vertex=p=>[p.x,heightAt(p.x,p.y)+.07,p.y];quad(vertex(a),vertex(b),vertex(c),vertex(d),[.23,.25,.26]);
-      for(const side of [-1,1]){const a=edge(pit,i,side,-2,false),b=edge(pit,i+1,side,-2,false),c=edge(pit,i+1,side,-3,false),d=edge(pit,i,side,-3,false);quad(...[a,b,c,d].map(vertex),[.92,.88,.66]);}
+      if([a,b,c,d].every(onMain))continue;
+      const vertex=p=>[p.x,.2,p.y];drape(vertex(a),vertex(b),vertex(c),vertex(d),[.23,.25,.26]);
+      for(const side of [-1,1]){const a=edge(pit,i,side,-2,false),b=edge(pit,i+1,side,-2,false),c=edge(pit,i+1,side,-3,false),d=edge(pit,i,side,-3,false);drape(...[a,b,c,d].map(p=>[p.x,.3,p.y]),[.92,.88,.66]);}
     }
     // Direction arrows show the entrance and the return path without extra controls.
     for(const i of [5,pit.length-8]){

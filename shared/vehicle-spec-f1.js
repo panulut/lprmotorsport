@@ -17,11 +17,15 @@
     idleRpm:4000,shiftRpm:12000,maxMotorRpm:12500,shiftSeconds:.045,
     launchForce:8900,launchFadeSpeed:28,launchForceSlope:250,
     airDensity:1.225,downforceArea:4.8,aeroFrontBalance:.46,dragArea:2.2,
-    roadGrip:2.2,grassGrip:.60,loadExponent:.90,referenceTyreLoad:1962,
-    peakBrakeForce:50000,maxBrakeG:5,brakeBias:.57,lockedGrip:.65,
+    // Wider rear slicks (375 vs 285 mm) give mild limit understeer; with equal
+    // axle grip the more heavily loaded, load-sensitive rears let go first.
+    roadGrip:2.2,grassGrip:.60,loadExponent:.90,referenceTyreLoad:1962,rearGripScale:1.25,
+    // Fixed bias stays front-heavy so, without ABS, fronts lock before rears.
+    peakBrakeForce:50000,maxBrakeG:5,brakeBias:.62,lockedGrip:.65,absRearUse:.8,absRearFloor:.3,
     rollingResistance:95,coastBrakeForce:180,
     yawInertia:1150,frontCorneringStiffness:190000,rearCorneringStiffness:220000,
     maxRoadWheelAngle:30*Math.PI/180,maxVisualRoadWheelAngle:30*Math.PI/180,
+    // ±180° as on an F1 wheel: the arms cross at hairpin lock, the upper arm over.
     maxSteeringWheelAngle:180*Math.PI/180,assistedSteeringGrip:.91,fastSteeringGrip:.80,
     suspensionType:'pushrod',bodyLengthScale:5.2/2.9*29/(14.1-.16*1.35+9.64),bodyHeightScale:.95/1.074,
     visualRoadWheelAngle(angle){return angle;},

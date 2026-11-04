@@ -35,7 +35,7 @@
     }
     capacities(s,grass=0){
       const p=this.parameters,mu=p.roadGrip+(p.grassGrip-p.roadGrip)*clamp(grass,0,1);
-      return [0,2].map(i=>s.suspension.wheels.slice(i,i+2).reduce((sum,w)=>sum+mu*p.referenceTyreLoad*Math.pow(Math.max(0,w.load)/p.referenceTyreLoad,p.loadExponent),0));
+      return [0,2].map(i=>(i?p.rearGripScale:1)*s.suspension.wheels.slice(i,i+2).reduce((sum,w)=>sum+mu*p.referenceTyreLoad*Math.pow(Math.max(0,w.load)/p.referenceTyreLoad,p.loadExponent),0));
     }
     step(s,input,seconds,grass=0){
       if(s.crashed)return;
@@ -46,14 +46,21 @@
       const [frontLimit,rearLimit]=this.capacities(s,grass),capacity=frontLimit+rearLimit;
       const gas=clamp(input.gas||0,0,1),brake=clamp(input.brake||0,0,1);
       const throttle=gas*(1-brake)*(1-.65*(s.damage||0));
-      const steer=clamp(input.steer||0,-1,1),rate=input.analog?12:steer===0||steer*s.steer<0?10:7;
-      s.steer+=clamp(steer-s.steer,-rate*dt,rate*dt);
-      let target=s.steer*p.maxRoadWheelAngle;
+      // Keys build lock progressively, like a driver's hands winding on: a tap is a
+      // small correction, a held key accelerates, and lock builds more slowly at speed.
+      // Reversing first unwinds to centre, as the Formula Student car does.
+      const steer=clamp(input.steer||0,-1,1),reversing=steer*s.steer<0,centering=steer===0||reversing;
+      s.steerHold=input.analog||centering?0:Math.min(1,(s.steerHold||0)+dt);
+      const speedBlend=clamp(speed/60,0,1),rate=input.analog?12:centering?8:(5-2.5*speedBlend)*Math.min(1,.3+s.steerHold/.2);
+      s.steer+=clamp((!input.analog&&reversing?0:steer)-s.steer,-rate*dt,rate*dt);
+      // Keyboard response is progressive: fine near centre, full at lock.
+      const demand=input.analog?s.steer:s.steer*(.45+.55*Math.abs(s.steer));
+      let target=demand*p.maxRoadWheelAngle;
       if(assisted){
-        const v=Math.max(speed,1.5),desired=s.steer*Math.min(v*Math.tan(p.maxRoadWheelAngle)/p.wheelbase,Math.min(frontLimit/p.aeroFrontBalance,rearLimit/(1-p.aeroFrontBalance))/p.mass*(p.assistedSteeringGrip+(p.fastSteeringGrip-p.assistedSteeringGrip)*clamp((speed-20)/40,0,1))/v);
+        const v=Math.max(speed,1.5),desired=demand*Math.min(v*Math.tan(p.maxRoadWheelAngle)/p.wheelbase,Math.min(frontLimit/p.aeroFrontBalance,rearLimit/(1-p.aeroFrontBalance))/p.mass*(p.assistedSteeringGrip+(p.fastSteeringGrip-p.assistedSteeringGrip)*clamp((speed-20)/40,0,1))/v);
         const stiffnessScale=Math.max(1,Math.pow((p.mass*g+s.downforce)/(p.mass*g),.75));
         const under=p.mass/p.wheelbase/stiffnessScale*(p.rearAxle/p.frontCorneringStiffness-p.frontAxle/p.rearCorneringStiffness);
-        target=clamp(Math.atan(p.wheelbase*desired/v)+under*v*desired+Math.abs(s.steer)*.16*(desired-s.yawRate),-p.maxRoadWheelAngle,p.maxRoadWheelAngle);
+        target=clamp(Math.atan(p.wheelbase*desired/v)+under*v*desired+Math.abs(demand)*.16*(desired-s.yawRate),-p.maxRoadWheelAngle,p.maxRoadWheelAngle);
       }
       s.steerAngle+=clamp((target-s.steerAngle)*(1-Math.exp(-22*dt)),-3.5*dt,3.5*dt);
       const rpmFor=gear=>speed/(p.tyreDiameter/2)*p.finalDriveRatio*p.gearRatios[gear-1]*60/(2*Math.PI);
@@ -76,8 +83,12 @@
       s.tcActive=tc&&rawDrive>available+1;s.torqueScale=rawDrive>0?drive/rawDrive:1;
       const drag=.5*p.airDensity*p.dragArea*speed*speed,rolling=p.rollingResistance*(1+2*grass);
       const brakeRequest=Math.min(brake*p.peakBrakeForce,p.mass*g*p.maxBrakeG)+(1-gas)*(1-brake)*p.coastBrakeForce*Math.min(1,speed/4);
-      const frontBias=abs?frontLimit/Math.max(capacity,1):p.brakeBias;
-      const requests=[brakeRequest*frontBias,brakeRequest*(1-frontBias)];
+      // ABS (with EBD) keeps the rears below the friction left after their cornering
+      // demand, so they keep side grip under trail braking; the fronts take the rest.
+      // A small floor keeps the car slowing in a limit corner instead of coasting.
+      const rearRoom=Math.max(Math.sqrt(Math.max(0,rearGrip*rearGrip-rearDemand*rearDemand))*p.absRearUse,rearGrip*p.absRearFloor);
+      const absRear=Math.min(brakeRequest*rearGrip/Math.max(capacity,1),rearRoom);
+      const requests=abs?[brakeRequest-absRear,absRear]:[brakeRequest*p.brakeBias,brakeRequest*(1-p.brakeBias)];
       const locks=[!abs&&requests[0]>frontLimit,!abs&&requests[1]>rearGrip];
       const limits=[frontLimit*(locks[0]?p.lockedGrip:1),rearGrip*(locks[1]?p.lockedGrip:1)];
       let fx=[-Math.min(requests[0],limits[0]),drive-Math.min(requests[1],limits[1])];

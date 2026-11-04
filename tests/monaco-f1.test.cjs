@@ -11,6 +11,18 @@ for(let tick=1;tick<=120*60;tick++){
 between(t100,2.5,3,'0–100 s');between(t200,5,6,'0–200 s');between(s.speed*3.6,280,295,'terminal km/h');assert.equal(gears.size,8);
 let braking;
 function stop(abs=true){const {d,s}=create();s.vx=200/3.6;let peakG=0,ticks=0;for(;s.vx>.01&&ticks<120*10;ticks++){d.step(s,{gas:0,brake:1,steer:0,abs},dt,0);peakG=Math.max(peakG,-s.longitudinalG);}assert(s.vx<=.01);return {metres:s.x*.1,seconds:ticks/120,peakG};}
+// Trail braking with every aid on must not spin the car, even at full keyboard lock.
+for(const steer of [.3,1]){const {d,s}=create();s.vx=250/3.6;let peak=0;
+ for(let tick=0;tick<1200&&s.vx>8;tick++){d.step(s,{gas:0,brake:1,steer,tc:true,abs:true,steeringAssist:true},dt,0);peak=Math.max(peak,Math.abs(s.bodySlip));}
+ assert(peak<.3,`Braking at steer ${steer} keeps the rear: ${(peak*180/Math.PI).toFixed(1)}° body slip`);}
+// Keyboard steering builds progressively: a 60 ms tap is a small correction,
+// lock builds more slowly at speed, and reversing unwinds through centre first.
+{
+ const hold=(kmh,ticks)=>{const {d,s}=create();s.vx=kmh/3.6;for(let t=0;t<ticks;t++){d.step(s,{gas:0,brake:0,steer:1,tc:true,abs:true,steeringAssist:true},dt,0);s.vx=kmh/3.6;}return {d,s};};
+ const tap=hold(150,7).s;assert(tap.steer>0&&tap.steer<.2,`Tap steer ${tap.steer}`);
+ assert(hold(250,24).s.steer<hold(80,24).s.steer,'Lock builds more slowly at speed');
+ const {d,s}=hold(120,120);assert.equal(s.steer,1);d.step(s,{gas:0,brake:0,steer:-1},dt,0);assert(s.steer>0,'Reversal first unwinds toward centre');
+}
 braking=stop();between(braking.metres,35,65,'200–0 m');between(braking.peakG,4.5,5.5,'peak braking g');assert(stop(false).metres>braking.metres*1.1,'Disabling ABS permits locking and lengthens stop');
 // Constant-speed corner rig: only longitudinal speed is held externally; lateral
 // velocity, yaw and tyre forces settle freely. No pose or yaw is imposed.

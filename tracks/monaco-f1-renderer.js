@@ -3,8 +3,9 @@
 (function(root){
  'use strict';
  const p=root.LPRVehicleSpec;
- // Existing vehicle palette: LPR green, dark carbon, silver wheels, warm white.
- const green=[.035,.62,.23],carbon=[.055,.075,.065],dark=[.025,.032,.035],white=[.86,.88,.85],steel=[.38,.42,.43];
+ // Livery: deep racing green bodywork, LPR green only as accents, carbon floor,
+ // wings and halo, warm white pinstripes and silver suspension.
+ const paint=[.02,.26,.12],green=[.04,.55,.22],carbon=[.055,.075,.065],dark=[.025,.032,.035],white=[.86,.88,.85],steel=[.38,.42,.43];
  function builder(){
   const vertices=[],normals=[];
   const tri=(a,b,c,color)=>{
@@ -33,15 +34,17 @@
  }
  function body(){
   const b=builder(),{box,rod,loft}=b;
-  box(-2.4,1.65,.07,.12,-.72,.72,carbon);
+  box(-2.4,1.65,.07,.12,-.85,.85,carbon);
   // Sculpted tub, tapered nose, sidepods with black cooling inlets.
-  loft([[-2.3,.20,.16,.45],[-1.1,.36,.14,.64],[.55,.30,.14,.49],[2.35,.10,.22,.32]],green);
+  loft([[-2.3,.20,.16,.45],[-1.1,.36,.14,.64],[.55,.30,.14,.49],[2.35,.10,.22,.32]],paint);
   for(const side of [-1,1]){
    loft([[-1.95,.10,.15,.30],[-1.4,.20,.12,.46],[.20,.23,.15,.54],[.65,.12,.20,.44]].map(([x,w,y,h])=>[x,w,y,h]),carbon);
-   const z0=side>0?.32:-.70,z1=side>0?.70:-.32;
-   box(-1.8,.42,.18,.44,z0,z1,green);
-   box(.40,.43,.26,.42,side>0?.38:-.65,side>0?.65:-.38,dark);
-   box(-1.85,-.7,.445,.455,side>0?.37:-.66,side>0?.66:-.37,carbon);
+   const z0=side>0?.32:-.80,z1=side>0?.80:-.32;
+   box(-1.8,.42,.18,.44,z0,z1,paint);
+   box(.40,.43,.26,.42,side>0?.38:-.75,side>0?.75:-.38,dark);
+   box(-1.85,-.7,.445,.455,side>0?.37:-.76,side>0?.76:-.37,carbon);
+   // Pinstripe along the sidepod shoulder.
+   box(-1.6,.38,.44,.448,side>0?.765:-.80,side>0?.80:-.765,green);
    // Front/rear pushrods and double wishbones, outside the narrow nose.
    for(const axle of [p.frontAxle,-p.rearAxle])for(const h of [.20,.43]){
     rod([axle-.38,h,side*.25],[axle,.3525,side*p.trackWidth/2],.015,steel);
@@ -54,21 +57,33 @@
   for(const side of [-1,1]){box(2.1,2.6,.12,.32,side*.94-.01,side*.94+.01,green);box(2.1,2.6,.33,.345,side*.72-.06,side*.72+.06,white);}
   // Rear wing and pylons.
   for(const z of [-.18,.18])box(-2.3,-2.25,.25,.78,z-.025,z+.025,carbon);
-  box(-2.6,-2.05,.76,.80,-.85,.85,green);box(-2.55,-2.10,.89,.925,-.85,.85,carbon);
-  for(const z of [-.85,.85])box(-2.6,-2.05,.66,.94,z-.015,z+.015,carbon);
+  box(-2.6,-2.05,.76,.80,-.85,.85,carbon);box(-2.55,-2.10,.89,.925,-.85,.85,carbon);
+  for(const z of [-.85,.85])box(-2.6,-2.05,.66,.94,z-.015,z+.015,green);
   // Raised engine cover and air intake.
-  loft([[-2.2,.08,.35,.44],[-1.45,.18,.40,.83],[-.94,.15,.45,.91],[-.75,.12,.45,.72]],carbon);
+  loft([[-2.2,.08,.35,.44],[-1.45,.18,.40,.83],[-.94,.15,.45,.91],[-.75,.12,.45,.72]],paint);
+  // White spine stripe over the engine cover.
+  box(-2.1,-1.0,.84,.85,-.03,.03,white);
   box(-.98,-.94,.73,.84,-.085,.085,dark);
   // Cockpit opening, side bolsters and a continuous halo arch with centre strut.
   box(-.85,.28,.55,.57,-.22,.22,dark);
-  for(const z of [-.29,.29])rod([-.95,.59,z],[.35,.60,z],.045,green);
-  const halo=[[-.90,.78,-.31],[-.58,.91,-.32],[.15,.91,-.25],[.42,.87,0],[.15,.91,.25],[-.58,.91,.32],[-.90,.78,.31]];
-  for(let i=1;i<halo.length;i++)rod(halo[i-1],halo[i],.028,carbon);
-  rod([.48,.42,0],[.42,.87,0],.030,carbon);
-  for(const side of [-1,1])rod([-.9,.58,side*.31],[-.9,.78,side*.31],.03,carbon);
+  for(const z of [-.29,.29])rod([-.95,.59,z],[.35,.60,z],.035,carbon);
+  // The halo tubes around the head are separate, ghosted meshes (halo()).
+  for(const side of [-1,1])rod([-.9,.58,side*.31],[-.9,.80,side*.31],.03,carbon);
   // Two small mirrors and LPR-colour identification stripes; no sponsor marks.
-  for(const side of [-1,1]){rod([.2,.53,side*.28],[.1,.62,side*.5],.012,steel);box(-.04,.20,.60,.67,side>0?.48:-.62,side>0?.62:-.48,green);}
+  for(const side of [-1,1]){rod([.2,.53,side*.28],[.1,.62,side*.5],.012,steel);box(-.04,.20,.60,.67,side>0?.48:-.62,side>0?.62:-.48,carbon);}
   box(.65,1.70,.405,.415,-.035,.035,white);
+  return b;
+ }
+ // Forward halo hoop and centre pillar. Narrower than the gap between the
+ // driver's eyes, so with two eyes it reads as a faint ghost, not a solid bar.
+ // The side tubes pass just beside the helmet, so they ghost slightly less.
+ function halo(front){
+  const b=builder();
+  if(front){const hoop=[[.15,.94,-.25],[.42,.90,0],[.15,.94,.25]];
+   for(let i=1;i<hoop.length;i++)b.rod(hoop[i-1],hoop[i],.022,carbon);
+   b.rod([.48,.42,0],[.42,.90,0],.026,carbon);}
+  else{const side=[[-.90,.80,.31],[-.58,.95,.32],[.15,.94,.25]];
+   for(const z of [-1,1])for(let i=1;i<side.length;i++)b.rod(side[i-1].map((v,j)=>j===2?v*z:v),side[i].map((v,j)=>j===2?v*z:v),.022,carbon);}
   return b;
  }
  function wheel(front){
@@ -87,12 +102,25 @@
   }
   return b;
  }
- root.LPRF1Mesh={body,wheel};
+ root.LPRF1Mesh={body,wheel,halo};
  root.LPRRenderer3D=class MonacoF1Renderer extends root.LPRRenderer3D {
+  // A narrower lens than the Formula Student view: 72° made the car read narrow.
+  cockpitFov(){return this.width<650?74:60;}
+  // The driver's head: looks toward the corner with the yaw rate and sways
+  // with lateral and longitudinal g, smoothed like a neck, never snapping.
+  cockpitLook(car,now){
+   const dt=this.lastLook?Math.min((now-this.lastLook)/1000,.05):0;this.lastLook=now;
+   const target={yaw:Math.max(-.26,Math.min(.26,(car.yawRate||0)*.22)),
+     shift:Math.max(-.35,Math.min(.35,-(car.lateralG||0)*.07)),
+     dip:Math.max(-.25,Math.min(.25,-(car.longitudinalG||0)*.05))};
+   const look=this.look||(this.look={yaw:0,shift:0,dip:0});
+   for(const k in target)look[k]+=(target[k]-look[k])*(1-Math.exp(-(k==='yaw'?4:6)*dt));
+   return look;
+  }
   drawWheels(car,now){
    const gl=this.gl,pose=this.vehiclePose||this.updateSuspension(car,now);
    if(!this.f1Meshes){
-    this.f1Meshes=[body(),wheel(true),wheel(false)].map(data=>{
+    this.f1Meshes=[body(),wheel(true),wheel(false),halo(true),halo(false)].map(data=>{
      const mesh={buffer:gl.createBuffer(),normalBuffer:gl.createBuffer(),count:data.vertices.length/6};
      gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data.vertices),gl.STATIC_DRAW);
      gl.bindBuffer(gl.ARRAY_BUFFER,mesh.normalBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data.normals),gl.STATIC_DRAW);return mesh;
@@ -115,6 +143,10 @@
     draw(this.f1Meshes[axle+1],[car.x+10*(f*Math.cos(car.angle)-z*Math.sin(car.angle)),ground+p.tyreDiameter*5,car.y+10*(f*Math.sin(car.angle)+z*Math.cos(car.angle))],
       [c*cp,-sp,s*cp],[c*sp,cp,s*sp],[-s,0,c],ground);
    }
+   // Ghosted halo front last, blended over the scene without writing depth.
+   gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
+   for(const [mesh,opacity] of [[4,.45],[3,.22]]){gl.uniform1f(this.locations.opacity,opacity);draw(this.f1Meshes[mesh],[car.x,heave,car.y],pose.forward,pose.up,pose.right,heave+.3);}
+   gl.uniform1f(this.locations.opacity,1);gl.depthMask(true);gl.disable(gl.BLEND);
    gl.uniform1i(this.locations.meshTransform,0);gl.uniform1i(this.locations.vehicle,0);
   }
  };
