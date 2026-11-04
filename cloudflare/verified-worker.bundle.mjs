@@ -32,14 +32,18 @@ const validPlayer = value => typeof value==='string' && /^[a-f0-9]{64}$/.test(va
 //
 // Names are folded before matching so common evasions still hit: case, accents, full-width
 // letters, separators ("n.e e_k"), digits for letters ("n33k"), Cyrillic/Greek look-alikes
-// and stretched letters ("neeeekeri"). Add new entries in folded form (see nameSkeleton).
+// stretched letters ("neeeekeri") and names written backwards ("irekeeN"). Add new entries in
+// folded form (see nameSkeleton).
 const NAME_LEET={0:'o',1:'i',3:'e',4:'a',5:'s',6:'g',7:'t',9:'g'};
 const NAME_CONFUSABLES={'а':'a','в':'b','е':'e','ё':'e','к':'k','м':'m','н':'h','о':'o','р':'p','с':'c','т':'t','у':'y','х':'x','і':'i','ї':'i','ј':'j','ѕ':'s','ԁ':'d','ԛ':'q','ԝ':'w',
  'α':'a','β':'b','ε':'e','η':'n','ι':'i','κ':'k','μ':'m','ν':'v','ο':'o','ρ':'p','τ':'t','υ':'u','χ':'x','ϲ':'c'};
 // Matched against the skeleton with repeated letters squeezed ("neekeri" -> "nekeri").
 const NAME_SQUEEZED=['neker','nekru','niger','niga','nigr','neger','fagot','trany','mutakuon','ratipa','vinosilm','hitler','siegheil','wetbak','raghead','towelhead','chink'];
 // Matched against the unsqueezed skeleton where squeezing would also hit ordinary names.
-const NAME_PLAIN=['ryssa','hintti'];
+const NAME_PLAIN=['ryssa','hintti','reggin'];
+// Not matched backwards: reversed they are ordinary text ("Regina" -> "aniger", "Tagin" -> "nigat").
+// Backwards "nigger" is still caught by "reggin" in NAME_PLAIN ("reggiN").
+const NAME_FORWARD_ONLY=['niger','niga','nigr','neger'];
 // Matched against the raw lowercase text with separators removed (digits kept as digits).
 const NAME_RAW=['1488'];
 function nameSkeleton(name){
@@ -52,7 +56,8 @@ function allowedName(name){
  if(typeof name!=='string'||mixedScripts(name))return false;
  const plain=nameSkeleton(name),squeezed=plain.replace(/(.)\1+/g,'$1');
  const raw=name.normalize('NFKC').toLowerCase().replace(/[\s_.-]+/g,'');
- return !NAME_SQUEEZED.some(word=>squeezed.includes(word))&&!NAME_PLAIN.some(word=>plain.includes(word))&&!NAME_RAW.some(word=>raw.includes(word));
+ const hit=(text,words)=>{const reversed=[...text].reverse().join('');return words.some(word=>text.includes(word)||!NAME_FORWARD_ONLY.includes(word)&&reversed.includes(word));};
+ return !hit(squeezed,NAME_SQUEEZED)&&!hit(plain,NAME_PLAIN)&&!hit(raw,NAME_RAW);
 }
 // A guest is a durable principal, not a nickname. Promotion adds an account with
 // the SAME player_hash; immutable laps and signed evidence never need rewriting.
