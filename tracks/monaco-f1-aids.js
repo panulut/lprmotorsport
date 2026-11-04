@@ -2,7 +2,7 @@
    attempt and separate records; a mixed-aid lap can never become a record. */
 (function(root){
  'use strict';
- const key='lpr-monaco-f1-aids-v1';let stored;
+ const key='lpr-monaco-f1-v2-aids';let stored;
  try{stored=JSON.parse(localStorage.getItem(key));}catch{}
  const value=Object.freeze(Object.fromEntries(['tc','abs','steering'].map(k=>[k,typeof stored?.[k]==='boolean'?stored[k]:true])));
  const code=['tc','abs','steering'].map(k=>value[k]?'1':'0').join('');
@@ -12,8 +12,8 @@
   try{localStorage.setItem(key,JSON.stringify({...value,[name]:enabled}));}catch{return;}
   root.location.reload();
  }};
- Object.assign(root.LPRTrackConfig,{id:'monaco-f1-v1',
-  bestTimeKey:'lpr-best-time-monaco-f1-v1-'+code,bestSectorsKey:'lpr-best-sectors-monaco-f1-v1-'+code,
-  tcPreferenceKey:'lpr-monaco-f1-tc-unused',
+ Object.assign(root.LPRTrackConfig,{id:'monaco-f1-v2',
+  bestTimeKey:'lpr-best-time-monaco-f1-v2-'+code,bestSectorsKey:'lpr-best-sectors-monaco-f1-v2-'+code,
+  tcPreferenceKey:'lpr-monaco-f1-v2-tc-unused',
   lapMetadata:()=>({vehicle:root.LPRVehicleSpec.id,aids:{...value}})});
 })(window);

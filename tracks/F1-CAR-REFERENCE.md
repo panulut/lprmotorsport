@@ -65,31 +65,54 @@ practice 20617a5. Skinnarila's spec, vehicle.js and driving revision remain unch
 
 ## Results
 
-Measured locally with Node 24.22.1, 120 Hz, all aids on unless stated:
+Measured with Node 24.22.1 at 120 Hz. **Before** is a fresh run of base
+`f29fe65` (not the older numbers previously recorded here); **after** is the v2
+handling setup. All aids on unless stated. The spec snapshot and solver notes
+below this results section describe the original implementation; the current
+commented `shared/vehicle-spec-f1.js` is authoritative for v2 tuning.
 
-| Test | Result | Interpretation |
-| --- | --- | --- |
-| 0–100 km/h | 2.7417 s | In requested 2.5–3 s range |
-| 0–200 km/h | 5.4667 s | In requested 5–6 s range |
-| Terminal speed, 60 s straight | 286.3995 km/h, gear 8 | In requested 280–295 range; eighth-gear rev limit |
-| 200–0 km/h | 46.0258 m, 1.9333 s | Synthetic full stop; not Brembo's different corner test |
-| Peak braking in that stop | 4.9336 g | Includes drag; tyre limited as aero falls |
-| Steady corner rig, 60 km/h | 2.0448 g | In requested slow range; longitudinal speed held externally |
-| Steady corner rig, 240 km/h | 4.1541 g | In requested fast range; stable yaw, body slip below 0.1 rad |
-| Downforce speed doubling | Exactly 4× force | Front 46%, rear 54%; separate drag force |
-| Main route / pit hull sweeps | All clear | 960 main segments; pit centre and ±0.8 m offsets |
-| Repeat input sequence | Bit-identical numeric state at every tick | Two isolated VMs, 3600 ticks; includes suspension and gear state |
-| Bot, all aids on | 93.7917 s (1:33.792), zero contacts | Input-only follower; 247.62 km/h peak, 2.59 g peak, 2.65 m maximum centreline error |
+| Test | Before (`f29fe65`) | After (v2) | Interpretation |
+| --- | --- | --- | --- |
+| 0–100 km/h | 2.7417 s | 2.7417 s | Target 2.5–3 s |
+| 0–200 km/h | 5.4667 s | 5.4667 s | Target 5–6 s |
+| Terminal, 60 s straight | 286.3995 km/h, gear 8 | 286.3995 km/h, gear 8 | Target 280–295 km/h |
+| 200–0 km/h, ABS | 46.0258 m / 1.9333 s | 47.7058 m / 2.0083 s | Synthetic full stop; lower rear grip modestly increases distance |
+| Peak braking in that stop | 4.9336 g | 4.7164 g | Within 4.5–5.5 g regression range |
+| Steady corner, 60 km/h | 2.1834 g | 2.2074 g | Target 2–2.5 g; forward speed held externally |
+| Steady corner, 240 km/h | 4.3324 g | 4.5970 g | Target 4–5 g; stable body slip <0.1 rad |
+| 95% road-wheel lock at 25 km/h | 0.3250 s | 0.2917 s | Held keyboard key, steering assist on |
+| 7-tick tap at 250 km/h, peak road-wheel angle | 0.029168° | 0.015738° | 46% smaller correction, including post-release rack response |
+| Same tap, peak yaw rate | 0.006739 rad/s | 0.003956 rad/s | Less high-speed heading disturbance |
+| Downforce speed doubling | Exactly 4× | Exactly 4× | Aero coefficients unchanged |
+| Main / pit physical-hull sweeps | Clear | Clear | Actual F1 hull, including pit offsets |
+| Repeat mixed keyboard/analog/aid sequence | 3600 ticks, identical bytes (original flat-road test) | 3600 ticks, identical bytes including changing road samples | All native Math functions blocked during second solver's stepping |
+| Complete bot input replay | Not checked | Every state byte identical | Actual terrain, kerbs, suspension, load/slip history and collision sweeps |
+| Bot, all aids, clean controller setting | 90.9583 s, zero contacts (`pace=.95`, `lookTime=.6`) | 90.5750 s, zero contacts (`pace=.97`, `lookTime=.58`) | Controller changes included; 70–75 s target **not met** |
+| v2 slow-corner exit, TC on | — | Minimum delivered drive 47.8%; TC active 19 ticks | Noticeable torque cut; small nonzero rear-slip proxy (peak 0.0149) |
+| Same exit, TC off | — | Peak rear-slip proxy 0.2723; rear slip-angle integral 6.5% higher | Progressive rear work; peak yaw change <0.031 rad/s per tick |
+| TC-off exit, keyboard catch | — | Final body slip <0.01 rad, yaw <0.02 rad/s | Lift after 0.2 s, short opposite-key correction, then release |
+| Gentle mid-corner lift | — | Curvature 0.02713 → 0.02934 m⁻¹ over 0.2 s | About 8% tighter line; front axle load rises |
+| Road normal-load approximation | Heights affected pose only | Crest/compression within ±1.3 m/s²; per-contact redistribution ≤6% static wheel load | Uses existing grade/heights, filtered once per tick; constant grade has no artificial bump |
+| Required checks | — | F1 unit, F1 integration, Monaco, legacy physics and deterministic math pass | Skinnarila revision remains unchanged |
 
-On 2026-11-04 Panu clarified that the bot should establish a clean completed
-lap, not chase 70–75 s. Human lap pace and handling will be calibrated from his
-browser driving feedback. The slow bot is not a claim about a skilled human's
-maximum pace. The regression envelope is 80–110 s and zero wall contacts.
+The old reference's **93.7917 s** was not reproduced by the current base branch;
+its fresh clean run is **90.9583 s**. The new clean lap is a modest 0.3833 s
+improvement against that measured base, not a 70–75 s lap. The bot remains an
+analog pure-pursuit centreline controller, not evidence of human keyboard pace.
+It now interpolates pursuit points, uses actual arc distances for curvature and
+samples the same existing kerbs/shoulder blend as the game. Faster pace sweeps
+still understeer into walls at tight direction changes; the controller/line and
+braking coordination remain the observed limit. No mass, power, base tyre mu,
+aero or track geometry was increased to chase the lap target.
 
-The corner rig deliberately holds forward speed so it measures sustained tyre
-forces independently of throttle skill. It does not impose lateral velocity, yaw
-or pose; measured tyre-force g is checked against centripetal g. The bot never
-sets pose or velocity after launch.
+The corner rig settles lateral velocity and yaw freely, and checks tyre-force g
+against centripetal g; only forward speed is held. The bot never sets pose or
+velocity after launch. Automated tests cover analog input, aid-specific v2
+records (all eight combinations), reset history, stable ABS trail braking and
+front-first locking without ABS. Actual keyboard driving, a physical wheel and
+browser-to-Node parity still require a human/browser check; these are not
+claimed from the headless rigs. The PR contains the tuning rationale and the
+corner-by-corner keyboard checklist.
 
 ## Final spec values and provenance
 
@@ -103,7 +126,7 @@ The legacy compatibility scales are unused by the new visible/collision mesh.
 
 ```json
 {
-  "id": "lpr-f1-monaco-v1",
+  "id": "lpr-f1-monaco-v2",
   "metresPerWorldUnit": 0.1,
   "mass": 800,
   "driverMass": 80,

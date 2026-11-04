@@ -1,10 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {create}=require('./helpers-monaco-f1.cjs');
+const {create,sampleRoad,binary}=require('./helpers-monaco-f1.cjs');
 const {monacoPage}=require('../scripts/monaco-page.cjs');
 const html=fs.readFileSync('index.html','utf8'),monaco=monacoPage(html);
 for(const file of ['shared/vehicle-spec-f1.js','shared/vehicle-f1.js','tracks/monaco-f1-aids.js','tracks/monaco-f1-collision.js','tracks/monaco-f1-renderer.js','tracks/monaco-f1-audio.js']){
  assert(monaco.includes(`src="${file}`));assert(!html.includes(`src="${file}`),'Skinnarila must not load '+file);
  assert(fs.existsSync('dist/'+file),'Build ships '+file);
+ assert.equal(fs.readFileSync('dist/'+file,'utf8'),fs.readFileSync(file,'utf8'),'Build ships current '+file);
 }
 assert(!monaco.includes('src="shared/vehicle-spec.js'));
 const scripts=[...monaco.matchAll(/<script[^>]+src="([^"?]+)/g)].map(m=>m[1]);
@@ -31,24 +32,44 @@ for(const f1 of [false,true]){
  console.log(`PASS: full ${f1?'Monaco F1':'Skinnarila amenities'} renderer world, obstacle/people update and finite vehicle GPU geometry`);
 }
 // Load the actual aid settings module, including corrupt/partial saved settings.
-const storage=new Map(),context={window:{LPRTrackConfig:{},LPRVehicleSpec:{id:'lpr-f1-monaco-v1'},location:{reload(){context.reloads++;}}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},reloads:0};
+const storage=new Map(),context={window:{LPRTrackConfig:{},LPRVehicleSpec:{id:'lpr-f1-monaco-v2'},location:{reload(){context.reloads++;}}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},reloads:0};
 vm.createContext(context);const source=fs.readFileSync('tracks/monaco-f1-aids.js','utf8');
 const run=()=>vm.runInContext(source,context);run();
-assert.equal(context.window.LPRF1Aids.code,'111');const allKey=context.window.LPRTrackConfig.bestTimeKey;
+assert.equal(context.window.LPRF1Aids.code,'111');assert.equal(context.window.LPRTrackConfig.id,'monaco-f1-v2');const allKey=context.window.LPRTrackConfig.bestTimeKey;
 context.window.LPRF1Aids.set('abs',false);assert.equal(context.reloads,1);run();
 assert.equal(context.window.LPRF1Aids.code,'101');assert.notEqual(context.window.LPRTrackConfig.bestTimeKey,allKey);
 assert.equal(context.window.LPRTrackConfig.lapMetadata().aids.abs,false);
 assert(!storage.has('lpr-traction-control'),'Monaco aids never write Skinnarila preference');
-storage.set('lpr-monaco-f1-aids-v1','{"tc":"false","abs":false}');run();assert.equal(context.window.LPRF1Aids.code,'101');
+storage.set('lpr-monaco-f1-v2-aids','{"tc":"false","abs":false}');run();assert.equal(context.window.LPRF1Aids.code,'101');
+// Every aid combination uses its own v2 lap/sector records; aid settings also
+// have a new namespace. A seeded older record survives every settings reload.
+const oldKey='lpr-best-time-monaco-f1-'+['v',1].join('')+'-111';storage.set(oldKey,'93792');
+const timeKeys=new Set(),sectorKeys=new Set();
+for(let bits=0;bits<8;bits++){
+ storage.set('lpr-monaco-f1-v2-aids',JSON.stringify({tc:!!(bits&4),abs:!!(bits&2),steering:!!(bits&1)}));run();
+ const config=context.window.LPRTrackConfig;assert(config.bestTimeKey.includes('monaco-f1-v2'));assert(config.bestSectorsKey.includes('monaco-f1-v2'));
+ timeKeys.add(config.bestTimeKey);sectorKeys.add(config.bestSectorsKey);
+}
+assert.equal(timeKeys.size,8);assert.equal(sectorKeys.size,8);assert.equal(storage.get(oldKey),'93792');
+storage.set('lpr-monaco-f1-v2-aids','{"tc":true,"abs":false,"steering":true}');run();
 // Exercise the actual game PB writer with the Monaco metadata hook.
 const game=fs.readFileSync('game.js','utf8');const fn=game.slice(game.indexOf('  function promotePersonalBest('),game.indexOf('  function persistReferenceLap('));
 const pb={window:{LPRDrivingRevision:'f1-test',LPRTrackConfig:context.window.LPRTrackConfig,LPRLapTiming:{validSamples:()=>null}},localStorage:context.localStorage,
  best:0,demoBest:0,storedSectors:null,timing:{best:[1000,2000,3000],setBest(){}},personalBestThreshold:0,defaultSectorProgress:[],bestTimeKey:'test-time',bestSectorsKey:'test-sectors',rememberLocalReference(){}};
 vm.createContext(pb);vm.runInContext(fn+';promotePersonalBest(6000,[1000,2000,3000],null,null);',pb);
-const saved=JSON.parse(storage.get('test-sectors'));assert.equal(saved.aids.abs,false);assert.equal(saved.aids.tc,true);assert.equal(saved.vehicle,'lpr-f1-monaco-v1');
+const saved=JSON.parse(storage.get('test-sectors'));assert.equal(saved.aids.abs,false);assert.equal(saved.aids.tc,true);assert.equal(saved.vehicle,'lpr-f1-monaco-v2');
 console.log('PASS: Monaco entry/build isolation, default and persisted aid combinations, separate records and actual PB metadata writer');
-// The ABS keeps the rears' side grip in a limit corner, so braking there no longer
-// borrows rotation from an overloaded rear; the bot brakes into hairpins at 95 % pace.
-const {runBot}=require('./monaco-f1-bot.cjs');const result=runBot({pace:.95});
-assert(!result.failed,result.failed);assert.equal(result.hits,0,'Bot lap stays collision free');assert(result.lapSeconds>80&&result.lapSeconds<110,'Conservative bot regression envelope, not the 70–75 s human target');
-console.log('PASS: input-only, elevated-road, physical-hull complete bot lap',JSON.stringify({...result,inputs:undefined,states:undefined}));
+// The bot remains an input-only analog controller, not a keyboard skill test.
+// Its speed plan is controller-specific; it must never calibrate tyre grip.
+const {runBot}=require('./monaco-f1-bot.cjs');const result=runBot({record:true});
+assert(!result.failed,result.failed);assert.equal(result.hits,0,'Bot lap stays collision free');assert(result.lapSeconds>80&&result.lapSeconds<100,'Controller regression envelope; 70–75 s remains unmet');
+// Replay the complete recorded lap from a fresh world, including actual terrain,
+// kerbs, aid state and every suspension/load-history byte. No controller rerun.
+const replay=create(),c=replay.w.LPRCampus;Object.assign(replay.s,c.launchPosition);replay.d.reset(replay.s);
+for(let tick=0;tick<result.inputs.length;tick++){
+ const grass=sampleRoad(replay.w,replay.d,replay.s),previous={x:replay.s.x,y:replay.s.y,angle:replay.s.angle};
+ replay.d.step(replay.s,result.inputs[tick],1/120,grass);
+ c.resolveObstacleCollision(replay.s,previous,contact=>replay.d.applyImpact(replay.s,contact.normal,contact.impactMaterial,contact));
+ assert.equal(JSON.stringify(binary(replay.s)),JSON.stringify(binary(result.states[tick])),`full lap bit replay tick ${tick}`);
+}
+console.log('PASS: input-only, elevated-road, physical-hull complete bot lap and byte-identical replay',JSON.stringify({...result,inputs:undefined,states:undefined}));
