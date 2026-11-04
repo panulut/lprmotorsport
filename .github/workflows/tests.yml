@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [test:monaco, test:guests, test:chat, test:audio, test:physics, test:determinism, test:tools, test:performance, test:leaderboard, test:analytics, test:replay-service, test:collision-index, test:asphalt-index, test:replay, test:live-sessions, test:live-client, test:live-lab, test:verified, test:recordings, test:verification-capacity, test:staging, test:collision-cache, test:championship, test:shared-track-state, test:worker-pool, test:finish-gate]
+        suite: [test:monaco-f1, test:monaco, test:guests, test:chat, test:audio, test:physics, test:determinism, test:tools, test:performance, test:leaderboard, test:analytics, test:replay-service, test:collision-index, test:asphalt-index, test:replay, test:live-sessions, test:live-client, test:live-lab, test:verified, test:recordings, test:verification-capacity, test:staging, test:collision-cache, test:championship, test:shared-track-state, test:worker-pool, test:finish-gate]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

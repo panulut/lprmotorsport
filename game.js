@@ -161,6 +161,7 @@
     localStorage.setItem(bestTimeKey, String(best));
     localStorage.setItem(bestSectorsKey, JSON.stringify({
       lapTime: best, sectors: timing.best, revision: window.LPRDrivingRevision,
+      ...(window.LPRTrackConfig?.lapMetadata?.() || {}),
       ...(denseTrace ? { trace: denseTrace } : previousReference || {})
     }));
     return true;
@@ -178,7 +179,7 @@
     }, lapTime, sectors, trace, window.LPRDrivingRevision);
     if (!record || !timing.setReferenceTrace(trace, window.LPRDrivingRevision, lapTime)) return false;
     rememberLocalReference();
-    localStorage.setItem(bestSectorsKey, JSON.stringify(record));
+    localStorage.setItem(bestSectorsKey, JSON.stringify({...record,...(window.LPRTrackConfig?.lapMetadata?.() || {})}));
     return true;
   }
   let lastLiveDeltaAt = 0, lastLiveDelta = undefined;
@@ -341,9 +342,9 @@
     sectorUI.classList.toggle('faster', result.delta !== null && result.delta < 0);
     sectorUI.classList.toggle('slower', result.delta !== null && result.delta > 0);
   }
-  const tcPreferenceKey = 'lpr-traction-control';
+  const tcPreferenceKey = window.LPRTrackConfig?.tcPreferenceKey || 'lpr-traction-control';
   let tractionControlEnabled = true;
-  try { tractionControlEnabled = localStorage.getItem(tcPreferenceKey) !== 'false'; } catch {}
+  try { tractionControlEnabled = window.LPRF1Aids?.value.tc ?? (localStorage.getItem(tcPreferenceKey) !== 'false'); } catch {}
   let car;
   let drivingWorld = null;
   let lastFrame = performance.now();
@@ -1199,6 +1200,7 @@
     if(action==='page') car.wheelPage=car.wheelPage===1 ? 0 : 1;
     else if(action==='brightness') car.wheelDim=!car.wheelDim;
     else if(action==='tc') {
+      if(window.LPRF1Aids){window.LPRF1Aids.set('tc',!car.tcEnabled);return;}
       tractionControlEnabled = !car.tcEnabled;
       car.tcEnabled = tractionControlEnabled;
       try { localStorage.setItem(tcPreferenceKey, String(tractionControlEnabled)); } catch {}

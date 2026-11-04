@@ -291,7 +291,16 @@ window.LPRRenderer3D = class LPRRenderer3D {
       const lake=color[0]===.12&&color[1]===.36&&color[2]===.45;
       if(terrainEnabled&&terrain?.active&&!lake){
         const surface=Math.max(a[1],b[1],c[1])<=.7&&Math.min(a[1],b[1],c[1])>=-1;
-        terrain.triangle(a,b,c,(A,B,C)=>litTri(A,B,C,color),surface);
+        // Draped ground is lit per vertex from the terrain slope: faceted lighting turns
+        // the small triangles on a crest into a patchwork of dark and light slivers.
+        if(surface&&outdoorLighting&&terrain.smoothShading)terrain.triangle(a,b,c,(...points)=>{
+          for(const p of points){
+            const slope=terrain.sample(p[0],p[2]),length=Math.hypot(slope.dx,1,slope.dy);
+            const light=Math.max(0,(.45*slope.dx+.8+.35*slope.dy)/length/Math.hypot(.45,.8,.35));
+            add(p,color.map((value,i)=>Math.min(1,value*(.76+light*.30)*[1.03,1.01,.98][i])));
+          }
+        },true);
+        else terrain.triangle(a,b,c,(A,B,C)=>litTri(A,B,C,color),surface);
       }else litTri(a,b,c,color);
     };
     const groundShadow = (x,z,sx,sz,height) => {
@@ -370,8 +379,10 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const groundLevel=window.LPRCampus.groundLevel ?? -.4;
     quad([-2200,groundLevel,-2200],[groundWidth,groundLevel,-2200],[groundWidth,groundLevel,groundDepth],[-2200,groundLevel,groundDepth],window.LPRCampus.groundColor || [.095,.235,.155]);
     terrainEnabled=true;
-    terrain?.groundTiles((x,z,size)=>quad([x,-.39,z],[x+size,-.39,z],
-      [x+size,-.39,z+size],[x,-.39,z+size],window.LPRCampus.groundColor || [.095,.235,.155]));
+    // Hilly tracks sit their ground lower so tessellation error cannot lift it through roads.
+    const tileLevel=terrain?.groundOffset ?? -.39;
+    terrain?.groundTiles((x,z,size)=>quad([x,tileLevel,z],[x+size,tileLevel,z],
+      [x+size,tileLevel,z+size],[x,tileLevel,z+size],window.LPRCampus.groundColor || [.095,.235,.155]));
     this.obstacleMeshes=[];
     const objectGeometry=(body,draw)=>{
       const start=data.length;draw();
@@ -427,7 +438,10 @@ window.LPRRenderer3D = class LPRRenderer3D {
     // The shoulder is a continuous strip beneath the asphalt.
     const { halfWidth, kerbOuter, shoulderOuter } = window.LPRCampus.road;
     const edgeLine = halfWidth - 2;
-    strip(-shoulderOuter,shoulderOuter,.01,() => [.16,.18,.17]);
+    // On draped hills the two 4 mm-apart layers are tessellated differently, so a full
+    // shoulder under the road pokes through it; keep only its edge bands there.
+    if(terrain?.smoothShading)for(const [left,right] of [[-shoulderOuter,10-halfWidth],[halfWidth-10,shoulderOuter]])strip(left,right,.01,() => [.16,.18,.17]);
+    else strip(-shoulderOuter,shoulderOuter,.01,() => [.16,.18,.17]);
     strip(-halfWidth,halfWidth,.05,() => [.19,.22,.225]);
     this.makeKerbs(points, at, halfWidth, kerbOuter);
     this.makeRoadPaint(points, at, edgeLine);
@@ -2176,11 +2190,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     // against the steering wheel. Wheel travel remains visible beside the body.
     const pose=this.vehiclePose=this.updateSuspension(car,now);
     const pitch = .055;
-    const camera=pose.up.map((value,i)=>value*(8-pose.centreHeight)-pose.forward[i]*8
+    let camera=pose.up.map((value,i)=>value*(8-pose.centreHeight)-pose.forward[i]*8
       +[car.x,pose.centreHeight+pose.heave,car.y][i]);
-    const right = pose.right;
-    const up = pose.up.map((value,i)=>value*Math.cos(pitch)+pose.forward[i]*Math.sin(pitch));
-    const forward=pose.forward.map((value,i)=>value*Math.cos(pitch)-pose.up[i]*Math.sin(pitch));
+    let right = pose.right;
+    let up = pose.up.map((value,i)=>value*Math.cos(pitch)+pose.forward[i]*Math.sin(pitch));
+    let forward=pose.forward.map((value,i)=>value*Math.cos(pitch)-pose.up[i]*Math.sin(pitch));
+    // Optional head movement (F1 only): turn toward the corner, sway with g.
+    const look=this.cockpitLook?.(car,now);
+    if(look) {
+      const c=Math.cos(look.yaw),s=Math.sin(look.yaw),f=forward,r=right;
+      forward=f.map((v,i)=>v*c+r[i]*s);right=r.map((v,i)=>r[i]*c-f[i]*s);
+      camera=camera.map((v,i)=>v+pose.right[i]*look.shift-pose.up[i]*look.dip);
+    }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program);
     this.bindMesh(this.buffer);
@@ -2189,7 +2210,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.uniform3f(this.locations.right,right[0],right[1],right[2]);
     gl.uniform3f(this.locations.up,up[0],up[1],up[2]);
     gl.uniform1f(this.locations.aspect,this.width / this.height);
-    const verticalFov = this.width < 650 ? 84 : 72;
+    const verticalFov = this.cockpitFov?.() ?? (this.width < 650 ? 84 : 72);
     const focal=1 / Math.tan(verticalFov * Math.PI / 360);
     gl.uniform1f(this.locations.focal,focal);
     this.viewFrustum=this.makeViewFrustum(camera,forward,right,up,focal,this.width/this.height);
@@ -3010,17 +3031,18 @@ window.LPRRenderer3D = class LPRRenderer3D {
     if(this.driverArm?.complete && this.driverArm.naturalWidth>0) {
       ctx.imageSmoothingEnabled=true;
       ctx.imageSmoothingQuality='high';
-      for(const side of [-1,1]) {
+      // Each arm is a complete layer (forearm, the grip over its fingers, thumb).
+      // The hand travelling over the top of the wheel crosses above the other
+      // forearm: turning right the left arm is on top, turning left the right.
+      for(const side of layout.angle>0?[1,-1]:[-1,1]) {
         const pose=this.driverArmPose(layout,side);
         ctx.save();this.placeDriverArm(pose);
         this.drawDriverArm(pose);
         ctx.restore();
-      }
-      // The front surface of each grip occludes the fingers curled behind it.
-      // Use the actual rim arc rather than a hole-sized patch: the hidden
-      // fingertips must disappear under the grip, while the outer hand and
-      // the near-side thumb stay visible alongside its inner edge.
-      for(const side of [-1,1]) {
+        // The front surface of the grip occludes the fingers curled behind it.
+        // Use the actual rim arc rather than a hole-sized patch: the hidden
+        // fingertips must disappear under the grip, while the outer hand and
+        // the near-side thumb stay visible alongside its inner edge.
         ctx.save();ctx.scale(side,1);
         ctx.shadowColor='#020604b3';ctx.shadowBlur=r*.018;
         ctx.shadowOffsetX=r*.012;ctx.shadowOffsetY=r*.008;
@@ -3030,11 +3052,8 @@ window.LPRRenderer3D = class LPRRenderer3D {
         ctx.beginPath();ctx.ellipse(0,-.012,.922,.627,0,-.40,.17);
         ctx.strokeStyle='#b1b8ab25';ctx.lineWidth=.012;ctx.stroke();
         ctx.restore();
-      }
-      // Restore only the near-side thumb across the front of the grip.
-      // Grip, hidden fingers and visible thumb must occupy different layers.
-      for(const side of [-1,1]) {
-        const pose=this.driverArmPose(layout,side);
+        // Restore only the near-side thumb across the front of the grip.
+        // Grip, hidden fingers and visible thumb must occupy different layers.
         ctx.save();this.placeDriverArm(pose);
         this.drawDriverThumb(pose);
         ctx.restore();
