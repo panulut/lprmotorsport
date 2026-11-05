@@ -1,0 +1,380 @@
+{
+  "generatedAt": "2026-11-05T18:31:50.750Z",
+  "node": "v24.22.1",
+  "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+  "scope": "Fresh local Node process, one pooled physics worker (256 MiB old-generation limit), gzip level 3, 10 real-clock HTTP clients, two full synchronized laps, real signatures and replay hash verification. No production traffic. CPU affinity applies to server, physics, zlib and local HTTP clients; this is not a 0.5-vCPU Azure quota.",
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "availableParallelism": 1,
+    "affinity": "0",
+    "cgroupCpuMax": "800000 100000"
+  },
+  "compression": [
+    {
+      "lap": 1,
+      "level": 6,
+      "jsonBytes": 1963790,
+      "stringifyMs": 22.62271899999996,
+      "base64Chars": 619848,
+      "gzipBase64MedianMs": 51.812261000000035
+    },
+    {
+      "lap": 1,
+      "level": 3,
+      "jsonBytes": 1963790,
+      "stringifyMs": 22.62271899999996,
+      "base64Chars": 671420,
+      "gzipBase64MedianMs": 26.93620699999974
+    },
+    {
+      "lap": 1,
+      "level": 1,
+      "jsonBytes": 1963790,
+      "stringifyMs": 22.62271899999996,
+      "base64Chars": 697040,
+      "gzipBase64MedianMs": 28.15551300000061
+    },
+    {
+      "lap": 2,
+      "level": 6,
+      "jsonBytes": 1812135,
+      "stringifyMs": 23.41410099999939,
+      "base64Chars": 550280,
+      "gzipBase64MedianMs": 46.816705000000184
+    },
+    {
+      "lap": 2,
+      "level": 3,
+      "jsonBytes": 1812135,
+      "stringifyMs": 23.41410099999939,
+      "base64Chars": 599508,
+      "gzipBase64MedianMs": 18.423573000000033
+    },
+    {
+      "lap": 2,
+      "level": 1,
+      "jsonBytes": 1812135,
+      "stringifyMs": 23.41410099999939,
+      "base64Chars": 623552,
+      "gzipBase64MedianMs": 13.101265999999669
+    }
+  ],
+  "run": {
+    "players": 10,
+    "lapsPerPlayer": 2,
+    "verifiedLaps": 20,
+    "practiceLaps": 0,
+    "lagTerminations": 0,
+    "ticksPerPlayer": 25854,
+    "finishTicks": [
+      14208,
+      25854
+    ],
+    "cpuResources": {
+      "availableParallelism": 1,
+      "affinity": "0",
+      "cgroupCpuMax": "800000 100000"
+    },
+    "elapsedMs": 216483.552678,
+    "cpuMs": 65856.308,
+    "ackLagMs": {
+      "p95": 236.95434599998407,
+      "max": 470.8182090000046
+    },
+    "httpResponseMs": {
+      "p95": 223.78406199999154,
+      "max": 468.2581380000047
+    },
+    "finishResponseMs": {
+      "p95": 133.4189909999841,
+      "max": 163.6479629999958
+    },
+    "peakRssMiB": 639.04296875,
+    "metrics": {
+      "since": 1793903293356,
+      "uptimeMs": 217343.83393700002,
+      "activeSessions": 10,
+      "maxSessions": 10,
+      "maxStartsPerMinute": 10,
+      "pool": {
+        "mode": "pooled",
+        "limit": 1,
+        "workers": 1,
+        "readyWorkers": 1,
+        "sessions": 10,
+        "pendingRequests": 0,
+        "closingSessions": 0,
+        "pendingRecordings": 0,
+        "workerHeapMb": 256
+      },
+      "counters": {
+        "starts": 10,
+        "capacityRejected": 0,
+        "startRateRejected": 0,
+        "batches": 4310,
+        "ticks": 258540,
+        "verifiedLaps": 20,
+        "practiceLaps": 0,
+        "processingTimeouts": 0,
+        "lagTerminations": 0
+      },
+      "timings": {
+        "initializationMs": {
+          "count": 10,
+          "sumMs": 5675.927962999999,
+          "maxMs": 670.9500639999999,
+          "buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "queueMs": {
+          "count": 4310,
+          "sumMs": 250177.57939799907,
+          "maxMs": 444.1785690000106,
+          "buckets": [
+            534,
+            3,
+            4,
+            80,
+            304,
+            653,
+            1273,
+            1016,
+            390,
+            53,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "workerWallMs": {
+          "count": 4310,
+          "sumMs": 54270.00931800144,
+          "maxMs": 318.76671699999133,
+          "buckets": [
+            0,
+            0,
+            0,
+            1555,
+            1950,
+            689,
+            65,
+            42,
+            8,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "physicsMs": {
+          "count": 4310,
+          "sumMs": 53100.16068200647,
+          "maxMs": 299.27665700006764,
+          "buckets": [
+            0,
+            0,
+            0,
+            1725,
+            1796,
+            680,
+            60,
+            40,
+            8,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "replayMs": {
+          "count": 4310,
+          "sumMs": 917.9494759991203,
+          "maxMs": 28.901760000000195,
+          "buckets": [
+            4252,
+            29,
+            13,
+            8,
+            3,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "batchResponseMs": {
+          "count": 4310,
+          "sumMs": 329384.744954,
+          "maxMs": 465.0379169999942,
+          "buckets": [
+            0,
+            0,
+            0,
+            1,
+            352,
+            663,
+            1226,
+            1437,
+            527,
+            104,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "arrivalLagMs": {
+          "count": 4310,
+          "sumMs": 95117.41182700089,
+          "maxMs": 231.6694470000075,
+          "buckets": [
+            0,
+            0,
+            51,
+            159,
+            179,
+            3710,
+            167,
+            37,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "ackLagMs": {
+          "count": 4310,
+          "sumMs": 424514.3286700006,
+          "maxMs": 470.8223450000078,
+          "buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            108,
+            1260,
+            2118,
+            673,
+            151,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "replayPackMs": {
+          "count": 20,
+          "sumMs": 1984.354112000001,
+          "maxMs": 409.2872520000092,
+          "buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8,
+            9,
+            2,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "replayQueueMs": {
+          "count": 20,
+          "sumMs": 9629.567738000027,
+          "maxMs": 1062.8794300000009,
+          "buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            5,
+            4,
+            7,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "cpuMicroseconds": {
+        "user": 64021161,
+        "system": 2856734
+      },
+      "memoryBytes": {
+        "rss": 651427840,
+        "heapTotal": 196894720,
+        "heapUsed": 47977944,
+        "external": 7063640,
+        "arrayBuffers": 1605281
+      }
+    },
+    "cleanup": [
+      {
+        "requestId": 4331,
+        "worlds": 0,
+        "queued": 0,
+        "queuedRecordings": 0,
+        "pendingRecordings": 0,
+        "packing": false,
+        "forcedRecordings": 2,
+        "maxReplayQueueMs": 1062.8794300000009,
+        "busy": 0
+      }
+    ]
+  }
+}

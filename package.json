@@ -56,7 +56,8 @@
     "test:championship-browser": "node scripts/check-championship-browser.cjs",
     "test:shared-track-state": "node tests/shared-track-state.test.cjs",
     "measure:shared-track-state": "node scripts/measure-shared-track-state.cjs",
-    "test:worker-pool": "node tests/worker-pool.test.cjs",
-    "measure:worker-pool": "node scripts/measure-worker-pool.cjs"
+    "test:worker-pool": "node tests/worker-pool.test.cjs && node tests/background-replay.test.cjs",
+    "measure:worker-pool": "node scripts/measure-worker-pool.cjs",
+    "measure:background-replay": "node scripts/measure-background-replay.cjs"
   }
 }

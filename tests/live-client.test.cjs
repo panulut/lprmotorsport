@@ -21,6 +21,28 @@ const {revision}=require('../scripts/lib/replay-probe.cjs');
  assert.equal(batches[1].fromTick,1);assert.equal(batches[1].seq,1);
  await flying.flush(true);
  assert.deepEqual(batches.map(b=>b.inputs.length),[1,60,1],'A later finish can force another partial batch');
+ // Receipt retrieval waits independently while the next physics batch runs.
+ let releaseReplay;const received=[],physics=[];
+ const delayed=new LiveClient({revision:'test',onLaps:laps=>received.push(...laps),fetch:async(url,options)=>{
+  if(url.endsWith('/laps')){await new Promise(r=>{releaseReplay=r;});return {ok:true,json:async()=>({laps:[{receipt:'finished'}]})};}
+  if(options.method==='DELETE')return {ok:true};
+  const data=JSON.parse(options.body);physics.push(data);return {ok:true,json:async()=>({seq:data.seq,ackTick:data.fromTick+data.inputs.length})};
+ }});
+ delayed.active=true;delayed.session={id:'delayed',sessionToken:'secret'};
+ delayed.enqueue([0,0,0]);await delayed.flush(true);
+ for(let i=0;i<60;i++)delayed.enqueue([0,0,0]);await delayed.flush();
+ assert.equal(delayed.tick,61);assert.equal(physics.length,2);assert.equal(received.length,0);
+ releaseReplay();await delayed.collecting;assert.deepEqual(received,[{receipt:'finished'}]);
+ // A finish can be forced after an ordinary request was already submitted.
+ let releaseInput;let gets=0;
+ const inflight=new LiveClient({revision:'test',onLaps:()=>{},fetch:async(url,options)=>{
+  if(url.endsWith('/laps')){gets++;return {ok:true,json:async()=>({laps:[]})};}
+  const data=JSON.parse(options.body);await new Promise(r=>{releaseInput=r;});
+  return {ok:true,json:async()=>({seq:data.seq,ackTick:data.fromTick+data.inputs.length})};
+ }});
+ inflight.active=true;inflight.session={id:'inflight',sessionToken:'secret'};
+ for(let i=0;i<60;i++)inflight.enqueue([0,0,0]);const finishing=inflight.flush(true);releaseInput();await finishing;
+ await inflight.collecting;assert.equal(gets,1,'A boundary added during an in-flight request still fetches its final replay');
  let clock=0;const server=createServer({sessionsOptions:{clock:()=>clock}});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const base=`http://127.0.0.1:${server.address().port}`,acks=[],lost=[];let requests=0;
  const client=new LiveClient({base,revision,onUpdate:a=>acks.push(a),onLost:e=>lost.push(e),fetch:async(url,options)=>{

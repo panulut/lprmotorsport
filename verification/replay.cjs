@@ -1,13 +1,12 @@
 // Authoritative per-lap recordings. No client positions or client time claims.
-const {gzip}=require('node:zlib');
-const {promisify}=require('node:util');
-const compress=promisify(gzip);
+const {createGzip}=require('node:zlib');
 const {createHash}=require('node:crypto');
 const {metresPerWorldUnit}=require('../shared/vehicle-spec.js');
 const pose=require('../replay-pose.js');
 const round=n=>Math.round(n*1e5)/1e5;
 class Recorder {
- constructor(world,revision){
+ constructor(world,revision,{deferPacking=false}={}){
+  this.deferPacking=deferPacking;
   this.revision=revision;
   this.world=world;
   this.track=world.track.map(p=>[round(p.x),round(p.y)]);
@@ -30,12 +29,20 @@ class Recorder {
   const document={format:'lpr-replay-v1',sceneRevision:this.revision,visualState:true,lap:lap.lap,hz:120,sampleHz:20,metresPerWorldUnit,track:this.track,roadHalfWidth:33,
    startTick:this.startTick,endTick:lap.endTick,frames:this.frames,inputs:this.inputs,
    ...(this.warmupInputs.length?{warmupInputs:this.warmupInputs}:{})};
-  const json=JSON.stringify(document);
   this.reset();
-  return this.pack(json);
+  return this.deferPacking?document:this.pack(document);
  }
- async pack(json){
-  const payload=(await compress(json,{level:6})).toString('base64');
+ async pack(document,{signal}={}){
+  // Called only by the background scheduler in the pooled executor.
+  signal?.throwIfAborted();
+  const json=JSON.stringify(document);document=null;
+  // A per-lap deadline can destroy this stream without stopping shared physics.
+  const compressed=await new Promise((resolve,reject)=>{
+   const stream=createGzip({level:3,signal}),chunks=[];
+   stream.on('data',chunk=>chunks.push(chunk));stream.once('error',reject);
+   stream.once('end',()=>resolve(Buffer.concat(chunks)));stream.end(json);
+  });
+  const payload=compressed.toString('base64');
   if(payload.length>900000)return null; // Bound the artifact independently of lap acceptance.
   return {payload,hash:createHash('sha256').update(payload).digest('hex')};
  }

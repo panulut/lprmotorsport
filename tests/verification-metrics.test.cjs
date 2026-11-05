@@ -26,8 +26,8 @@ const assert=require('node:assert/strict');
   assert.equal(sessions.snapshotMetrics().counters.startRateRejected,1);
   const started=m.since;assert(Number.isSafeInteger(started)&&started<=Date.now());
   // Terminal failures are counted once, even if cleanup repeats invalidation.
-  const fake={slot:true,phase:'running'};sessions.invalidate(fake,'budget');sessions.invalidate(fake,'budget');
-  const late={slot:true,phase:'running'};sessions.invalidate(late,'lag');sessions.invalidate(late,'lag');
+  const fake={slot:true,phase:'running',pendingLaps:new Map()};sessions.invalidate(fake,'budget');sessions.invalidate(fake,'budget');
+  const late={slot:true,phase:'running',pendingLaps:new Map()};sessions.invalidate(late,'lag');sessions.invalidate(late,'lag');
   const counters=sessions.snapshotMetrics().counters;assert.equal(counters.processingTimeouts,1);assert.equal(counters.lagTerminations,1);assert.equal(sessions.snapshotMetrics().since,started);
   console.log('PASS: private bounded metrics, capacity rejection, start-rate rejection, retry idempotency and simulated ticks');
  }finally{await server.sessions.close();await new Promise(r=>server.close(r));}

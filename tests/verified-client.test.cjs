@@ -116,6 +116,22 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(small.nodes.get('#verification-status').textContent.includes('state_difference'),true,'UI identifies failure category');
  assert.equal(small.nodes.get('#verification-status').textContent.includes('tick 2'),true,'UI identifies failing tick');
  assert.equal(small.clients.length,1,'Mismatch must not start another server session');
+ // A lap received in a later batch belongs to that earlier crossing, while
+ // snapshot comparison still uses the current acknowledgment tick.
+ const delayed=fixture(),delayedStart=delayed.api.start();delayed.ready();await delayedStart;
+ const delayedClient=delayed.clients[0],snapshot={state:{x:0},stage:0,lap:2};
+ delayed.api.step([0,0,0,false,false,true],{ticks:1,...snapshot},{completed:{lap:1}});
+ delayedClient.options.onUpdate({ackTick:1,result:snapshot,laps:[]});
+ delayed.api.step([0,0,0,false,false,true],{ticks:2,...snapshot},{});
+ const artifact={lap:{lap:1,endTick:1},receipt:'delayed-receipt',replay:'delayed-replay'};
+ delayedClient.options.onUpdate({ackTick:2,result:snapshot,laps:[artifact]});
+ await settle();assert(delayed.api.active);
+ delayed.api.cancel();
+ delayedClient.options.onLaps([artifact,{lap:{lap:2},receipt:'after-cancel',replay:'final-replay'}]);
+ delayedClient.options.onLaps([artifact]);await settle();
+ const uploaded=delayed.requests.filter(r=>r.url.endsWith('/laps')).map(r=>JSON.parse(r.options.body));
+ assert.equal(uploaded.filter(v=>v.receipt==='delayed-receipt').length,1,'Later ack and final GET share one receipt outbox');
+ assert.equal(uploaded.filter(v=>v.receipt==='after-cancel').length,1,'Final receipts survive generation cancellation');
  const c=fixture();c.setOffline(true);await c.api.start();
  assert(!c.api.active);assert.match(c.node('#verification-status').textContent,/Harjoittelu/);
  c.setOffline(false);c.retry();c.ready();for(let i=0;i<8;i++)await settle();

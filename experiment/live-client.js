@@ -1,7 +1,7 @@
 (function(root){
  class LiveClient {
-  constructor({revision,token='',ticket,armed=false,base='',fetch:request=root.fetch.bind(root),onUpdate=()=>{},onLost=()=>{},maxBufferedTicks=2400,recoveryWindowMs=15000,requestTimeoutMs=5000}={}){
-   Object.assign(this,{revision,token,ticket,armed,base,request,onUpdate,onLost,maxBufferedTicks,recoveryWindowMs,requestTimeoutMs});this.active=false;this.queue=[];this.seq=0;this.tick=0;this.generation=0;this.flushThrough=0;this.boundaries=[];
+  constructor({revision,token='',ticket,armed=false,base='',fetch:request=root.fetch.bind(root),onUpdate=()=>{},onLost=()=>{},onLaps=null,maxBufferedTicks=2400,recoveryWindowMs=15000,requestTimeoutMs=5000}={}){
+   Object.assign(this,{revision,token,ticket,armed,base,request,onUpdate,onLost,onLaps,maxBufferedTicks,recoveryWindowMs,requestTimeoutMs});this.active=false;this.queue=[];this.seq=0;this.tick=0;this.generation=0;this.flushThrough=0;this.boundaries=[];
   }
   async start(){
    // Wake a sleeping free service before allocating the timed driving session.
@@ -63,16 +63,42 @@
      if(!this.active||generation!==this.generation)return;
      if(ack.seq!==this.seq||ack.ackTick!==this.tick+inputs.length)throw Error('Invalid server acknowledgment');
      this.queue.splice(0,inputs.length);this.tick=ack.ackTick;this.seq++;
-     while(this.boundaries.length&&this.boundaries[0]<=this.tick)this.boundaries.shift();
+     let crossedBoundary=false;
+     while(this.boundaries.length&&this.boundaries[0]<=this.tick){this.boundaries.shift();crossedBoundary=true;}
      this.onUpdate({...ack,bufferedTicks:this.queue.length,recovered:retries>0});
+     if(this.onLaps&&crossedBoundary)void this.collectLaps().catch(()=>{});
      if(ack.verified){if(this.queue.length)throw Error('Inputs continue after the server finish');this.active=false;return ack;}
     }
    }catch(error){this.lose(error.message,{code:error.code||error.name||'request_failed',seq:this.seq,ackTick:this.tick,bufferedTicks:this.queue.length});throw error;}
   }
   lose(message,details={}){const wasActive=this.active;this.active=false;this.generation++;this.queue=[];if(wasActive){this.onLost(message,details);void this.cancel();}}
+  async collectLaps(){
+   if(!this.session||!this.onLaps)return;
+   this.collectAgain=true;
+   if(this.collecting)return this.collecting;
+   const session=this.session;
+   this.collecting=(async()=>{
+    while(this.collectAgain){
+     this.collectAgain=false;
+     let error;
+     for(let attempt=0;attempt<3;attempt++){
+      try{
+       const response=await this.request(this.base+'/sessions/'+session.id+'/laps',{headers:{Authorization:'Bearer '+session.sessionToken},keepalive:true,signal:AbortSignal.timeout(12000)});
+       if(!response.ok)throw Error('Finished laps could not be retrieved');
+       const data=await response.json();this.onLaps(data.laps||[]);error=null;break;
+      }catch(e){error=e;if(attempt<2)await new Promise(r=>setTimeout(r,250));}
+     }
+     if(error)throw error;
+    }
+   })();
+   try{return await this.collecting;}finally{this.collecting=null;}
+  }
   async cancel(){
    this.active=false;this.generation++;this.queue=[];
+   // Let an already submitted finish settle before closing its server world.
+   if(this.onLaps)await this.pumping?.catch(()=>{});
    if(this.session)try{await this.request(this.base+'/sessions/'+this.session.id,{method:'DELETE',headers:{Authorization:'Bearer '+this.session.sessionToken},keepalive:true,signal:AbortSignal.timeout(5000)});}catch{}
+   if(this.onLaps)try{await this.collectLaps();}catch{}
   }
  }
  root.LPRLiveClient=LiveClient;

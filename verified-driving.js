@@ -102,6 +102,13 @@
    if(!data.results.length)list.textContent='Ei vielä kierrosaikoja.';
   }catch{if(wanted===series)list.textContent='Tuloslista ei ole juuri nyt saatavilla.';}
  }
+ function receiveLaps(laps,receivedReceipts){
+  for(const lap of laps){
+   if(receivedReceipts.has(lap.receipt)||pending.some(v=>(typeof v==='string'?v:v.receipt)===lap.receipt))continue;
+   receivedReceipts.add(lap.receipt);
+   pending.push(lap.replay?{receipt:lap.receipt,replay:lap.replay}:lap.receipt);persist();void save();
+  }
+ }
  let sending=null;
  async function save(){
   if(sending)return sending;
@@ -160,8 +167,14 @@
    if(lights.hidden)prepareLights();
    const {ticket}=await api('/api/verified/start',{nickname:identity.nickname,revision}).catch(error=>{throw Object.assign(error,{signIn:error.status===401});});
    if(attempt!==generation)return;
+   const receivedReceipts=new Set();
    next=new window.LPRLiveClient({revision,ticket,armed:true,base:config.service,
-    onUpdate:ack=>{
+    onLaps:laps=>{
+     // Completed receipts outlive the driving generation (pause/restart/hide).
+     // Keep them bound to the identity that started this particular session.
+     if(identity?.token!==chosen.token)return;
+     receiveLaps(laps,receivedReceipts);
+    },onUpdate:ack=>{
      if(attempt!==generation)return;
      if(ack.phase==='ready')return;
      if(ack.phase==='recovering'){recovering=true;say('Yhteyttä tarkistuspalvelimeen palautetaan…');return;}
@@ -182,7 +195,7 @@
       if(!lapEligibility.eligible)say(practiceMessage);
       else if(wasPractice||ack.practiceLaps?.length)say('Uusi kierros on tuloskelpoinen – aika hyväksytään palvelimen tarkistuksen jälkeen.');
      }
-     for(const lap of ack.laps||[]){pending.push(lap.replay?{receipt:lap.receipt,replay:lap.replay}:lap.receipt);persist();void save();}
+     receiveLaps(ack.laps||[],receivedReceipts);
     },onLost:(message,details={})=>{
      console.warn('LPR verification lost:',{message,...details});
      connectionUnavailable=true;
