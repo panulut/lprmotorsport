@@ -1,24 +1,30 @@
 const {parentPort}=require('node:worker_threads');
 const {createWorldFactory,revision}=require('./world.cjs');
 const {Recorder}=require('./replay.cjs');
-const factory=createWorldFactory(),sessions=new Map();let queue=[],scheduled=false,packing=false,packScheduled=false,packQueue=[];
+const factory=createWorldFactory(),sessions=new Map();let queue=[],scheduled=false,activePack=null,packScheduled=false,packQueue=[],physicsTasks=0,forcedRecordings=0,maxReplayQueueMs=0;
+const maxPhysicsBeforeReplay=8,maxReplayWaitMs=500;
 const reply=(task,data)=>parentPort.postMessage({requestId:task.requestId,...data});
 const error=(task,message,code='physics',status=422)=>reply(task,{error:message,code,status});
 function schedule(){if(!scheduled&&queue.length){scheduled=true;setImmediate(runNext);}}
-function schedulePack(){if(!packing&&!packScheduled&&packQueue.length){packScheduled=true;setImmediate(packNext);}}
+function schedulePack(){if(!activePack&&!packScheduled&&packQueue.length){packScheduled=true;setImmediate(packNext);}}
 function packNext(){
  packScheduled=false;
- // Physics already admitted to the FIFO always goes first. Serialize at most one
- // finished document per turn, never from Recorder.step() or an input reply.
- if(queue.length){schedulePack();return;}
- const task=packQueue.shift();if(!task)return;
+ // Physics normally wins, but a continuously nonempty FIFO must not starve
+ // serialization. Once the compressor is free, grant a turn after either bound.
+ const oldest=packQueue[0];if(!oldest)return;
+ const due=physicsTasks-oldest.physicsAtQueue>=maxPhysicsBeforeReplay||performance.now()-oldest.received>=maxReplayWaitMs;
+ if(queue.length&&!due){schedulePack();return;}
+ if(queue.length)forcedRecordings++;
+ const task=packQueue.shift();
  const s=sessions.get(task.sessionId);if(!s||s.cancelled){schedulePack();return;}
- packing=true;const start=performance.now(),document=task.document;task.document=null;
- Promise.resolve().then(()=>s.recorder.pack(document)).then(replay=>{
-  if(!s.cancelled)parentPort.postMessage({packed:true,sessionId:task.sessionId,endTick:task.endTick,replay,replayMs:performance.now()-start});
+ const controller=new AbortController();activePack={task,controller};
+ const start=performance.now(),replayQueueMs=start-task.received,document=task.document;task.document=null;
+ maxReplayQueueMs=Math.max(maxReplayQueueMs,replayQueueMs);
+ Promise.resolve().then(()=>s.recorder.pack(document,{signal:controller.signal})).then(replay=>{
+  if(!s.cancelled&&!controller.signal.aborted)parentPort.postMessage({packed:true,sessionId:task.sessionId,endTick:task.endTick,replay,replayQueueMs,replayMs:performance.now()-start});
  }).catch(()=>{
-  if(!s.cancelled)parentPort.postMessage({packed:true,sessionId:task.sessionId,endTick:task.endTick,error:'Replay recording failed'});
- }).finally(()=>{s.pending--;packing=false;schedulePack();});
+  if(!s.cancelled&&!controller.signal.aborted)parentPort.postMessage({packed:true,sessionId:task.sessionId,endTick:task.endTick,error:'Replay recording failed'});
+ }).finally(()=>{s.pending--;activePack=null;schedulePack();});
 }
 function runNext(){
  scheduled=false;const task=queue.shift();if(!task)return;
@@ -30,6 +36,7 @@ function runNext(){
    const {world,api}=factory.create();s.world=world;s.api=api;s.recorder=new Recorder(world,revision,{deferPacking:true});s.busy=false;
    reply(task,{result:world.result(),queueMs,live:{track:s.recorder.track,frames:[s.recorder.frame()],inputs:[]}});
   }else{
+   physicsTasks++;
    const laps=[],frames=[],inputs=[];let physicsMs=0,replayMs=0,lapStartTick=null;
    for(const input of task.inputs){
     inputs.push([s.world.ticks,...input]);
@@ -39,7 +46,7 @@ function runNext(){
     if(s.world.ticks%6===0)frames.push(s.recorder.frames.at(-1));
     if(event.completed){
      laps.push(event.completed);s.pending++;
-     packQueue.push({sessionId:task.sessionId,endTick:event.completed.endTick,document});
+     packQueue.push({sessionId:task.sessionId,endTick:event.completed.endTick,document,received:performance.now(),physicsAtQueue:physicsTasks});
     }
    }
    const result=s.world.result();s.busy=false;
@@ -50,8 +57,18 @@ function runNext(){
  schedule();
 }
 parentPort.on('message',task=>{
- if(task.kind==='stats')return reply(task,{worlds:sessions.size,queued:queue.length,queuedRecordings:packQueue.length,pendingRecordings:[...sessions.values()].reduce((n,s)=>n+s.pending,0),packing,busy:[...sessions.values()].filter(s=>s.busy).length});
+ if(task.kind==='stats')return reply(task,{worlds:sessions.size,queued:queue.length,queuedRecordings:packQueue.length,pendingRecordings:[...sessions.values()].reduce((n,s)=>n+s.pending,0),packing:!!activePack,forcedRecordings,maxReplayQueueMs,busy:[...sessions.values()].filter(s=>s.busy).length});
+ if(task.kind==='discard-recording'){
+  const s=sessions.get(task.sessionId);
+  packQueue=packQueue.filter(queued=>{
+   if(queued.sessionId!==task.sessionId||queued.endTick!==task.endTick)return true;
+   queued.document=null;if(s)s.pending--;return false;
+  });
+  if(activePack?.task.sessionId===task.sessionId&&activePack.task.endTick===task.endTick)activePack.controller.abort();
+  schedulePack();return;
+ }
  if(task.kind==='drop'){
+  if(activePack?.task.sessionId===task.sessionId)activePack.controller.abort();
   const s=sessions.get(task.sessionId);if(s){s.cancelled=true;s.world=null;s.api=null;if(s.recorder)s.recorder.world=null;s.recorder=null;}sessions.delete(task.sessionId);
   packQueue=packQueue.filter(queued=>queued.sessionId!==task.sessionId);
   queue=queue.filter(queued=>{if(queued.sessionId!==task.sessionId)return true;error(queued,'Verification session closed','session_closed',410);return false;});

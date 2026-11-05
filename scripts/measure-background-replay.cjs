@@ -4,6 +4,8 @@ const {spawnSync}=require('node:child_process'),{gzip}=require('node:zlib'),{pro
 const {createWorld,revision}=require('../verification/world.cjs'),{Recorder}=require('../verification/replay.cjs');
 const {driver}=require('../tests/helpers-driving.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,Math.max(0,ms)));
+const readLimit=path=>{try{return fs.readFileSync(path,'utf8').trim();}catch{return null;}};
+const cpuResources=()=>({availableParallelism:os.availableParallelism(),affinity:readLimit('/proc/self/status')?.match(/^Cpus_allowed_list:\s*(.+)$/m)?.[1]??null,cgroupCpuMax:readLimit('/sys/fs/cgroup/cpu.max')});
 const p95=a=>[...a].sort((a,b)=>a-b)[Math.ceil(a.length*.95)-1];
 async function load(inputFile){
  const {inputs,finishes}=JSON.parse(fs.readFileSync(inputFile)),secret='local-background-replay-measurement-'.repeat(3);
@@ -50,7 +52,7 @@ async function load(inputFile){
   await server.sessions.pool.drain();
   const cleanup=await server.sessions.pool.inspect();assert(cleanup.every(s=>s.worlds===0&&s.queued===0&&s.pendingRecordings===0&&s.queuedRecordings===0));
   return {players:10,lapsPerPlayer:2,verifiedLaps:20,practiceLaps:0,lagTerminations:0,ticksPerPlayer:inputs.length,finishTicks:finishes,
-   elapsedMs:performance.now()-start,cpuMs:(usage.user+usage.system)/1000,
+   cpuResources:cpuResources(),elapsedMs:performance.now()-start,cpuMs:(usage.user+usage.system)/1000,
    ackLagMs:{p95:p95(ackLags),max:Math.max(...ackLags)},httpResponseMs:{p95:p95(latencies),max:Math.max(...latencies)},
    finishResponseMs:{p95:p95(finishAcks),max:Math.max(...finishAcks)},peakRssMiB:process.resourceUsage().maxRSS/1024,metrics,cleanup};
  }finally{await server.sessions.close();await new Promise(r=>server.close(r));}
@@ -80,9 +82,11 @@ async function load(inputFile){
   const child=spawnSync(process.execPath,[__filename,'--child',inputFile],{encoding:'utf8',timeout:720000,maxBuffer:1048576,stdio:['ignore','pipe','inherit']});
   if(child.status!==0)throw Error(child.error?.message||'Load child failed');
   const report={generatedAt:new Date().toISOString(),node:process.version,revision,
-   scope:'Fresh local Node process, one pooled physics worker (256 MiB old-generation limit), 10 real-clock HTTP clients, two full synchronized laps, real signatures and replay hash verification. No production traffic; local CPU is not constrained to Azure 0.5 vCPU.',
-   host:{platform:process.platform,arch:process.arch,cpus:os.availableParallelism()},compression,run:JSON.parse(child.stdout)};
-  const output=path.resolve(__dirname,'../artifacts/verification/background-replay-load.json');fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
-  console.log(JSON.stringify({report:output,ackLagMs:report.run.ackLagMs,peakRssMiB:report.run.peakRssMiB,verifiedLaps:20,practiceLaps:0,lagTerminations:0,compression}));
+   scope:'Fresh local Node process, one pooled physics worker (256 MiB old-generation limit), gzip level 3, 10 real-clock HTTP clients, two full synchronized laps, real signatures and replay hash verification. No production traffic. CPU affinity applies to server, physics, zlib and local HTTP clients; this is not a 0.5-vCPU Azure quota.',
+   host:{platform:process.platform,arch:process.arch,...cpuResources()},compression,run:JSON.parse(child.stdout)};
+  const outputArg=process.argv.find(v=>v.startsWith('--output='));
+  const output=outputArg?path.resolve(outputArg.slice('--output='.length)):path.resolve(__dirname,'../artifacts/verification/background-replay-load-gzip3.json');
+  assert.equal(report.run.cpuResources.availableParallelism,report.host.availableParallelism,'Child must inherit the parent CPU affinity');fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
+  console.log(JSON.stringify({report:output,cpuResources:report.run.cpuResources,ackLagMs:report.run.ackLagMs,peakRssMiB:report.run.peakRssMiB,verifiedLaps:20,practiceLaps:0,lagTerminations:0,compression}));
  }finally{fs.rmSync(temporary,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -2,10 +2,11 @@ const {Worker}=require('node:worker_threads');
 const path=require('node:path');
 const fail=(status,code,message)=>Object.assign(Error(message),{status,code});
 class VerificationPool {
- constructor({workerCount=1,workerHeapMb=256,onLost=()=>{},onReplay=()=>{},workerPath=path.join(__dirname,'pool-worker.cjs')}={}){
+ constructor({workerCount=1,workerHeapMb=256,onLost=()=>{},onReplay=()=>{},workerPath=path.join(__dirname,'pool-worker.cjs'),replayTimeoutMs=10000}={}){
   if(!Number.isSafeInteger(workerCount)||workerCount<1||workerCount>16)throw Error('Worker count must be an integer from 1 to 16');
   if(!Number.isSafeInteger(workerHeapMb)||workerHeapMb<64||workerHeapMb>2048)throw Error('Worker heap must be an integer from 64 to 2048 MiB');
-  Object.assign(this,{workerCount,workerHeapMb,onLost,onReplay,workerPath});this.entries=new Set();this.owners=new Map();this.pending=new Map();this.drops=new Map();this.nextId=0;this.closed=false;this.recordings=new Map();
+  if(!Number.isSafeInteger(replayTimeoutMs)||replayTimeoutMs<1)throw Error('Replay timeout must be a positive integer');
+  Object.assign(this,{workerCount,workerHeapMb,onLost,onReplay,workerPath,replayTimeoutMs});this.entries=new Set();this.owners=new Map();this.pending=new Map();this.drops=new Map();this.nextId=0;this.closed=false;this.recordings=new Map();
  }
  spawn(){
   const worker=new Worker(this.workerPath,{resourceLimits:{maxOldGenerationSizeMb:this.workerHeapMb}});
@@ -22,8 +23,9 @@ class VerificationPool {
    this.pending.delete(message.requestId);clearTimeout(pending.timer);
    if(message.deferred)for(const lap of message.laps||[]){
     const key=pending.sessionId+':'+lap.endTick;
-    const timer=setTimeout(()=>{void entry.worker.terminate();},10000);
-    this.recordings.set(key,{entry,sessionId:pending.sessionId,timer});
+    const record={entry,sessionId:pending.sessionId,endTick:lap.endTick};
+    record.timer=setTimeout(()=>this.expireRecording(key,record),this.replayTimeoutMs);
+    this.recordings.set(key,record);
    }
    message.error?pending.reject(fail(message.status||422,message.code||'physics',message.error)):pending.resolve(message);
   });
@@ -36,6 +38,14 @@ class VerificationPool {
    void worker.terminate();
   };
   worker.once('error',lost);worker.once('exit',lost);return entry;
+ }
+ expireRecording(key,record){
+  if(this.recordings.get(key)!==record)return;
+  this.recordings.delete(key);
+  // No request watchdog here: a replay deadline is not evidence that the shared
+  // physics worker has failed. Discard only this queued/active recording.
+  try{record.entry.worker.postMessage({kind:'discard-recording',sessionId:record.sessionId,endTick:record.endTick});}catch{}
+  this.onReplay({packed:true,sessionId:record.sessionId,endTick:record.endTick,error:'Replay packing timed out'});
  }
  request(entry,kind,sessionId,data={},timeoutMs=10000){
   if(this.closed||entry.dead)return Promise.reject(fail(410,'worker_lost','Verification worker stopped'));

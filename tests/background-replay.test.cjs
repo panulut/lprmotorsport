@@ -11,6 +11,8 @@ const make=options=>new Sessions({...options,executorFactory:o=>new Verification
  const stringify=JSON.stringify;let document;
  try{JSON.stringify=()=>{throw Error('Serialization on the physics path');};document=recorder.step(idle,{completed:{lap:1,endTick:60}});}finally{JSON.stringify=stringify;}
  assert(document.frames!==recorder.frames);assert(document.inputs!==recorder.inputs);
+ const controller=new AbortController(),packing=recorder.pack(document,{signal:controller.signal});controller.abort();
+ await assert.rejects(packing,e=>e.name==='AbortError','A per-lap abort destroys the actual zlib stream');
  let now=0;
  const sessions=make({clock:()=>now,maxSessions:2,ttlMs:5000});
  try{
@@ -84,5 +86,42 @@ const make=options=>new Sessions({...options,executorFactory:o=>new Verification
    await s.pool.drain();assert.equal(s.pool.recordings.size,0);assert.equal(s.sessions.get(p.id).pendingLaps.size,0);
   }finally{await s.close();}
  }
- console.log('PASS: detached serialization, held packing without busy/ack delays, two queued laps, immutable retries, original finish eligibility, final GET ownership/retry, cancel/TTL/crash/error cleanup');
+ // A replay deadline must cancel just that artifact and leave a second player
+ // and the same worker alive. Exercise the actual timer with a short test budget.
+ now=0;
+ const timed=new Sessions({clock:()=>now,maxSessions:2,executorFactory:o=>new VerificationPool({...o,workerPath,replayTimeoutMs:100}),signLap:async()=> 'signed'});
+ try{
+  const [p,other]=await Promise.all([timed.create(revision,{}),timed.create(revision,{})]);
+  const entry=[...timed.pool.entries][0],threadId=entry.worker.threadId;now=500;
+  await timed.batch(p.id,p.sessionToken,{revision,seq:0,fromTick:0,inputs:Array(60).fill(idle)});
+  await assert.rejects(timed.laps(p.id,p.sessionToken),e=>e.code==='replay');
+  await timed.pool.drain();
+  assert.equal(entry.worker.threadId,threadId);assert.equal(entry.dead,false);
+  assert.equal(timed.sessions.get(other.id).phase,'running');assert.equal(timed.sessions.get(p.id).reason,'replay');
+  assert.equal(timed.pool.recordings.size,0);assert.equal(timed.sessions.get(p.id).pendingLaps.size,0);
+  const healthy=await timed.batch(other.id,other.sessionToken,{revision,seq:0,fromTick:0,inputs:Array(59).fill(idle)});
+  assert.equal(healthy.ackTick,59);assert.equal(healthy.eligibility.eligible,true);
+  const stats=await timed.pool.inspect();assert(stats.every(v=>v.pendingRecordings===0&&!v.packing));
+  entry.worker.postMessage({kind:'unblock-recordings'});
+  await timed.batch(other.id,other.sessionToken,{revision,seq:1,fromTick:59,inputs:[idle]});
+  const final=await timed.laps(other.id,other.sessionToken);assert.equal(final.laps.length,1);assert(final.laps[0].replay);
+  assert.equal(entry.worker.threadId,threadId,'The unaffected player also completes a new replay in the original worker');
+ }finally{await timed.close();}
+ // Keep the FIFO artificially nonempty even between setImmediate turns.
+ now=0;const busy=make({clock:()=>now});
+ try{
+  const p=await busy.create(revision,{}),entry=[...busy.pool.entries][0],threadId=entry.worker.threadId;
+  entry.worker.postMessage({kind:'unblock-recordings'});
+  entry.worker.postMessage({kind:'start-physics-flood'});now=500;
+  const ack=await busy.batch(p.id,p.sessionToken,{revision,seq:0,fromTick:0,inputs:Array(60).fill(idle)});
+  assert.equal(ack.ackTick,60);
+  const receipt=await busy.laps(p.id,p.sessionToken);assert.equal(receipt.laps.length,1);
+  const stats=await busy.pool.inspect();assert(stats[0].queued>0,'Physics FIFO stayed full throughout packing');
+  assert(stats[0].forcedRecordings>0,'Starvation guard must have granted a packing turn');
+  assert.equal(entry.worker.threadId,threadId);assert.equal(entry.dead,false);assert.equal(busy.sessions.get(p.id).phase,'running');
+  entry.worker.postMessage({kind:'stop-physics-flood'});
+  busy.cancel(p.id,p.sessionToken);await busy.pool.drain();
+  assert((await busy.pool.inspect()).every(s=>s.worlds===0&&s.queued===0&&s.pendingRecordings===0&&!s.packing));
+ }finally{await busy.close();}
+ console.log('PASS: detached serialization, held packing without busy/ack delays, two queued laps, immutable retries, original finish eligibility, final GET ownership/retry, cancel/TTL/crash/error cleanup, per-lap timeout isolation and saturated-FIFO fairness');
 })().catch(e=>{console.error(e);process.exitCode=1;});

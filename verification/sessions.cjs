@@ -158,7 +158,7 @@ class Sessions {
   r.replayReady=true;
   try{
    if(message.error)throw Error(message.error);
-   this.observe('replayPackMs',message.replayMs);
+   this.observe('replayPackMs',message.replayMs);this.observe('replayQueueMs',message.replayQueueMs);
    if(r.eligible){
     const {lap}=r,replay=message.replay;
     const value={lap,receipt:await this.signLap(s,{...lap,...(replay?{replayHash:replay.hash}:{})}),...(replay?{replay:replay.payload}:{})};
