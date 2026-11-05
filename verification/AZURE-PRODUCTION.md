@@ -61,3 +61,41 @@ players after lap-finish replay completion delayed acknowledgments. It did not
 pass a complete two-lap 10-player test. Five sessions have not been load-tested;
 watch "practice laps" and "lag terminations" in the admin capacity history and
 lower the limit again if they appear. Anti-cheat rules are unchanged.
+
+
+## Background replay packing — local evidence, 5 November 2026
+
+The follow-up implementation acknowledges physics without waiting for replay
+serialization, gzip or signing. Finished recordings are serialized in separate
+worker turns (admitted physics takes priority), with one gzip level 1 job active
+at a time. Eligible boundaries keep their original arrival/crossing decision;
+ready signed receipts use a later batch's existing `laps[]`. An owner-authenticated
+`GET /sessions/:id/laps` also drains accepted finishes without driving another
+batch, including after cancellation or TTL. Cached sequence responses are immutable.
+The browser fetches final receipts separately and deduplicates them with later acks.
+
+A fresh local Node process with one physics worker and ten synchronized real-clock
+HTTP clients completed **two full laps each: 20/20 signed replay receipts,
+practiceLaps = 0, lagTerminations = 0**. Across 4,310 batches, ackLagMs p95 was
+**160.04 ms**, maximum **358.48 ms**, and peak process RSS was **587.70 MiB**
+(includes local HTTP clients and their replay copies). Finish-batch HTTP response
+p95/max was 78.18/79.13 ms. Both finish ticks were identical for every client:
+14,208 and 25,854. After cancellation, worker worlds, physics jobs and recording
+jobs were all zero. Receipt signatures and the existing SHA-256 of each base64
+payload were checked for every lap.
+
+On those same two replays, gzip level 6/3/1 median times were 52.02/24.74/16.92 ms
+and 40.77/20.55/17.62 ms. Level 1 payloads were 697,040 and 623,552 characters
+(level 6: 619,848 and 550,280), below the unchanged 900,000-character bound.
+JSON serialization measured 12.86 and 8.59 ms separately. Moving it to another
+turn removes it from the finish's physics task; it can still delay newly arriving
+physics by one serialization turn.
+
+Reproduce with `npm run measure:background-replay`; raw results are in
+[background-replay-load.json](../artifacts/verification/background-replay-load.json).
+This host provides eight CPUs, without a 0.5-vCPU quota. **This is not a passing
+Azure capacity test** and does not supersede the failed 30 October evidence.
+Production remains `MAX_VERIFIED_SESSIONS=5`; 2000-ms lapLagMs, all other realtime
+rules, simulation revision, 120 Hz, receipt format and replayHash are unchanged.
+No production deployment was performed. Repeat on an isolated Azure test host
+before drawing conclusions about ten-player capacity on production resources.

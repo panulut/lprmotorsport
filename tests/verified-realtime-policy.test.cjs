@@ -49,7 +49,7 @@ const {driver}=require('./helpers-driving.cjs');
     assert(!ack.eligibility.eligible,'Recovery just after a line must wait for another crossing');afterLateCrossing=true;
    }
    if(completed?.lap===3){assert.deepEqual(ack.practiceLaps,[3]);assert(ack.eligibility.eligible);}
-   if(completed?.lap===4){assert.equal(ack.laps[0].lap.lap,4);assert.deepEqual(ack.practiceLaps,[]);}
+   if(completed?.lap===4){const final=await sessions.laps(session.id,session.sessionToken);assert.equal(final.laps[0].lap.lap,4);assert.deepEqual(ack.practiceLaps,[]);}
   }
   assert(caughtUp&&afterLateCrossing);
   assert.deepEqual(signed.map(lap=>lap.lap),[4],'Only an entire timely lap is signed');

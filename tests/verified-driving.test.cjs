@@ -42,7 +42,12 @@ const {driver}=require('./helpers-driving.cjs');
     assert.equal((await send({...data,inputs:inputs.map(()=>idle)})).status,409,'Acknowledged controls cannot be rewritten');
     assert.equal((await send({...data,seq:2,fromTick:60})).status,409,'Sequence gaps are rejected');
    }
-   for(const item of last.laps){receipts.push(item.receipt);recordings.set(item.receipt,item.replay);}seq++;
+   if(world.result().lap>receipts.length+1){
+    const completed=await fetch(serviceURL+`/sessions/${s.id}/laps`,{headers:{Authorization:'Bearer '+s.sessionToken}});
+    assert.equal(completed.status,200);
+    last.laps=(await completed.json()).laps.filter(item=>!receipts.includes(item.receipt));
+   }
+   for(const item of last.laps.filter(item=>!receipts.includes(item.receipt))){receipts.push(item.receipt);recordings.set(item.receipt,item.replay);}seq++;
    if(guestMode&&receipts.length===1&&!board.db.prepare('SELECT 1 FROM verified_accounts WHERE name_key=?').get('driver')){
     const saved=await post(boardURL,'/api/verified/laps',{receipt:receipts[0],replay:recordings.get(receipts[0])});assert.equal(saved.status,200);
     assert.equal((await(await fetch(boardURL+'/api/verified/leaderboard')).json()).results[0].nickname,'Driver (vierailija)');
@@ -105,7 +110,7 @@ const {driver}=require('./helpers-driving.cjs');
   const recovered=await send({revision,seq,fromTick:last.ackTick,inputs:[idle]});
   assert.equal(recovered.status,200,'A nine-second interruption preserves the trusted session');
   const practice=await recovered.json();assert.equal(practice.eligibility.eligible,false);
-  assert.equal(practice.laps.length,0,'Recovering inputs cannot create a signed lap');
+  assert(practice.laps.every(item=>receipts.includes(item.receipt)&&item.lap.endTick<=last.ackTick),'Recovering inputs can deliver only earlier timely receipts');
   clock=startedClock+practice.ackTick*1000/120+service.sessions.lagMs+1;
   assert.equal((await send({revision,seq:seq+1,fromTick:practice.ackTick,inputs:[idle]})).status,410,'Exceeding the recovery limit closes the session');
   assert.equal(board.db.prepare('SELECT COUNT(*) n FROM verified_laps').get().n,2);

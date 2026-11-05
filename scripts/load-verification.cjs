@@ -17,6 +17,7 @@ async function scenario(count,inputs,expectedLaps){
     const before=performance.now();await sessions.batch(p.id,p.sessionToken,{revision,seq,fromTick:from,inputs:values});latencies.push(performance.now()-before);
    }));
   }
+  await Promise.all(players.map(p=>sessions.laps(p.id,p.sessionToken)));
   const elapsedMs=performance.now()-start,usage=process.cpuUsage(cpu),metrics=sessions.snapshotMetrics();latencies.sort((a,b)=>a-b);
   assert.equal(metrics.counters.ticks,count*inputs.length);assert.equal(metrics.activeSessions,count);assert.equal(metrics.counters.verifiedLaps,count*expectedLaps);assert.equal(metrics.counters.practiceLaps,0);
   return {players:count,elapsedMs,cpuMs:(usage.user+usage.system)/1000,batchP95Ms:latencies[Math.ceil(latencies.length*.95)-1],

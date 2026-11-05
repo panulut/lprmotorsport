@@ -9,7 +9,7 @@ class Sessions {
  constructor({clock=()=>performance.now(),workerCount=1,workerHeapMb=256,executorFactory=options=>new VerificationPool(options),maxSessions=2,maxStartsPerMinute=8,leadMs=250,lagMs=16000,lapLagMs=2000,idleMs=24000,ttlMs=620000,onMetric=()=>{},signLap=async()=>{throw Error('Missing signer')}}={}){
   Object.assign(this,{clock,maxSessions,maxStartsPerMinute,leadMs,lagMs,lapLagMs,idleMs,ttlMs,signLap,onMetric});this.sessions=new Map();this.creations=[];this.closed=false;this.spectatorSalt=randomBytes(32);
   for(const value of [maxSessions,maxStartsPerMinute])if(!Number.isSafeInteger(value)||value<1||value>256)throw Error('Capacity limits must be integers from 1 to 256');
-  this.pool=executorFactory({workerCount,workerHeapMb,onLost:id=>{const s=this.sessions.get(id);if(s?.slot)this.invalidate(s,'worker_lost');}});
+  this.pool=executorFactory({workerCount,workerHeapMb,onReplay:message=>{void this.recorded(message);},onLost:id=>this.workerLost(id)});
   this.metricsSince=Date.now();
   this.metrics={started:performance.now(),starts:0,capacityRejected:0,startRateRejected:0,batches:0,ticks:0,verifiedLaps:0,practiceLaps:0,processingTimeouts:0,lagTerminations:0};
   this.timings={};
@@ -34,9 +34,9 @@ class Sessions {
   if(this.creations.length>=this.maxStartsPerMinute){this.countMetric('startRateRejected');throw fail(429,'rate_limit','Too many session starts');}
   this.creations.push(now);
   // Bound completed receipt caches even when starts fail or clients disappear.
-  for(const [id,s] of this.sessions){if(!s.slot&&this.sessions.size>=8)this.sessions.delete(id);}
+  for(const [id,s] of this.sessions){if(!s.slot&&!s.pendingLaps.size&&now-Math.max(s.lastAccepted,s.retainedAt||0)>120000)this.sessions.delete(id);}
   const id=randomBytes(16).toString('hex'),token=randomBytes(32).toString('hex');
-  const s={id,token,identity,phase:'starting',slot:true,nextSeq:0,ticks:0,receipts:new Map(),lastAccepted:now,created:now,failures:0,lapEligible:true,eligibleFromTick:0};
+  const s={id,token,identity,phase:'starting',slot:true,nextSeq:0,ticks:0,receipts:new Map(),lastAccepted:now,created:now,failures:0,lapEligible:true,eligibleFromTick:0,pendingLaps:new Map(),completedLaps:new Map(),readyLaps:[]};
   this.sessions.set(id,s);
   try{
    const initStart=performance.now(),initial=await this.spawn(s);
@@ -118,7 +118,15 @@ class Sessions {
     // hide a late finish. Only server-simulated boundaries can restore eligibility.
     const crossingLagMs=arrivalLagMs+(endTick-lap.endTick)*1000/hz;
     if(crossingLagMs>this.lapLagMs)s.lapEligible=false;
-    if(s.lapEligible)laps.push({lap,receipt:await this.signLap(s,{...lap,...(replay?{replayHash:replay.hash}:{})}),...(replay?{replay:replay.payload}:{})});
+    if(message.deferred){
+     let resolve;const done=new Promise(r=>{resolve=r;});
+     s.pendingLaps.set(lap.endTick,{lap,eligible:s.lapEligible,done,resolve});
+    }
+    if(s.lapEligible){
+     // Reference executors still return recordings inline. The pool returns only
+     // authoritative boundaries here; signing waits in recorded(), outside ack.
+     if(!message.deferred)laps.push({lap,receipt:await this.signLap(s,{...lap,...(replay?{replayHash:replay.hash}:{})}),...(replay?{replay:replay.payload}:{})});
+    }
     else practiceLaps.push(lap.lap);
     // Catch-up laps never get receipts. Rejoin only at an exact, timely boundary;
     // do not retroactively qualify the lap that is already underway in this batch.
@@ -126,15 +134,47 @@ class Sessions {
      s.lapEligible=true;s.eligibleFromTick=lap.endTick;
     }
    }
+   laps.push(...s.readyLaps.splice(0));
    const reply={sessionId:s.id,seq:data.seq,ackTick:s.ticks,phase:'running',result:message.result,
     wallMs:message.wallMs,serverElapsedMs:this.clock()-s.started,laps,practiceLaps,
     eligibility:{eligible:s.lapEligible,fromTick:s.eligibleFromTick,lap:message.result.lap,lagMs:Math.max(0,arrivalLagMs)}};
-   this.metrics.batches++;this.metrics.ticks+=data.inputs.length;this.metrics.verifiedLaps+=laps.length;this.countMetric('practiceLaps',practiceLaps.length);
+   this.metrics.batches++;this.metrics.ticks+=data.inputs.length;this.metrics.verifiedLaps+=message.deferred?0:laps.length;this.countMetric('practiceLaps',practiceLaps.length);
    this.observe('batchResponseMs',performance.now()-processingStart);this.observe('arrivalLagMs',Math.max(0,arrivalLagMs));
    this.observe('ackLagMs',Math.max(0,this.clock()-s.started-endTick*1000/hz));
    s.receipts.set(data.seq,{digest,reply});
    return reply;
   }catch(error){this.invalidate(s,error.code||'physics');throw error;}
+ }
+ workerLost(id){
+  const s=this.sessions.get(id);if(!s)return;
+  // Completed artifacts already being signed survive; unfinished documents in a
+  // dead worker cannot be reconstructed from client state or given a signature.
+  for(const [endTick,r] of s.pendingLaps)if(!r.replayReady){r.resolve();s.pendingLaps.delete(endTick);}
+  if(s.slot)this.invalidate(s,'worker_lost');
+ }
+ async recorded(message){
+  const s=this.sessions.get(message.sessionId),r=s?.pendingLaps.get(message.endTick);
+  if(!r)return;
+  r.replayReady=true;
+  try{
+   if(message.error)throw Error(message.error);
+   this.observe('replayPackMs',message.replayMs);
+   if(r.eligible){
+    const {lap}=r,replay=message.replay;
+    const value={lap,receipt:await this.signLap(s,{...lap,...(replay?{replayHash:replay.hash}:{})}),...(replay?{replay:replay.payload}:{})};
+    s.retainedAt=this.clock();s.completedLaps.set(lap.endTick,value);s.readyLaps.push(value);this.metrics.verifiedLaps++;
+   }
+  }catch(error){s.replayError=fail(422,'replay','Replay recording failed');}
+  finally{s.pendingLaps.delete(message.endTick);r.resolve();}
+  if(s.replayError&&s.slot)this.invalidate(s,'replay');
+ }
+ async laps(id,token){
+  const s=this.owned(id,token);
+  // Await only boundaries already accepted at request arrival; never wait for
+  // future driving. Reads and retries retain all completed receipts unchanged.
+  await Promise.all([...s.pendingLaps.values()].map(r=>r.done));
+  if(s.replayError&&!s.completedLaps.size)throw s.replayError;
+  return {laps:[...s.completedLaps.values()].sort((a,b)=>a.lap.endTick-b.lap.endTick)};
  }
  watchId(s){
   // Opaque, server-local identity keeps successive verified sessions linkable
@@ -151,13 +191,13 @@ class Sessions {
    nickname:s.identity.nickname,watchId:this.watchId(s),track:s.live.track,frames:s.live.frames,inputs:s.live.inputs,
    lapStates:s.live.lapStates,bestLapMs:s.live.bestLapMs};
  }
- release(s){s.slot=false;void this.pool.release(s.id);}
+ release(s){s.slot=false;void this.pool.release(s.id,Promise.all([...s.pendingLaps.values()].map(r=>r.done)));}
  invalidate(s,reason){if(s.slot){if(reason==='budget')this.countMetric('processingTimeouts');if(reason==='lag')this.countMetric('lagTerminations');}s.phase='invalid';s.reason=reason;this.release(s);}
  cancel(id,token){const s=this.owned(id,token);this.invalidate(s,'cancelled');return {cancelled:true};}
  sweep(){const now=this.clock();for(const [id,s] of this.sessions){
   if(s.slot&&((s.phase!=='starting'&&now-s.lastAccepted>this.idleMs)||now-s.created>this.ttlMs))this.invalidate(s,'expired');
-  if(!s.slot&&now-s.lastAccepted>120000)this.sessions.delete(id);
+  if(!s.slot&&!s.pendingLaps.size&&now-Math.max(s.lastAccepted,s.retainedAt||0)>120000)this.sessions.delete(id);
  }}
- async close(){this.closed=true;clearInterval(this.timer);for(const s of this.sessions.values())this.invalidate(s,'shutdown');await this.pool.close();this.sessions.clear();}
+ async close(){this.closed=true;clearInterval(this.timer);for(const s of this.sessions.values())this.invalidate(s,'shutdown');await this.pool.close();for(const s of this.sessions.values())for(const r of s.pendingLaps.values())r.resolve();this.sessions.clear();}
 }
 module.exports={Sessions};

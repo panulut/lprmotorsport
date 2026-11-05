@@ -150,15 +150,10 @@ async function run({
    let resolve,reject;const finished=new Promise((yes,no)=>{resolve=yes;reject=no;});finished.catch(()=>{});
    let promotionDone=Promise.resolve(),promotionInFlight=false,holdStartedRealMs=null;
    client.onLost=(message,details)=>reject(Error(p.nickname+': '+message+' ('+(details.code||'unknown')+')'));
-   client.onUpdate=ack=>{
-    if(ack.phase==='recovering')recoveries++;
-    if(!ack.result||ack.seq===undefined)return;
+   const acceptLaps=laps=>{
     try{
-     acks++;assert.deepEqual(ack.result,batches.states.get(ack.ackTick),'Server world equals local fixture');
-     const lag=ack.serverElapsedMs-ack.ackTick*1000/120;maxAckLagMs=Math.max(maxAckLagMs,lag);
-     latencies.push(lag);
-     assert.equal(ack.eligibility.eligible,true,`The run lost eligibility at tick ${ack.ackTick}; arrival lag ${ack.eligibility.lagMs.toFixed(1)} ms, ack lag ${lag.toFixed(1)} ms`);assert.deepEqual(ack.practiceLaps,[]);
-     for(const lap of ack.laps||[]){
+     for(const lap of laps){
+      if(completed.includes(lap.lap.lap))continue;
       assert(lap.replay&&lap.receipt,'A verified lap must include its signed recording');completed.push(lap.lap.lap);progress({phase:'lap',nickname:p.nickname,lap:lap.lap.lap});
       if(p.isGuest&&lap.lap.lap===1){
        const guestDisplay=`${p.nickname} (vierailija)`;
@@ -235,6 +230,18 @@ async function run({
        pending.catch(reject);saves.push(pending);
       }
      }
+    }catch(error){reject(error);throw error;}
+   };
+   client.onLaps=acceptLaps;
+   client.onUpdate=ack=>{
+    if(ack.phase==='recovering')recoveries++;
+    if(!ack.result||ack.seq===undefined)return;
+    try{
+     acks++;assert.deepEqual(ack.result,batches.states.get(ack.ackTick),'Server world equals local fixture');
+     const lag=ack.serverElapsedMs-ack.ackTick*1000/120;maxAckLagMs=Math.max(maxAckLagMs,lag);
+     latencies.push(lag);
+     assert.equal(ack.eligibility.eligible,true,`The run lost eligibility at tick ${ack.ackTick}; arrival lag ${ack.eligibility.lagMs.toFixed(1)} ms, ack lag ${lag.toFixed(1)} ms`);assert.deepEqual(ack.practiceLaps,[]);
+     acceptLaps(ack.laps||[]);
      if(ack.ackTick===batches.inputs.length)resolve();
     }catch(error){reject(error);}
    };
@@ -250,7 +257,7 @@ async function run({
      }
      while(client.active&&enqueued<target){client.enqueue(batches.inputs[enqueued++]);if(batches.finishes.has(enqueued))void client.flush(true).catch(reject);}
     },intervalMs);
-    await finished;await Promise.all(saves);assert.deepEqual(completed,[1,2]);latencies.sort((a,b)=>a-b);
+    await finished;if(completed.length<2)await client.collectLaps();await Promise.all(saves);assert.deepEqual(completed,[1,2]);latencies.sort((a,b)=>a-b);
     const responseMs=p.responseTimes.map(x=>x.ms).sort((a,b)=>a-b);
     return {nickname:p.nickname,promotedFromGuest:p.promoted,sessionId:p.session.id,completedLaps:completed,elapsedMs:clock()-started,batches:acks,recoveries,httpErrors:p.responseTimes.filter(x=>x.status!==200).length,responseP95Ms:responseMs[Math.ceil(responseMs.length*.95)-1],ackLagP50Ms:latencies[Math.ceil(latencies.length*.5)-1],ackLagP95Ms:latencies[Math.ceil(latencies.length*.95)-1],ackLagP99Ms:latencies[Math.ceil(latencies.length*.99)-1],maxAckLagMs};
    }finally{clearInterval(timer);clearTimeout(deadline);await client.cancel();}

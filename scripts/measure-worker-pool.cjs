@@ -20,6 +20,7 @@ async function child(mode,count,inputFile){
     latencies.push(performance.now()-before);assert(reply.eligibility.eligible,'A timely client lost lap eligibility');
    }));
   }
+  await Promise.all(players.map(p=>sessions.laps(p.id,p.sessionToken)));
   const elapsedMs=performance.now()-start,used=process.cpuUsage(cpu),metrics=sessions.snapshotMetrics();latencies.sort((a,b)=>a-b);
   assert.equal(metrics.counters.ticks,count*inputs.length);assert.equal(metrics.counters.verifiedLaps,count*expectedLaps);assert.equal(metrics.counters.practiceLaps,0);
   assert.equal(metrics.activeSessions,count);if(mode==='pooled')assert.equal(metrics.pool.workers,1);

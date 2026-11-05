@@ -61,7 +61,7 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
    if(expected.length!==provided.length||!timingSafeEqual(expected,provided))return reply(401,{error:'Unauthorized'});
    return reply(200,sessions.snapshotMetrics());
   }
-  const route=url.pathname.match(/^\/sessions\/([a-f0-9]{32})(\/inputs|\/start)?$/);
+  const route=url.pathname.match(/^\/sessions\/([a-f0-9]{32})(\/inputs|\/start|\/laps)?$/);
   try{
    if(url.pathname==='/spectate'||/^\/spectate\/[a-f0-9]{32}$/.test(url.pathname)){
     if(req.method!=='GET')return reply(405,{error:'Method not allowed'});
@@ -102,6 +102,7 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
    if(!route)return reply(404,{error:'Not found'});
    const token=req.headers.authorization?.replace(/^Bearer /,'');
    const s=sessions.owned(route[1],token);
+   if(route[2]==='/laps'&&req.method==='GET')return reply(200,await sessions.laps(s.id,token));
    if(route[2]==='/start'&&req.method==='POST')return reply(200,sessions.activate(s.id,token));
    if(route[2]==='/inputs'&&req.method==='POST')return reply(200,await sessions.batch(s.id,token,await readJSON(req)));
    if(!route[2]&&req.method==='DELETE')return reply(200,sessions.cancel(s.id,token));
