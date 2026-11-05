@@ -46,7 +46,6 @@
   // Automated browsers (tests, crawlers) are not offered an installer.
   if (insideClient || !windowsDesktop || navigator.webdriver) return;
 
-  openButton.hidden = false;
   downloadLink.href = DOWNLOAD_URL;
   let shownInSession = false;
   let previousFocus = null;
@@ -78,6 +77,8 @@
     downloadLink.focus();
   }
   function sync() {
+    // The choice opens on top of the start menu, so the link only shows while the menu is open.
+    openButton.hidden = !menu.open;
     if (!menu.open) { hide(); return; }
     // Only on the initial menu, never during a drive or while spectating.
     if (menu.classList.contains('session-start') && !window.LPRSpectator?.active &&

@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="series-controls.css?v=auth-series-unified-20261030" />
     <link rel="stylesheet" href="sidebar-settings.css?v=figma-settings-20261030" />
     <link rel="stylesheet" href="release-notes.css?v=20261027-language-switch" />
-    <link rel="stylesheet" href="client-download.css?v=20261103" />
+    <link rel="stylesheet" href="client-download.css?v=20261105" />
     <link rel="stylesheet" href="language-selector.css?v=20261030" />
     <link rel="stylesheet" href="crash-notice.css?v=restart-r-notice-20261030" />
     <link rel="stylesheet" href="numeric-typography.css?v=stack-tabular-times-20261030" />
@@ -67,7 +67,7 @@
     <script src="spectate-menu.js?v=playout-buffer-20261102" defer></script>
     <script src="game.js?v=frame-catchup-20261102" defer></script>
     <script src="release-notes.js?v=20261102" defer></script>
-    <script src="client-download.js?v=20261103" defer></script>
+    <script src="client-download.js?v=20261105" defer></script>
   </head>
   <body>
     <main class="app">
@@ -139,7 +139,10 @@
               <details><summary>Tiedot <svg class="ph-icon summary-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#caret-right"></use></svg></summary><p id="analytics-info"></p><a href="privacy.html" target="_blank" rel="noopener">Tietosuoja</a><br><button id="analytics-delete" type="button">Poista analytiikkatietoni</button><p id="analytics-status" role="status"></p></details>
             </fieldset>
             </section>
-            <button id="leaderboard-logout" class="leaderboard-logout" type="button" hidden>Kirjaudu ulos</button>
+            <div class="account-links">
+              <button id="client-download-open" class="account-link" type="button" hidden>PC-sovellus</button>
+              <button id="leaderboard-logout" class="leaderboard-logout" type="button" hidden>Kirjaudu ulos</button>
+            </div>
         </form>
         <div class="game-actions sidebar-utility-actions" role="group" aria-label="Pelin asetukset">
           <button id="leaderboard-button" class="game-action-button" type="button" aria-label="Tuloslista" title="Tuloslista"><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#trophy"></use></svg></button>
@@ -261,7 +264,6 @@
       <div class="dialog-head">
         <div class="race-heading dashboard-brand"><img src="assets/lpr-logo-transparent.png" alt="" aria-hidden="true"><h2 id="leaderboard-title">Skinnarila<span>GP</span></h2><p class="race-eyebrow">LPR MOTORSPORT · AIKA-AJO</p></div>
         <div class="dialog-actions">
-        <button id="client-download-open" type="button" hidden>PC-sovellus</button>
         <button id="release-notes-open" type="button">Mitä uutta?</button>
         <button id="close-settings" class="icon-button close" type="button" aria-label="Sulje tuloslista" hidden><svg class="ph-icon" aria-hidden="true" focusable="false"><use href="assets/phosphor-icons.svg?v=phosphor-regular-2.1.1#x"></use></svg> <span>Takaisin peliin</span></button>
         </div>

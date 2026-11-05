@@ -1,5 +1,10 @@
 /* Browser vs PC client choice, shown inside the start menu modal like the release notes. */
-#client-download-open { padding: .55rem .85rem; border: 1px solid currentColor; border-radius: .5rem; background: transparent; color: inherit; cursor: pointer; }
+/* The PC app link sits left of "Sign out" in the sidebar and uses the same link style. */
+.account-links { display: flex; justify-content: center; align-items: baseline; gap: 16px; }
+.account-links:not(:has(> :not([hidden]))) { display: none; }
+.account-links > .leaderboard-logout { flex: 0 0 auto; }
+.account-links #client-download-open { display: block; min-height: 0; margin: -2px 0 8px; padding: 0; border: 0; background: none; color: var(--brand-hover); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.dashboard-remembered .account-links #client-download-open { margin: 4px 0; font-size: 11px; }
 #client-download-open[hidden], #client-download-panel[hidden], #client-download-panel [hidden] { display: none !important; }
 #client-download-panel { position: absolute; inset: 0; z-index: 101; display: grid; place-items: center; padding: clamp(1rem, 4vw, 2rem); overflow: auto; overscroll-behavior: contain; background: rgb(23 23 23 / 98%); color: var(--text-primary); }
 .client-download-content { width: min(100%, 40rem); text-align: center; }
