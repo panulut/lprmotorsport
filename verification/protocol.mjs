@@ -19,5 +19,16 @@ export async function verify(value,secret) {
 export async function hash(value) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value)))].map(n=>n.toString(16).padStart(2,'0')).join('');
 }
+// Rate-limit key for a client address. One IPv6 subscriber usually holds a whole /64,
+// so limits count that prefix; otherwise each new address would get a fresh budget.
+export function addressKey(value) {
+  const ip = String(value || 'unknown').trim().toLowerCase();
+  const ipv4 = ip.match(/(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (ipv4) return ipv4[1];
+  if (!/^[0-9a-f:]+$/.test(ip) || !ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.split('::'), left = head ? head.split(':') : [], right = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right] : left;
+  return groups.slice(0, 4).map(group => group.padStart(4, '0')).join(':') + '::/64';
+}
 export const validName = value => typeof value==='string' && /^[\p{L}\p{N} _.-]{1,24}$/u.test(value);
 export const validPlayer = value => typeof value==='string' && /^[a-f0-9]{64}$/.test(value);

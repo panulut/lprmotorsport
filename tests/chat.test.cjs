@@ -89,11 +89,33 @@ assert.throws(()=>shared.post(fresh(99),'shared',{text:'Hi'}),{status:429},'IP l
   assert.equal(restored.messages.length,1);
   assert.equal(restored.messages[0].text,'Säilyy uudelleenkäynnistyksessä','Cloudflare D1 restores chat history after a server restart');
   leaderboard.db.prepare('UPDATE verified_chat_messages SET at=?').run(Date.now()-86400001);
-  assert.deepEqual(await(await fetch(`http://127.0.0.1:${persistentServer.address().port}/api/chat`)).json(),{messages:[]},
-   'Persisted messages expire after 24 hours');
+  assert.equal((await(await fetch(`http://127.0.0.1:${persistentServer.address().port}/api/chat`)).json()).messages.length,1,
+   'Reads within the cache window share one upstream request');
+  const after=await fetch(`http://127.0.0.1:${persistentServer.address().port}/api/chat`,{method:'POST',headers:{Origin:'https://game.test','Content-Type':'application/json',Authorization:'Bearer '+await signed({playerHash:'e'.repeat(64)})},
+   body:JSON.stringify({text:'Uusi viesti'})});
+  assert.equal(after.status,201);
+  assert.deepEqual((await(await fetch(`http://127.0.0.1:${persistentServer.address().port}/api/chat`)).json()).messages.map(m=>m.text),['Uusi viesti'],
+   'A post clears the read cache, and persisted messages expire after 24 hours');
  }finally{
   if(persistentServer){persistentServer.closeAllConnections();await new Promise(resolve=>persistentServer.close(resolve));}
   leaderboard.closeAllConnections();await new Promise(resolve=>leaderboard.close(resolve));
  }
+ // Behind Azure ingress the socket is the proxy; the rightmost X-Forwarded-For entry is the client.
+ const {addressKey}=await import('../verification/protocol.mjs');
+ assert.equal(addressKey('203.0.113.7'),'203.0.113.7');
+ assert.equal(addressKey('::ffff:203.0.113.7'),'203.0.113.7','IPv4-mapped addresses count as IPv4');
+ assert.equal(addressKey('2001:db8:1:2::1'),addressKey('2001:db8:1:2:ffff:0:0:9'),'One IPv6 /64 shares one budget');
+ assert.notEqual(addressKey('2001:db8:1:2::1'),addressKey('2001:db8:1:3::1'));
+ const proxied=await require('../verification/server.cjs').createServer({secret,origins:['https://game.test'],trustForwardedFor:true});
+ await new Promise(resolve=>proxied.listen(0,'127.0.0.1',resolve));
+ try{
+  const proxiedURL=`http://127.0.0.1:${proxied.address().port}/api/chat`;
+  const from=async(forwarded,n)=>(await fetch(proxiedURL,{method:'POST',headers:{Origin:'https://game.test','Content-Type':'application/json','X-Forwarded-For':forwarded,
+   Authorization:'Bearer '+await sign({kind:'chat',protocol:'driving-v1',playerHash:n.toString(16).padStart(64,'0'),nickname:'Pelaaja',issuedAt:Date.now(),expiresAt:Date.now()+600000},secret)},
+   body:JSON.stringify({text:'Hei'})})).status;
+  for(let i=0;i<30;i++)assert.equal(await from('203.0.113.7',i%6),201);
+  assert.equal(await from('198.51.100.1, 203.0.113.7',7),429,'A forged leftmost entry does not give a new budget');
+  assert.equal(await from('203.0.113.8',8),201,'Different clients behind the same ingress have separate budgets');
+ }finally{proxied.closeAllConnections();await new Promise(resolve=>proxied.close(resolve));}
  console.log('Chat: signed nickname ownership, shared messages, persistence, validation, rate limits and expiry OK');
 })().catch(error=>{console.error(error);process.exitCode=1;});
