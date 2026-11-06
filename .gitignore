@@ -5,6 +5,9 @@
 /artifacts/verification/
 /artifacts/integration/
 /artifacts/release-20261027/
+# Production backups can hold account rows and Worker settings; never publish them.
+/artifacts/deploy-backups/
+/artifacts/worktrees/
 *.log
 .env
 .env.*
