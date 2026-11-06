@@ -38,27 +38,120 @@ koe ei lähetä kierrostuloksia tai kapasiteettihistoriaa tuotannon eikä testin
 Satunnaiset `AzCap...`-testitilit jäävät testikantaan; kirjautumiset perutaan.
 Raportin nimimerkit mahdollistavat täsmällisen myöhemmän siivouksen.
 
-## 1. Rakenna ja julkaise testikuva
+## 1. Run workflow GitHubissa ja kopioi digest
 
-Aja repositorion juuresta Bashissä/WSL2:ssa. Tarvitset Gitin (commit e70218a
-saatavilla), Dockerin, Node 24.22+:n, Azure CLI:n ja oikeudet alla olevaan
-resurssiryhmään. Docker Desktopin tulee olla käynnissä.
+Ensisijainen rakennus tapahtuu GitHubin runnerilla. Et tarvitse Dockeria omalle
+koneelle tätä reittiä varten. Työnkulussa ei ole Azure-tunnuksia eikä se luo tai
+muuta Container Apps -resursseja.
+
+1. Avaa [LPR Motorsportin Actions](https://github.com/panulut/lprmotorsport/actions).
+2. Valitse **Build isolated Azure test image** (`azure-test-image.yml`).
+3. Paina **Run workflow**, valitse tämän testiohjeen ja testikäynnistimen sisältävä
+   hyväksytty haara (tässä PR:ssä `test/azure-ten-player-capacity`) ja käynnistä ajo.
+4. Odota vihreää lopputulosta. Työnkulku testaa käynnistimen, rakentaa kuvan
+   `git archive e70218a...` -lähteistä, ajaa tuotantoimagen kanssa saman Trivy
+   HIGH/CRITICAL -portin ja julkaisee vain hyväksytyn kuvan GHCR:ään.
+5. Avaa ajon **Summary**. Kopioi **Azure test image** -kohdasta koko rivi:
+   `ghcr.io/panulut/lprmotorsport/verification@sha256:...`.
+
+Työnkulun oikeudet ovat vain `contents: read` ja `packages: write`. GHCR-kirjautuminen
+käyttää ajon omaa `GITHUB_TOKEN`-tunnistetta. Tagissa on testietuliite,
+lähdecommit, käynnistimen hash sekä GitHub-ajon tunniste ja yritysnumero.
+Yhteenveto näyttää myös lähdecommitin ja testikäynnistimen SHA-256:n.
+
+**Uuden työnkulun käyttöönotto:** GitHub edellyttää `workflow_dispatch`-tiedostoa
+repositorion oletushaaraan ennen ensimmäistä käsin käynnistystä. Pelkkä PR-haaraan
+lisääminen ei vielä tuo Run workflow -painiketta näkyviin. Työnkulun rekisteröinti
+tehdään normaalin katselmoinnin kautta; tätä PR:ää ei yhdistetä automaattisesti.
+Rekisteröinnin jälkeen Branch-valikosta voi valita testiohjeen kanssa saman haaran.
+[GitHubin virallinen ohje](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+
+### Windows: WSL2, Ubuntu, Azure CLI ja Node
+
+Aja järjestelmänvalvojan **PowerShellissä**:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+Käynnistä Windows uudelleen, jos asennus pyytää sitä. Avaa Ubuntu ja luo Linux-
+käyttäjätunnus. Tarkista PowerShellissä, että Ubuntu käyttää WSL-versiota 2:
+
+```powershell
+wsl --list --verbose
+# Vain jos Ubuntun VERSION on 1:
+wsl --set-version Ubuntu 2
+```
+
+Seuraavat komennot ajetaan **Ubuntun Bashissä WSL:n sisällä**, eivät PowerShellissä.
+Windowsiin jo asennettu Node tai Azure CLI ei korvaa näitä Linux-asennuksia:
 
 ```sh
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git
+curl -fsSL https://aka.ms/InstallAzureCLIDeb -o /tmp/lpr-install-azure-cli.sh
+sudo bash /tmp/lpr-install-azure-cli.sh
+rm /tmp/lpr-install-azure-cli.sh
+
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh -o /tmp/lpr-install-nvm.sh
+bash /tmp/lpr-install-nvm.sh
+rm /tmp/lpr-install-nvm.sh
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+nvm install 24
+nvm alias default 24
+nvm use 24
+
+az version
+node --version
+node -e 'const [major,minor]=process.versions.node.split(".").map(Number);if(major!==24||minor<22)throw Error("Use Node 24.22+ from the Node 24 line inside WSL")'
+```
+
+Avaa sama repository ja haara WSL:n sisällä. Uudelle kloonille:
+
+```sh
+mkdir -p ~/projects
+cd ~/projects
+git clone --branch test/azure-ten-player-capacity https://github.com/panulut/lprmotorsport.git
+cd lprmotorsport
+az login
+```
+
+Kun muutokset ovat oletushaarassa, voit käyttää kloonissa ja workflow-valinnassa
+`main`-haaraa PR-haaran sijaan. Käynnistimen tiedoston pitää vastata imagen
+yhteenvedon SHA-256:ta.
+
+Jos selainkirjautuminen ei avaudu WSL:stä, käytä `az login --use-device-code`.
+Aseta **Summary-kohdasta kopioitu todellinen digest** WSL:n Bashissä:
+
+```sh
+export LPR_AZURE_TEST_IMAGE='ghcr.io/panulut/lprmotorsport/verification@sha256:KORVAA_TODELLISELLA_DIGESTILLA'
+```
+
+Nodea käytetään asiakkaiden ja mittausraporttien ajamiseen. Varsinainen imagen
+rakentaminen ja Trivy-skannaus tapahtuvat edellä GitHubissa, joten Docker-asennus
+on tarpeen vain seuraavaa vaihtoehtoa varten.
+
+### Vaihtoehto: rakenna omalla Dockerilla
+
+Tarvitset Dockerin (esimerkiksi Docker Desktop + Ubuntu/WSL-integraatio), Gitin ja
+saman checkoutin kuin testikäynnistimessä. Dockerin tulee olla käynnissä. Aja
+repositorion juuressa WSL:n Bashissä:
+
+```sh
+git fetch origin e70218a6298aecaacd748c62a77f6e67bfcae731
 docker login ghcr.io -u panulut
 bash scripts/build-azure-test-image.sh
 ```
 
-Jos checkout on matala (shallow), hae ensin lähdecommit: `git fetch origin e70218a6298aecaacd748c62a77f6e67bfcae731`.
+Paikallinen komento rakentaa ja julkaisee testitagin sekä tulostaa lopuksi digestin.
+`--build-only` rakentaa ilman kirjautumista tai pushia; GitHub-työnkulku käyttää tätä
+vaihtoehtoa ja sijoittaa Trivy-skannauksen buildin ja julkaisun väliin.
+Aseta paikallisen pushin tulostama digest `LPR_AZURE_TEST_IMAGE`-muuttujaan kuten yllä.
 
-Docker kysyy tarvittaessa GHCR-tunnisteen. Viimeinen tulostettu rivi on muotoa
-`ghcr.io/panulut/lprmotorsport/verification@sha256:...`. Aseta **tämä todellinen
-arvo**, älä alla olevaa esimerkkitekstiä:
-
-```sh
-export LPR_AZURE_TEST_IMAGE='ghcr.io/panulut/lprmotorsport/verification@sha256:KORVAA_TODELLISELLA_DIGESTILLA'
-az login
-```
+Asennuslähteet: [WSL2/Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/install),
+[Azure CLI Ubuntuun](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt),
+[nvm](https://github.com/nvm-sh/nvm), [Node 24](https://nodejs.org/en/download).
 
 Jos GHCR-paketti on yksityinen, anna lisäksi vain pakettien lukemiseen oikeuttava
 tunniste. Se tallentuu vain uuden testikontin registry-secretiin:
@@ -199,6 +292,21 @@ heräämisen HTTP-liikenteestä. Siksi lisäksi kutsutaan virallista **Stop**-op
 ja vaaditaan takaisinluettu `runningStatus = Stopped`, joka pysäyttää sovelluksen
 replikat. `stop-proof.json` tallentaa oikean lopputilan. Jos pysähtymistä ei saada
 vahvistettua, skripti ilmoittaa siitä ja palauttaa virhekoodin.
+
+### Poista vain testikontti ennen uusintaa
+
+Ajoskripti jättää pysäytetyn testikontin talteen ja kieltäytyy ylikirjoittamasta sitä.
+Kun raakadata ja pysäytyksen todiste on säilytetty, poista **vain tämä testisovellus**
+WSL:n Bashissä ja aja vaihe 2 uudelleen:
+
+```sh
+az containerapp delete --subscription 41128d20-bcb4-4799-80ce-ac23952b4bdd \
+ --resource-group rg-lpr-prod --name lpr-verification-capacity-test --yes
+```
+
+Komento poistaa testisovelluksen revisiot ja sen testisalaisuudet. Se ei poista
+resurssiryhmää, yhteistä ympäristöä, GHCR-imagea tai tuotannon Container Appia.
+Paikalliset `RUN_GROUP`-raakadatakansiot säilyvät; seuraava ajo käyttää uutta kansiota.
 
 Viralliset lähteet: [skaalausrajat](https://learn.microsoft.com/en-us/azure/container-apps/scale-app),
 [Container Apps Stop API](https://learn.microsoft.com/en-us/rest/api/resource-manager/containerapps/container-apps/stop?view=rest-resource-manager-containerapps-2025-07-01),
