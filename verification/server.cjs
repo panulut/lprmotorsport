@@ -5,9 +5,9 @@ const {createCapacityReporter}=require('./capacity-reporter.cjs');
 const {revision}=require('./world.cjs');
 const {createChat}=require('./chat.cjs');
 const {validateAzureProduction}=require('./azure-production.cjs');
-async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],sessionsOptions={},metricsToken=process.env.VERIFICATION_METRICS_TOKEN,capacityReportURL=process.env.CAPACITY_REPORT_URL,chatStorageURL=process.env.CHAT_STORAGE_URL}={}) {
+async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],sessionsOptions={},metricsToken=process.env.VERIFICATION_METRICS_TOKEN,capacityReportURL=process.env.CAPACITY_REPORT_URL,chatStorageURL=process.env.CHAT_STORAGE_URL,chatReadCacheMs=2000,trustForwardedFor=process.env.VERIFICATION_ENVIRONMENT==='azure-production'}={}) {
  validateAzureProduction({secret,metricsToken,origins,sessionsOptions,capacityReportURL,chatStorageURL});
- const {sign,verify,protocol,validPlayer,validName}=await import('./protocol.mjs');
+ const {sign,verify,protocol,validPlayer,validName,addressKey}=await import('./protocol.mjs');
  if(typeof secret!=='string'||secret.length<32)throw Error('VERIFICATION_SECRET must contain at least 32 characters');
  const reporter=createCapacityReporter({url:capacityReportURL,token:metricsToken});
  const used=new Map();
@@ -46,6 +46,24 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
    throw fail(503,'Chat storage unavailable');
   }
  }
+ // Anonymous chat polling shares one upstream read per short window, so a GET flood
+ // cannot multiply into Worker and D1 requests. A successful post clears the cache.
+ let chatHistory=null;
+ function readChatHistory(){
+  const now=Date.now();
+  if(chatHistory&&(chatHistory.pending||now-chatHistory.at<chatReadCacheMs))return chatHistory.promise;
+  const entry={pending:true,at:now};
+  entry.promise=chatStorage('read').then(data=>{entry.pending=false;entry.at=Date.now();return data;},
+   error=>{if(chatHistory===entry)chatHistory=null;throw error;});
+  chatHistory=entry;
+  return entry.promise;
+ }
+ // Azure Container Apps ingress appends the address it saw to X-Forwarded-For, so only
+ // the rightmost entry is trustworthy; the socket address is the ingress proxy's own.
+ const clientAddress=req=>{
+  if(trustForwardedFor){const last=String(req.headers['x-forwarded-for']||'').split(',').pop().trim();if(last)return last;}
+  return req.socket.remoteAddress||'unknown';
+ };
  const server=http.createServer(async(req,res)=>{
   const origin=req.headers.origin;
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin','X-Content-Type-Options':'nosniff'};
@@ -72,15 +90,15 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
     return reply(200,chat.presence(url.searchParams.get('visitor')));
    }
    if(url.pathname==='/api/chat'){
-    if(req.method==='GET')return reply(200,chatStorageURLParsed?await chatStorage('read'):chat.list());
+    if(req.method==='GET')return reply(200,chatStorageURLParsed?await readChatHistory():chat.list());
     if(req.method!=='POST')return reply(405,{error:'Method not allowed'});
-    // Trust the connecting socket; client-supplied forwarding headers can be forged.
     const data=await readJSON(req,2048);
     let identity;try{identity=await verify(req.headers.authorization?.replace(/^Bearer /,''),secret);}catch{throw fail(401,'Sign in required');}
-    const result=chat.post(identity,req.socket.remoteAddress||'unknown',data);
+    const result=chat.post(identity,addressKey(clientAddress(req)),data);
     // The author stays inside the signed server-to-server write so moderation can block them.
     try{if(chatStorageURLParsed)await chatStorage('write',{...result.message,owner:identity.playerHash});}
     catch(error){chat.discard(result.message.id);throw error;}
+    chatHistory=null;
     return reply(201,result);
    }
    if(url.pathname==='/sessions'&&req.method==='POST'){

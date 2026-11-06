@@ -6,7 +6,9 @@ const secret='chat-moderation-test-secret-'.repeat(2),adminToken='m'.repeat(40);
  const board=await require('../verification/local-leaderboard.cjs').createLocalLeaderboard({secret,revision,passwordIterations:10000,adminToken});
  await new Promise(resolve=>board.listen(0,'127.0.0.1',resolve));
  const boardURL=`http://127.0.0.1:${board.address().port}`;
- const server=await require('../verification/server.cjs').createServer({secret,origins:['https://game.test'],chatStorageURL:boardURL+'/api/verified/chat-storage'});
+ const server=await require('../verification/server.cjs').createServer({secret,origins:['https://game.test'],chatStorageURL:boardURL+'/api/verified/chat-storage',
+  // Production caches room reads for 2 s, so a moderated message can linger that long.
+  chatReadCacheMs:0});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const chatURL=`http://127.0.0.1:${server.address().port}/api/chat`;
  const json=async response=>({status:response.status,body:await response.json()});

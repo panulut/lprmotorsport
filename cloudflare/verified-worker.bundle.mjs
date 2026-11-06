@@ -23,6 +23,17 @@ async function verify(value,secret) {
 async function hash(value) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value)))].map(n=>n.toString(16).padStart(2,'0')).join('');
 }
+// Rate-limit key for a client address. One IPv6 subscriber usually holds a whole /64,
+// so limits count that prefix; otherwise each new address would get a fresh budget.
+function addressKey(value) {
+  const ip = String(value || 'unknown').trim().toLowerCase();
+  const ipv4 = ip.match(/(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (ipv4) return ipv4[1];
+  if (!/^[0-9a-f:]+$/.test(ip) || !ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.split('::'), left = head ? head.split(':') : [], right = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right] : left;
+  return groups.slice(0, 4).map(group => group.padStart(4, '0')).join(':') + '::/64';
+}
 const validName = value => typeof value==='string' && /^[\p{L}\p{N} _.-]{1,24}$/u.test(value);
 const validPlayer = value => typeof value==='string' && /^[a-f0-9]{64}$/.test(value);
 // --- verification/name-policy.mjs ---
@@ -549,6 +560,9 @@ const ensureAccounts=async db=>{
 // Cloudflare Workers caps PBKDF2 at 100 000 iterations. If sign-ins exceed the plan's CPU limit,
 // set PASSWORD_ITERATIONS lower; each account is rehashed at its next successful sign-in.
 const PASSWORD_MIN=8,PASSWORD_MAX=128;
+// Failed passwords per nickname per 10 minutes from all addresses together. Each address
+// (IPv6: each /64) gets five, so locking an owner out needs twenty separate networks.
+const NAME_FAILURES=100;
 const passwordIterations=env=>{const n=Number(env.PASSWORD_ITERATIONS??100000);return Number.isSafeInteger(n)&&n>=10000&&n<=100000?n:100000;};
 const textEncoder=new TextEncoder();
 const hex=bytes=>[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');
@@ -655,7 +669,7 @@ export default {
     const playerLimit=`tp:p:${owner.player_hash}:${minute}`;
     // CF-Connecting-IP is set by Cloudflare at the edge; ignore spoofable X-Forwarded-For.
     const clientIp=request.headers.get('CF-Connecting-IP');
-    const ipLimit=clientIp?`tp:i:${await hash(clientIp)}:${minute}`:null;
+    const ipLimit=clientIp?`tp:i:${await hash(addressKey(clientIp))}:${minute}`:null;
     if(await limit(playerLimit,TIMING_PANEL_PER_PLAYER_PER_MINUTE,120000)||
        (ipLimit&&await limit(ipLimit,TIMING_PANEL_PER_IP_PER_MINUTE,120000)))
      return reply({error:'Too many timing-panel requests'},429,{'Retry-After':String(60-Math.floor(now%60000/1000))});
@@ -692,7 +706,7 @@ export default {
    }
    if(url.pathname==='/api/verified/account'){
     if(request.method!=='POST')return reply({error:'POST required'},405);
-    const now=Date.now(),ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
+    const now=Date.now(),ip=await hash(addressKey(request.headers.get('CF-Connecting-IP')));
     if(await limit(`a:${ip}:${Math.floor(now/60000)}`,20,120000))return reply({error:'Too many requests'},429);
     await env.DB.prepare('DELETE FROM verified_limits WHERE expires < ?').bind(now).run();
     const data=await body(request);
@@ -704,7 +718,7 @@ export default {
     if(claimHeader!==null&&!claimant)return reply({error:'Active guest session required'},401);
     if(claimToken&&data.create!==true)return reply({error:'Guest promotion requires registration'},400);
     // Only failed passwords count: tightly per nickname and address, loosely per nickname,
-    // so one address cannot lock the owner out and successful sign-ins are never throttled.
+    // so a few addresses cannot lock the owner out and successful sign-ins are never throttled.
     const slot=Math.floor(now/600000),nameId=`f:${await hash(key)}:${slot}`,pairId=`g:${await hash(key+'\n'+ip)}:${slot}`;
     const failures=async id=>(await env.DB.prepare('SELECT attempts FROM verified_limits WHERE key=? AND expires>=?').bind(id,now).first())?.attempts??0;
     const account=await env.DB.prepare('SELECT * FROM verified_accounts WHERE name_key=?').bind(key).first();
@@ -716,7 +730,7 @@ export default {
        return reply({...await identityReply(env.DB,claimant,claimToken),created:true,claimed:true});
       return reply({error:'Nickname taken'},409);
      }
-     if(await failures(pairId)>=5||await failures(nameId)>=30)return reply({error:'Too many requests'},429);
+     if(await failures(pairId)>=5||await failures(nameId)>=NAME_FAILURES)return reply({error:'Too many requests'},429);
      if(!sameText(await passwordHash(data.password,account.password_salt,account.iterations),account.password_hash)){
       await limit(pairId,Infinity,1200000);await limit(nameId,Infinity,1200000);
       return reply({error:'Wrong password'},401);
@@ -760,7 +774,7 @@ export default {
    }
    if(url.pathname==='/api/verified/guest'){
     if(request.method!=='POST')return reply({error:'POST required'},405);
-    const now=Date.now(),ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
+    const now=Date.now(),ip=await hash(addressKey(request.headers.get('CF-Connecting-IP')));
     if(await limit(`guest:${ip}:${Math.floor(now/60000)}`,10,120000))return reply({error:'Too many requests'},429);
     await env.DB.prepare('DELETE FROM verified_limits WHERE expires < ?').bind(now).run();
     const credential=request.headers.get('Authorization')?.replace(/^Bearer /,'');
@@ -795,7 +809,7 @@ export default {
    const owner=await sessionOwner(env.DB,token,env.VERIFICATION_SECRET,now);
    if(!owner)return reply({error:'Sign in required'},401);
    const playerHash=owner.player_hash;
-   const minute=Math.floor(now/60000),ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
+   const minute=Math.floor(now/60000),ip=await hash(addressKey(request.headers.get('CF-Connecting-IP')));
    for(const [id,max]of [[`p:${playerHash}:${minute}`,20],[`i:${ip}:${minute}`,80]]){
     if(await limit(id,max,120000))return reply({error:'Too many requests'},429);
    }
