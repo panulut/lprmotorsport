@@ -10,7 +10,8 @@ const assert=require('node:assert/strict');
   assert.equal((await fetch(url+'/metrics',{headers:{Authorization:'Bearer wrong'}})).status,401);
   const sessions=server.sessions,identity={playerHash:'a'.repeat(32),nickname:'Metrics player'};
   const s=await sessions.create(revision,identity);
-  await assert.rejects(()=>sessions.create(revision,identity),e=>e.code==='capacity');
+  // A second driver finds the server full (the same driver would replace their own session).
+  await assert.rejects(()=>sessions.create(revision,{...identity,playerHash:'b'.repeat(32)}),e=>e.code==='capacity');
   await new Promise(r=>setTimeout(r,500));
   const batch={revision,seq:0,fromTick:0,inputs:Array.from({length:60},()=>[0,0,0,false,false,true])};
   const first=await sessions.batch(s.id,s.sessionToken,batch);

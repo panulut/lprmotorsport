@@ -93,8 +93,10 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
     for(const [nonce,item]of used)if(item.expiresAt<now)used.delete(nonce);
     const previous=used.get(identity.nonce);
     if(previous)return reply(201,await previous.promise);
-    if(used.size>=128)throw fail(429,'Too many start tickets');
-    const item={expiresAt:identity.expiresAt,promise:sessions.create(revision,identity,{armed:data.armed===true})};
+    // A driver's own tickets fill only that driver's share, never the shared memory.
+    let mine=0;for(const item of used.values())if(item.playerHash===identity.playerHash)mine++;
+    if(mine>=MAX_TICKETS_PER_PLAYER||used.size>=MAX_TICKETS)throw fail(429,'Too many start tickets');
+    const item={expiresAt:identity.expiresAt,playerHash:identity.playerHash,promise:sessions.create(revision,identity,{armed:data.armed===true})};
     used.set(identity.nonce,item);
     // Retain failed nonces too: a ticket can never allocate a fresh timed session on retry.
     return reply(201,await item.promise);
@@ -115,6 +117,8 @@ async function createServer({secret=process.env.VERIFICATION_SECRET,origins=[],s
  server.sessions=sessions;
  return server;
 }
+// Tickets live at most 120 s; six starts a minute per driver need about twelve.
+const MAX_TICKETS=4096,MAX_TICKETS_PER_PLAYER=16;
 function fail(status,message){return Object.assign(Error(message),{status});}
 async function readJSON(req,maxBytes=16384){
  if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'JSON required');

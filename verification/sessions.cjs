@@ -6,9 +6,9 @@ const hz=120;
 const fail=(status,code,message,extra={})=>Object.assign(Error(message),{status,code,...extra});
 const equal=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y);};
 class Sessions {
- constructor({clock=()=>performance.now(),workerCount=1,workerHeapMb=256,executorFactory=options=>new VerificationPool(options),maxSessions=2,maxStartsPerMinute=8,leadMs=250,lagMs=16000,lapLagMs=2000,idleMs=24000,ttlMs=620000,onMetric=()=>{},signLap=async()=>{throw Error('Missing signer')}}={}){
-  Object.assign(this,{clock,maxSessions,maxStartsPerMinute,leadMs,lagMs,lapLagMs,idleMs,ttlMs,signLap,onMetric});this.sessions=new Map();this.creations=[];this.closed=false;this.spectatorSalt=randomBytes(32);
-  for(const value of [maxSessions,maxStartsPerMinute])if(!Number.isSafeInteger(value)||value<1||value>256)throw Error('Capacity limits must be integers from 1 to 256');
+ constructor({clock=()=>performance.now(),workerCount=1,workerHeapMb=256,executorFactory=options=>new VerificationPool(options),maxSessions=2,maxStartsPerMinute=8,maxPlayerStartsPerMinute=6,leadMs=250,lagMs=16000,lapLagMs=2000,idleMs=24000,ttlMs=620000,onMetric=()=>{},signLap=async()=>{throw Error('Missing signer')}}={}){
+  Object.assign(this,{clock,maxSessions,maxStartsPerMinute,maxPlayerStartsPerMinute,leadMs,lagMs,lapLagMs,idleMs,ttlMs,signLap,onMetric});this.sessions=new Map();this.creations=[];this.playerCreations=new Map();this.closed=false;this.spectatorSalt=randomBytes(32);
+  for(const value of [maxSessions,maxStartsPerMinute,maxPlayerStartsPerMinute])if(!Number.isSafeInteger(value)||value<1||value>256)throw Error('Capacity limits must be integers from 1 to 256');
   this.pool=executorFactory({workerCount,workerHeapMb,onLost:id=>{const s=this.sessions.get(id);if(s?.slot)this.invalidate(s,'worker_lost');}});
   this.metricsSince=Date.now();
   this.metrics={started:performance.now(),starts:0,capacityRejected:0,startRateRejected:0,batches:0,ticks:0,verifiedLaps:0,practiceLaps:0,processingTimeouts:0,lagTerminations:0};
@@ -29,10 +29,20 @@ class Sessions {
   if(this.closed)throw fail(410,'session_closed','Verification service closed');
   this.sweep();
   if(version!==revision)throw fail(409,'revision','Simulation revision changed');
+  const now=this.clock(),player=identity?.playerHash;
+  if(player){
+   // Per-driver budget first, so one account cannot spend the shared start rate.
+   for(const [key,times]of this.playerCreations){const recent=times.filter(t=>now-t<60000);if(recent.length)this.playerCreations.set(key,recent);else this.playerCreations.delete(key);}
+   const mine=this.playerCreations.get(player)||[];
+   if(mine.length>=this.maxPlayerStartsPerMinute){this.countMetric('startRateRejected');throw fail(429,'player_rate_limit','Too many session starts for this driver');}
+   // One driving slot per driver: a new start replaces the driver's previous session.
+   for(const old of this.sessions.values())if(old.slot&&old.identity?.playerHash===player)this.invalidate(old,'replaced');
+  }
   if(this.activeCount>=this.maxSessions){this.countMetric('capacityRejected');throw fail(429,'capacity','Verified session capacity reached');}
-  const now=this.clock();this.creations=this.creations.filter(t=>now-t<60000);
+  this.creations=this.creations.filter(t=>now-t<60000);
   if(this.creations.length>=this.maxStartsPerMinute){this.countMetric('startRateRejected');throw fail(429,'rate_limit','Too many session starts');}
   this.creations.push(now);
+  if(player)this.playerCreations.set(player,[...(this.playerCreations.get(player)||[]),now]);
   // Bound completed receipt caches even when starts fail or clients disappear.
   for(const [id,s] of this.sessions){if(!s.slot&&this.sessions.size>=8)this.sessions.delete(id);}
   const id=randomBytes(16).toString('hex'),token=randomBytes(32).toString('hex');

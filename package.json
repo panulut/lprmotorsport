@@ -40,7 +40,7 @@
     "test:name-policy": "node tests/name-policy.test.cjs && node tests/audit-names.test.cjs",
     "test:guests": "node tests/name-policy.test.cjs && node tests/verified-guests.test.cjs && node tests/verified-guests-recovery.test.cjs && node tests/verified-driving.test.cjs --guest",
     "test:guests-browser": "node scripts/check-verified-browser.cjs --guest",
-    "test:verified": "node tests/verified-driving.test.cjs && node tests/verified-realtime-policy.test.cjs && node tests/verified-accounts.test.cjs && node tests/verified-client.test.cjs",
+    "test:verified": "node tests/verified-driving.test.cjs && node tests/verified-realtime-policy.test.cjs && node tests/verified-accounts.test.cjs && node tests/verified-client.test.cjs && node tests/abuse-limits.test.cjs",
     "test:verified-browser": "node scripts/check-verified-browser.cjs",
     "test:verified-realtime": "node scripts/check-verified-realtime.cjs",
     "test:recordings": "node tests/recordings.test.cjs && node tests/verified-leaderboard.test.cjs && node tests/replay-viewer.test.cjs",
