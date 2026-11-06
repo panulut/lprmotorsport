@@ -6,7 +6,7 @@ case "${1:-}" in
  '') ;;
  *) echo 'Usage: build-azure-test-image.sh [--build-only]' >&2; exit 2 ;;
 esac
-source_commit=e70218a6298aecaacd748c62a77f6e67bfcae731
+source_commit=7788a00a04dc3abd47918f27a93dd4d0a469b45c
 task_root=$(git rev-parse --show-toplevel)
 task_context=$(mktemp -d)
 trap 'rm -rf "$task_context"' EXIT

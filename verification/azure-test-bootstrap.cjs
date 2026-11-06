@@ -1,7 +1,7 @@
-// Test-only instrumentation around the unmodified e70218a verification service.
+// Test-only instrumentation around the unmodified pinned verification service.
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {createHash,timingSafeEqual,randomUUID}=require('node:crypto');
-const SOURCE='e70218a6298aecaacd748c62a77f6e67bfcae731';
+const SOURCE='7788a00a04dc3abd47918f27a93dd4d0a469b45c';
 const TEST_WORKER='https://lpr-verified-test.panu-musakka-0bf.workers.dev';
 const ORIGIN='https://lpr-motorsport-test-a1gg.onrender.com';
 const wrapperHash=createHash('sha256').update(fs.readFileSync(__filename)).digest('hex');

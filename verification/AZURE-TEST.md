@@ -316,3 +316,14 @@ Tuotannon `MAX_VERIFIED_SESSIONS=5` säilyy. Skripti kirjaa toteutuneet luvut au
 AZURE-PRODUCTION.md:hen ja päivittää `status.json`:in vasta kolmen Azure-ajon sekä
 pysäytyksen todisteiden jälkeen; paikallista
 smokea tai ajamattomia kokeita ei merkitä läpäistyiksi.
+
+## Uusinta kevennetyllä fysiikalla, 6.11.2026
+
+Testikuvan lähde on vaihdettu committiin `7788a00a04dc3abd47918f27a93dd4d0a469b45c`.
+Se on `8714a53` ja bittitarkka fysiikan kevennys (sama muutos kuin `main`in `c067b81`).
+Simulaatiorevisio pysyy arvossa `3c5237068fcb…`, joten TEST Workeria ei tarvitse päivittää.
+`Dockerfile.azure-test` kopioi lisäksi tiedoston `verification/equivalent-revisions.json`.
+
+Paikallinen vertailu, 10 pelaajaa × 2 kierrosta, 0,5 CPU:n cgroup-kiintiö
+(palvelin ja asiakkaat samassa kiintiössä, ei Azure-tulos):
+ilman kevennystä ackLag p95/max 730/1421 ms, kevennyksen kanssa 230/694 ms; 20/20 kuittia molemmissa.

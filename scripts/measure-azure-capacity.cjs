@@ -126,7 +126,7 @@ async function runOne({service,worker,secret,metricsToken,source,output,number,m
   const packCount=(lastPack?.count||0)-(firstPack?.count||0),packSum=(lastPack?.sumMs||0)-(firstPack?.sumMs||0);
   run.replayPackMs=lastPack?{count:packCount,sumMs:packSum,meanMs:packCount?packSum/packCount:null,
    maxMsSinceServiceStart:lastPack.maxMs,buckets:lastPack.buckets.map((n,i)=>n-(firstPack?.buckets[i]||0))}:null;
-  run.highWaterScope='RSS: server process lifetime; maxReplayQueueMs: worker lifetime (cannot reset pinned e70218a counters)';
+  run.highWaterScope='RSS: server process lifetime; maxReplayQueueMs: worker lifetime (cannot reset pinned source counters)';
   const assessment=assess(run);run.passed=assessment.passed;run.acceptanceErrors=assessment.errors;run.finishedAt=new Date().toISOString();persist();
  }
  return run;

@@ -8,7 +8,7 @@ subscription=41128d20-bcb4-4799-80ce-ac23952b4bdd
 resource_group=rg-lpr-prod
 environment=aca-lpr-prod
 test_app=lpr-verification-capacity-test
-source_commit=e70218a6298aecaacd748c62a77f6e67bfcae731
+source_commit=7788a00a04dc3abd47918f27a93dd4d0a469b45c
 : "${LPR_AZURE_TEST_IMAGE:?Set an immutable GHCR repository@sha256 digest from build-azure-test-image.sh}"
 [[ "$LPR_AZURE_TEST_IMAGE" =~ ^ghcr\.io/panulut/lprmotorsport/verification@sha256:[a-f0-9]{64}$ ]] || { echo 'Expected isolated test image digest'; exit 1; }
 command -v az >/dev/null
