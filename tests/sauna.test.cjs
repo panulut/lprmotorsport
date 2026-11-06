@@ -218,15 +218,15 @@ const nodes = new Map();
 const documentEvents = {};
 const element = id => {
   if (!nodes.has(id)) nodes.set(id, {
-    tagName: 'DIV', classList: { add() {}, remove() {}, toggle() {} }, style: { setProperty() {} },
+    tagName: 'DIV', dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } }, style: { setProperty() {} },
     setAttribute() {}, addEventListener() {}, querySelector: element, clientWidth: 800
   });
   return nodes.get(id);
 };
 const gameContext = {
-  URLSearchParams,
+  URLSearchParams, CustomEvent,
   window: { LPRVehicleSpec: require('../shared/vehicle-spec.js'),  matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {}, screen: {}, location: {search:''} }, performance: { now: () => 1000 },
-  document: { querySelector: element, querySelectorAll: () => [], addEventListener(type, handler) { documentEvents[type] = handler; }, exitPointerLock() { this.pointerLockElement = null; } },
+  document: { documentElement: { classList: { add() {}, remove() {} } }, querySelector: element, querySelectorAll: () => [], addEventListener(type, handler) { documentEvents[type] = handler; }, dispatchEvent() { return true; }, exitPointerLock() { this.pointerLockElement = null; } },
   navigator: {}, localStorage: { getItem: () => null }, setTimeout() {}, clearTimeout() {},
   requestAnimationFrame() {}, ResizeObserver: class { observe() {} },
   LPRRenderer3D: class { constructor() { this.saunaStop = { x: 900, y: 650 }; } resize() {} updatePeople() {} },

@@ -2,6 +2,8 @@
   "name": "lpr-lap-challenge",
   "private": true,
   "scripts": {
+    "test": "node scripts/run-tests.cjs",
+    "test:unlisted": "node scripts/run-tests.cjs --unlisted",
     "test:azure-production": "node tests/azure-production.test.cjs",
     "test:release-browser": "node scripts/check-release-browser.cjs",
     "test:dashboard-browser": "node scripts/check-dashboard-browser.cjs",

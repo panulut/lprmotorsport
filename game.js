@@ -877,7 +877,7 @@
   }
 
   function update(dt, now, wallNow = now) {
-    if (car.crashed) { showCrashNotice(); return; }
+    if (car.crashed) { car.throttleInput = 0; car.brakeInput = 0; showCrashNotice(); return; }
     if(window.LPRVerifiedDriving?.waitingForStart)return;
     if(window.LPRVerifiedDriving?.active && (ui.dialog.open || car.sauna || car.sale || car.pool || car.crashed))window.LPRVerifiedDriving.cancel();
     if(drivingWorld && !ui.dialog.open && !car.sauna && !car.sale && !car.pool){

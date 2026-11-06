@@ -92,15 +92,15 @@ for(let step=-100;step<=100;step++) {
 
 const nodes=new Map(), events=new Map();
 const element=id=>{
-  if(!nodes.has(id)) nodes.set(id,{tagName:'DIV',classList:{add(){},remove(){},toggle(){}},
+  if(!nodes.has(id)) nodes.set(id,{tagName:'DIV',dataset:{},classList:{add(){},remove(){},toggle(){},contains(){return false;}},
     style:{setProperty(){}},attributes:{},setAttribute(k,v){this.attributes[k]=v;},querySelector:element,
     addEventListener(type,handler){this[type==='close'?'onclose':type]=handler;},showModal(){this.open=true;},close(){this.open=false;this.onclose?.();},clientWidth:800});
   return nodes.get(id);
 };
 const gameContext={
-  URLSearchParams,
+  URLSearchParams, CustomEvent,
   window: { location:{search:''}, LPRVehicleSpec: require('../shared/vehicle-spec.js'), matchMedia:()=>({matches:false,addEventListener(){}}),addEventListener(type,handler){if(!events.has(type)) events.set(type,[]);events.get(type).push(handler);},screen:{}},
-  performance:{now:()=>1000},document:{querySelector:element,querySelectorAll:()=>[],addEventListener(){}},
+  performance:{now:()=>1000},document:{documentElement:{classList:{add(){},remove(){}}},querySelector:element,querySelectorAll:()=>[],addEventListener(){},dispatchEvent(){return true;}},
   navigator:{},localStorage:{getItem:()=>null},setTimeout(){},clearTimeout(){},requestAnimationFrame(){},
   ResizeObserver:class{observe(){}},
   LPRRenderer3D:class{constructor(){this.saunaStop={x:900,y:650};}resize(){}updatePeople(){}},
@@ -123,7 +123,9 @@ game.car.sauna=true;game.operateWheel('tc');assert.equal(game.car.tcEnabled,true
 game.car.sauna=false;game.car.crashed=true;game.operateWheel('page');assert.equal(game.car.wheelPage,1);
 game.reset();assert.equal(game.car.tcEnabled,true);assert.equal(game.car.wheelPage,0);
 game.held.gas=true;game.update(.05,1050);assert.equal(game.car.throttleInput,1);
-assert.equal(game.car.lapElapsedMs,0);
+assert.equal(game.car.lapElapsedMs,0,'Timing waits for the flying-lap start line');
+// Timing arms when the car crosses the start line; simulate that crossing here.
+game.car.lapTimingArmed=true;game.car.lapStart=1050;
 game.update(.05,1100);assert.equal(game.car.lapElapsedMs,50);
 game.car.crashed=true;game.update(.05,1150);assert.equal(game.car.throttleInput,0);
 assert.equal(game.car.lapElapsedMs,50,'Crash freezes lap display');
