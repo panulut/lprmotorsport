@@ -44,9 +44,10 @@ const doorMin=exteriorSale.entrance.x-8.5,doorMax=exteriorSale.entrance.x+8.5;
 for(let i=0;i<10;i++) assert(facade.get('poster'+i).every(p=>p[0]<doorMin || p[0]>doorMax),
   'Posters must not obscure the shared entrance');
 const document=JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8'));
-// The clear zone is a coarse box with margin around the ramps. Barriers drawn on
-// 2026-10-27 graze its corner by up to 2.5 units (about 25 cm) without looking
-// wrong in game, and moving them would change the verified driving revision.
+// The barrier line drawn on 2026-10-27 closes the gap between the track and the
+// building corner. Its rails stop about 3 units short of the left ramp; only the
+// 8-unit-deep barrier footprint grazes the clear zone, by up to 2.5 units.
+// Moving the barriers would change the verified driving revision.
 const barrierTolerance=3;
 for(const o of document.objects.filter(o=>o.type==='barrier')) {
   // Same footprint as shared/track-document.js: editor-drawn barriers carry their own length.
