@@ -58,6 +58,8 @@
     "measure:shared-track-state": "node scripts/measure-shared-track-state.cjs",
     "test:worker-pool": "node tests/worker-pool.test.cjs && node tests/background-replay.test.cjs",
     "measure:worker-pool": "node scripts/measure-worker-pool.cjs",
-    "measure:background-replay": "node scripts/measure-background-replay.cjs"
+    "measure:background-replay": "node scripts/measure-background-replay.cjs",
+    "test:azure-capacity": "node tests/azure-capacity.test.cjs && node tests/azure-capacity-http.test.cjs",
+    "measure:azure-capacity": "node scripts/measure-azure-capacity.cjs"
   }
 }

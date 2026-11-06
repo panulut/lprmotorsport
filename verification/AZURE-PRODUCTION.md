@@ -150,3 +150,38 @@ Detailed timings and compression comparisons are in WORKER_POOL.md and
 
 No production deployment. Production remains MAX_VERIFIED_SESSIONS=5, with
 unchanged anti-cheat thresholds, simulation revision, 120 Hz and receipt fields.
+
+
+## Azure 0.5-vCPU capacity gate — preparation only, 6 November 2026
+
+**NOT RUN.** The execution environment has no Azure CLI, Docker, Azure authentication, ARM
+credentials, or Container Apps connector. No test Container App was created; no
+production settings were read or changed. There are **zero completed Azure runs**
+and no Azure capacity pass. MAX_VERIFIED_SESSIONS stays 5.
+
+[AZURE-TEST.md](AZURE-TEST.md) contains the ready deployment, three-run measurement
+and shutdown commands. The test image's verification/simulation code is archived
+from immutable e70218a; a separately hashed test-only bootstrap adds authenticated
+worker stats, durable invalidation counts and server-process RSS high-water.
+
+The harness rejects production URLs and mutable images, checks the Azure resource
+proof for 0.5 vCPU / 1 GiB / one worker / 256 MiB heap, uses TEST Worker start
+tickets and verifies every receipt signature and replayHash. It records metrics
+before, every 15 seconds and after each of three runs. Actual runs must each
+produce 20/20 receipts, no practice/lag/processing/replay failures, ackLagMs max
+<1000 ms and server RSS high-water <800 MiB. All raw samples survive failures.
+
+The existing TEST Worker's revision and test D1 binding were checked read-only and
+match this source. Neither signing key was read or changed. Locally executed
+synthetic HTTP smoke checks validate the harness's three-run control flow and
+credential redaction; they are **not Azure load-test results**.
+
+Microsoft documents maxReplicas >=1. The prepared script sets test min=0/max=1
+and calls the Container Apps Stop API in its EXIT/INT/TERM cleanup, then requires
+a read-back Stopped state. This achieves zero running replicas without claiming
+that an unsupported 0/0 setting was applied. Only the isolated test app is targeted.
+
+Execution status: [status.json](../artifacts/verification/azure-ten-player/status.json).
+After actual execution, attach run-1/2/3.json, summary.json and stop-proof.json,
+then record the observed metrics here. No production capacity decision is made
+from an unexecuted test.

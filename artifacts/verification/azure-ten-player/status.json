@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-06",
+  "status": "not_run",
+  "sourceCommit": "e70218a6298aecaacd748c62a77f6e67bfcae731",
+  "reason": "No Azure CLI, Docker, Azure authentication, ARM credentials, or Container Apps connector in execution environment",
+  "azureRunsCompleted": 0,
+  "allThreePassed": false,
+  "testContainerCreated": false,
+  "productionModified": false,
+  "productionMaxVerifiedSessions": 5,
+  "shutdown": "Not applicable: no test container created",
+  "observedTestWorker": {
+    "url": "https://lpr-verified-test.panu-musakka-0bf.workers.dev",
+    "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+    "d1Binding": "82324dc1-0ac0-4874-b9f3-dcf16a7c66c8"
+  },
+  "instructions": "verification/AZURE-TEST.md",
+  "imageBuilt": false
+}
