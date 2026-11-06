@@ -24,6 +24,37 @@
  let client=null,generation=0,preparing=false,hooks=null,identity=null,connectionUnavailable=false,retryTimer=null,recovering=false,autoRetryAllowed=true;
  let lapEligibility=null;
  const practiceMessage='Harjoittelukierros – ajo jäi jälkeen reaaliajasta. Varmennus voi jatkua seuraavalta maalilinjalta.';
+ // Server occupancy comes from the public /health counts. When every verified
+ // slot is taken the player keeps practising and the normal retry loop polls
+ // /health only, so waiting drivers do not mint start tickets.
+ const capacityNode=document.querySelector('#server-capacity');
+ let serverFull=false,lastHealth=null;
+ const capacityCopy={
+  fi:{count:(a,m)=>`Palvelimella ${a}/${m} kuljettajaa`,full:m=>`Palvelin täynnä (${m}/${m}). Ajat harjoituskierrosta – virallinen ajo alkaa automaattisesti, kun tilaa vapautuu.`},
+  en:{count:(a,m)=>`${a}/${m} drivers on the server`,full:m=>`Server full (${m}/${m}). You are on a practice lap – an official run starts automatically when a slot frees up.`}
+ };
+ const capacityText=()=>capacityCopy[window.LPRI18n?.language==='en'?'en':'fi'];
+ const counts=health=>{
+  const active=health?.activeSessions,max=health?.maxSessions;
+  return Number.isSafeInteger(active)&&Number.isSafeInteger(max)&&max>0&&active>=0?{active:Math.min(active,max),max}:null;
+ };
+ const isFull=health=>{const c=counts(health);return !!c&&c.active>=c.max;};
+ function showCapacity(health=lastHealth){
+  if(health)lastHealth=health;
+  if(!capacityNode)return;
+  const c=counts(lastHealth);
+  if(!c&&!serverFull){capacityNode.hidden=true;capacityNode.textContent='';return;}
+  capacityNode.hidden=false;
+  capacityNode.dataset.state=serverFull?'full':c.active>=c.max-1?'busy':'ok';
+  capacityNode.textContent=serverFull?capacityText().full(c?.max??'–'):capacityText().count(c.active,c.max);
+ }
+ async function pollCapacity(){
+  if(config?.demo===true||!config?.service||document.hidden||preparing)return;
+  try{
+   const response=await fetch(config.service+'/health',{signal:AbortSignal.timeout(10000)});
+   if(response.ok)showCapacity(await response.json());
+  }catch{}
+ }
  // Sub-millimetre-scale numeric noise must not invalidate a verified browser run.
  // This only compares presentation against server simulation; the server alone signs lap receipts.
  const STATE_EPSILON=1e-5;
@@ -148,15 +179,18 @@
   preparing=true;
   if(!reconnect)hooks?.prepare?.();
   if(!connectionUnavailable)prepareLights();
-  say(connectionUnavailable?'Harjoittelu käynnissä – odotetaan yhteyttä.':'Valmistellaan lähtöä…');
+  say(serverFull?capacityText().full(counts(lastHealth)?.max??'–'):connectionUnavailable?'Harjoittelu käynnissä – odotetaan yhteyttä.':'Valmistellaan lähtöä…');
   let next;
   try{
    if(!config.service||!config.leaderboard)throw Error('Varmennuspalvelua ei ole vielä otettu käyttöön.');
    // Wake before minting the short-lived start ticket.
    const health=await fetch(config.service+'/health',{signal:AbortSignal.timeout(90000)});
    const ready=await health.json();if(!health.ok||ready.revision!==revision||ready.protocol!=='driving-v1')throw Error('Pelin ja tarkastuspalvelimen versiot eivät täsmää.');
-   connectionUnavailable=false;
    if(attempt!==generation)return;
+   showCapacity(ready);
+   // Check occupancy before minting a start ticket; a full server keeps practice going.
+   if(isFull(ready))throw Object.assign(Error('Verified session capacity reached'),{code:'capacity'});
+   connectionUnavailable=false;
    if(lights.hidden)prepareLights();
    const {ticket}=await api('/api/verified/start',{nickname:identity.nickname,revision}).catch(error=>{throw Object.assign(error,{signIn:error.status===401});});
    if(attempt!==generation)return;
@@ -198,11 +232,20 @@
    await next.activate();
    if(attempt!==generation){await next.cancel();return;}
    client=next;preparing=false;
+   if(serverFull||lastHealth){serverFull=false;const c=counts(lastHealth);if(c)lastHealth={...lastHealth,activeSessions:Math.min(c.active+1,c.max)};showCapacity();}
    hooks.start();autoRetryAllowed=false;releaseLights();say('');
    restore();
    void save();
   }catch(error){if(next)await next.cancel();if(attempt===generation){
    if(error.signIn){autoRetryAllowed=false;cancel('Kirjaudu uudelleen.');window.LPRLeaderboard.signOut?.('Kirjautuminen vanheni. Kirjaudu uudelleen nimimerkilläsi ja salasanallasi.');return;}
+   if(error.code==='capacity'){
+    serverFull=true;connectionUnavailable=true;
+    const c=counts(lastHealth);if(c)lastHealth={...lastHealth,activeSessions:c.max};
+    showCapacity();cancel(capacityText().full(c?.max??'–'));
+    if(autoRetryAllowed)retrySoon();
+    return;
+   }
+   serverFull=false;showCapacity();
    connectionUnavailable=true;cancel('Harjoittelu käynnissä – odotetaan yhteyttä.');if(autoRetryAllowed)retrySoon();}}
  }
  window.LPRVerificationDiagnostics=diagnostics;
@@ -221,6 +264,7 @@
  };
  function sync(){restore();return save();}
  setInterval(()=>{if(!document.hidden&&document.querySelector('#settings-dialog').open)void sync();},15000);
+ setInterval(()=>{if(!serverFull)void pollCapacity();},15000);
  window.LPRVerifiedDriving.identityCleared=()=>{cancel(null);identity=null;pending.length=0;document.dispatchEvent(new Event('lpr-identity-changed'));};
  window.LPRVerifiedDriving.identityPromoted=formerGuest=>{
   if(!identity&&formerGuest){identity={...formerGuest,guest:true};restoreGuestQueue();}

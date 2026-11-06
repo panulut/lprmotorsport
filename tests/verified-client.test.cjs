@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 function fixture({demo=false}={}){
- const nodes=new Map(),storage=new Map(),requests=[],clients=[];let hidden=false,healthResolve,offline=false;
+ const nodes=new Map(),storage=new Map(),requests=[],clients=[];let hidden=false,healthResolve,offline=false,healthBody={revision:'rev',protocol:'driving-v1'},sessionError=null;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},disabled:false,handlers:{},append(){},addEventListener(name,fn){this.handlers[name]=fn;}});return nodes.get(id);};
  const identity={nickname:'Driver',token:'a'.repeat(64)};let startStatus=200,lapStatus=200;const signOuts=[];
  const fetch=async(url,options)=>{
   requests.push({url,options});
-  if(url.endsWith('/health')){if(offline)throw Error('offline');return new Promise(resolve=>{healthResolve=()=>resolve({ok:true,json:async()=>({revision:'rev',protocol:'driving-v1'})});});}
+  if(url.endsWith('/health')){if(offline)throw Error('offline');return new Promise(resolve=>{healthResolve=()=>resolve({ok:true,json:async()=>({...healthBody})});});}
   if(url.endsWith('/start'))return startStatus===200?{ok:true,json:async()=>({ticket:'signed-start'})}:{ok:false,status:startStatus,json:async()=>({})};
   if(url.endsWith('/laps')&&lapStatus!==200)return {ok:false,status:lapStatus};
   if(url.endsWith('/laps'))return {ok:true,json:async()=>({protocol:'driving-v1',verified:true,lapMs:90000})};
@@ -13,7 +13,7 @@ function fixture({demo=false}={}){
  };
  class Client{
   constructor(options){this.options=options;this.active=false;this.tick=0;clients.push(this);}
-  async start(){this.active=true;this.options.onUpdate({phase:'ready'});}
+  async start(){if(sessionError)throw sessionError;this.active=true;this.options.onUpdate({phase:'ready'});}
   async activate(){}
   async cancel(){this.active=false;}
   enqueue(){} async flush(){}
@@ -25,7 +25,7 @@ function fixture({demo=false}={}){
  const context={window,document,fetch,AbortSignal,console,Event:class{constructor(type){this.type=type;}},setInterval(){},setTimeout(fn,ms){if(ms===3000){retry=fn;return null;}countdowns.push(ms);return setImmediate(fn);},clearTimeout(handle){if(handle)clearImmediate(handle);},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../verified-driving.js'),'utf8'),context);
  let starts=0,prepares=0;window.LPRVerifiedDriving.attach({prepare(){prepares++;},start(){starts++;}});
- return {api:window.LPRVerifiedDriving,nodes,node,storage,requests,clients,identity,document,countdowns,signOuts,setLapStatus(value){lapStatus=value;},setStartStatus(value){startStatus=value;},
+ return {api:window.LPRVerifiedDriving,nodes,node,storage,requests,clients,identity,document,countdowns,signOuts,setLapStatus(value){lapStatus=value;},setStartStatus(value){startStatus=value;},setHealth(value){healthBody={revision:'rev',protocol:'driving-v1',...value};},setSessionError(value){sessionError=value;},
   ready:()=>healthResolve(),retry:()=>retry(),setOffline(value){offline=value;},hide(){hidden=true;document.visibilitychange();},get starts(){return starts;},get prepares(){return prepares;}};
 }
 const settle=()=>new Promise(r=>setImmediate(r));
@@ -137,6 +137,28 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert(drivingUpdate,'Game exposes an authenticated driving update path');
  assert(!/if\s*\(!window\.LPRVerifiedDriving\.active\)\s*\{?\s*void window\.LPRVerifiedDriving\.start\(/.test(drivingUpdate),
   'A completed lap must not auto-restart a player whose verification dropped');
+ // Full server: show occupancy, keep practising, poll /health only, and start
+ // the official run automatically once a slot frees up.
+ const full=fixture();full.setHealth({activeSessions:10,maxSessions:10});
+ const fullStart=full.api.start();full.ready();await fullStart;for(let i=0;i<4;i++)await settle();
+ assert(!full.api.active,'A full server does not open a verified session');
+ assert(!full.api.waitingForStart,'A full server releases the car for practice');
+ assert.equal(full.requests.some(r=>r.url==='board/api/verified/start'),false,'Waiting drivers do not mint start tickets');
+ assert.equal(full.node('#server-capacity').dataset.state,'full');
+ assert.match(full.node('#server-capacity').textContent,/täynnä \(10\/10\).*harjoituskierrosta/);
+ full.setHealth({activeSessions:9,maxSessions:10});full.retry();full.ready();for(let i=0;i<8;i++)await settle();
+ assert(full.api.active,'A freed slot starts the official run automatically');
+ assert.equal(full.prepares,1,'Waiting for a slot does not reset the practice car');
+ assert.equal(full.node('#server-capacity').dataset.state,'busy');
+ assert.equal(full.node('#server-capacity').textContent,'Palvelimella 10/10 kuljettajaa');
+ const raced=fixture();raced.setHealth({activeSessions:9,maxSessions:10});
+ raced.setSessionError(Object.assign(Error('Verified session capacity reached'),{status:429,code:'capacity'}));
+ const racedStart=raced.api.start();raced.ready();await racedStart;for(let i=0;i<4;i++)await settle();
+ assert(!raced.api.active);assert.equal(raced.node('#server-capacity').dataset.state,'full','A 429 capacity race also shows the full-server state');
+ raced.setSessionError(null);raced.retry();raced.ready();for(let i=0;i<8;i++)await settle();
+ assert(raced.api.active,'The capacity race recovers when the next retry finds a slot');
+ const open=fixture();open.setHealth({activeSessions:3,maxSessions:10});const openStart=open.api.start();open.ready();await openStart;
+ assert.equal(open.node('#server-capacity').dataset.state,'ok');assert.equal(open.node('#server-capacity').textContent,'Palvelimella 4/10 kuljettajaa');
  // Series tabs: humans by default, a bot login opens the bot table, and tabs switch the request.
  const tabs=fixture();await settle();
  assert(tabs.requests.some(r=>r.url==='board/api/verified/leaderboard?series=human'));
@@ -144,5 +166,5 @@ const settle=()=>new Promise(r=>setImmediate(r));
  assert.equal(tabs.requests.filter(r=>r.url.includes('/leaderboard?')).at(-1).url,'board/api/verified/leaderboard?series=bot');
  tabs.node('#verified-series-human').handlers.click();await settle();
  assert.equal(tabs.requests.filter(r=>r.url.includes('/leaderboard?')).at(-1).url,'board/api/verified/leaderboard?series=human');
- console.log('PASS: no automatic reset after verification loss, manual restart, receipt retry, prepared start, mismatch fallback and series tabs');
+ console.log('PASS: no automatic reset after verification loss, manual restart, receipt retry, prepared start, mismatch fallback, server capacity and series tabs');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -24,6 +24,12 @@
 .lap-panel-row:last-child{border-bottom:0}
 .lap-panel-driver{overflow:hidden;color:var(--text-secondary);font:400 16px/1.3 var(--font-body);text-overflow:ellipsis;white-space:nowrap}
 .lap-panel-value{color:var(--text-primary);font:400 16px/1.25 var(--font-heading);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.server-capacity{position:relative;margin:7px 0 0;padding:0 0 0 14px;color:var(--text-secondary);font:400 14px/1.35 var(--font-body)}
+.server-capacity::before{position:absolute;content:"";left:0;top:.45em;width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.server-capacity[data-state=busy]::before{background:#f2c14e}
+.server-capacity[data-state=full]{color:var(--text-primary)}
+.server-capacity[data-state=full]::before{background:#ef5a5a}
+.server-capacity[hidden]{display:none}
 .lap-panel-status{margin:7px 0 0;color:var(--text-secondary);font:400 16px/1.35 var(--font-body)}
 @media(max-width:650px){
   .game-shell .lap-panel{top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));width:min(360px,calc(100% - 16px));padding:7px 9px;border-radius:10px}

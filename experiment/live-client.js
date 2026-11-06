@@ -10,7 +10,7 @@
    const health=await healthResponse.json();
    if(!health.streaming||health.revision!==this.revision)throw Error('Verification service version changed; reload the page');
    const response=await this.request(this.base+'/sessions',{method:'POST',headers:{'Content-Type':'application/json',...(this.token?{Authorization:'Bearer '+this.token}:{})},body:JSON.stringify({revision:this.revision,...(this.ticket?{ticket:this.ticket}:{}),...(this.armed?{armed:true}:{})}),signal:AbortSignal.timeout(25000)});
-   const data=await response.json();if(!response.ok)throw Error(data.error||'Session start failed');
+   const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'Session start failed'),{status:response.status,code:data.code});
    this.session=data;this.active=true;this.started=performance.now();this.onUpdate({phase:'ready',ackTick:0,result:data.initial});return data;
   }
   async activate(){

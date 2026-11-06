@@ -7,9 +7,9 @@ remain isolated. Collision optimization PR #20 is excluded.
 Target: Azure subscription `41128d20-bcb4-4799-80ce-ac23952b4bdd`, Sweden Central,
 resource group `rg-lpr-prod`, standard Container Apps environment `aca-lpr-prod`,
 Consumption profile only, application `lpr-verification-prod`.
-Resources: 0.5 vCPU / 1 GiB, one verification worker, five sessions (raised from two
-on 2026-11-02 at the owner's request), 0–1 replicas,
-8 starts/minute, unchanged 2000 ms lap eligibility bound and other realtime rules.
+Resources: 0.5 vCPU / 1 GiB, one verification worker, ten sessions (raised from two
+to five on 2026-11-02 and to ten on 2026-11-06 at the owner's request), 0–1 replicas,
+32 starts/minute, unchanged 2000 ms lap eligibility bound and other realtime rules.
 
 Use a standard environment to measure the public ingress independently of the
 Express test environment's observed ~0.51 second transit overhead. This choice
@@ -61,3 +61,17 @@ players after lap-finish replay completion delayed acknowledgments. It did not
 pass a complete two-lap 10-player test. Five sessions have not been load-tested;
 watch "practice laps" and "lag terminations" in the admin capacity history and
 lower the limit again if they appear. Anti-cheat rules are unchanged.
+
+Ten sessions (2026-11-06): the isolated 0.5-vCPU Azure run with the lighter
+physics (source `7788a00`, same simulation revision) produced 20/20 signed
+receipts in each of three runs, with ten synchronized clients finishing on the
+same tick. ackLag p95 was 529-562 ms and max 1003-1175 ms: above that test's
+1000 ms gate but below the 2000 ms production lap eligibility bound, so no lap
+became a practice lap. The owner chose to raise production to ten. Starts per
+minute rise to 32, the value used in that test, so ten drivers restarting after
+crashes are not rejected. The image guard requires `MAX_VERIFIED_SESSIONS=10` and
+`MAX_VERIFIED_STARTS_PER_MINUTE=32`, so image and settings change together.
+Watch practice laps and lag terminations. Rollback: the previous image digest with
+`MAX_VERIFIED_SESSIONS=5` and `MAX_VERIFIED_STARTS_PER_MINUTE=8`. The game shows
+occupancy from `/health`; when the server is full it keeps the driver in practice,
+polls `/health` only, and starts the official run when a slot frees up.
