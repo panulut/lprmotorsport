@@ -260,18 +260,35 @@ window.LPRCampus = (() => {
     }
     return firstContact || false;
   }
+  // Pure caches of deterministic hypot results; the arithmetic is unchanged.
+  const reachCache=new WeakMap(),boundsReachCache=new WeakMap();
+  // Equals Math.max(...parts.flat().map(p=>Math.hypot(...p))): max is exact and
+  // order-independent (NaN and signed zero included), so per-part maxima compose.
+  function partReach(part) {
+    let reach=reachCache.get(part);
+    if(reach===undefined){reach=-Infinity;for(const p of part)reach=Math.max(reach,Math.hypot(...p));if(Object.isFrozen(part))reachCache.set(part,reach);}
+    return reach;
+  }
+  function collisionReach(parts) {
+    let reach=-Infinity;for(const part of parts)reach=Math.max(reach,partReach(part));return reach;
+  }
+  function boundsReach(bounds,halfX,halfY) {
+    const cached=boundsReachCache.get(bounds);
+    if(cached&&Object.is(cached.halfX,halfX)&&Object.is(cached.halfY,halfY))return cached.reach;
+    const reach=Math.hypot(halfX,halfY);boundsReachCache.set(bounds,{halfX,halfY,reach});return reach;
+  }
   function sweepBoundsCollision(state, previous, obstacles) {
     const dx=state.x-previous.x,dy=state.y-previous.y;
     const startAngle=previous.angle ?? state.angle ?? 0;
     const turn=(state.angle ?? startAngle)-startAngle;
     const parts=carCollisionParts(state);
-    const reach=Math.max(...parts.flat().map(p=>Math.hypot(...p)));
+    const reach=collisionReach(parts);
     const travel=Math.hypot(dx,dy)+Math.abs(turn)*reach;
     let firstHit=Infinity,normal,impactMaterial,hitBounds;
     for(const bounds of obstacles) {
       const cx=(bounds.minX+bounds.maxX)/2,cy=(bounds.minY+bounds.maxY)/2;
       const halfX=(bounds.maxX-bounds.minX)/2,halfY=(bounds.maxY-bounds.minY)/2;
-      const obstacleReach=Math.hypot(halfX,halfY);
+      const obstacleReach=boundsReach(bounds,halfX,halfY);
       if(cx+obstacleReach<Math.min(previous.x,state.x)-reach || cx-obstacleReach>Math.max(previous.x,state.x)+reach ||
         cy+obstacleReach<Math.min(previous.y,state.y)-reach || cy-obstacleReach>Math.max(previous.y,state.y)+reach) continue;
       const oc=Math.cos(bounds.angle || 0),os=Math.sin(bounds.angle || 0);
@@ -279,23 +296,25 @@ window.LPRCampus = (() => {
       for(const part of parts) {
         // Separating axes give a safe distance to advance along the sweep,
         // including rotation. Never expand a wall by an enclosing circle.
+        // Allocation-free form of the same arithmetic, in the same order.
+        const count=part.length,px=new Float64Array(count),py=new Float64Array(count);
         const separation=t=>{
           const c=Math.cos(startAngle+turn*t),s=Math.sin(startAngle+turn*t);
-          const points=part.map(([x,y])=>[previous.x+dx*t-cx+x*c-y*s,previous.y+dy*t-cy+x*s+y*c]);
-          const axes=obstacleAxes.slice();
-          for(let i=0;i<points.length;i++) {
-            const a=points[i],b=points[(i+1)%points.length],x=b[0]-a[0],y=b[1]-a[1],length=Math.hypot(x,y);
-            if(length>1e-12) axes.push([-y/length,x/length]);
-          }
-          let gap=-Infinity,n;
-          for(const [x,y] of axes) {
+          for(let i=0;i<count;i++){const x=part[i][0],y=part[i][1];px[i]=previous.x+dx*t-cx+x*c-y*s;py[i]=previous.y+dy*t-cy+x*s+y*c;}
+          let gap=-Infinity,nx,ny;
+          const test=(x,y)=>{
             const extent=halfX*Math.abs(x*oc+y*os)+halfY*Math.abs(-x*os+y*oc);
-            const projections=points.map(p=>p[0]*x+p[1]*y);
-            const low=Math.min(...projections),high=Math.max(...projections);
+            let low=Infinity,high=-Infinity;
+            for(let i=0;i<count;i++){const v=px[i]*x+py[i]*y;low=Math.min(low,v);high=Math.max(high,v);}
             const a=low-extent,b=-extent-high;
-            if(Math.max(a,b)>gap) {gap=Math.max(a,b);n=a>b?{x,y}:{x:-x,y:-y};}
+            if(Math.max(a,b)>gap) {gap=Math.max(a,b);if(a>b){nx=x;ny=y;}else{nx=-x;ny=-y;}}
+          };
+          test(oc,os);test(-os,oc);
+          for(let i=0;i<count;i++) {
+            const j=(i+1)%count,x=px[j]-px[i],y=py[j]-py[i],length=Math.hypot(x,y);
+            if(length>1e-12) test(-y/length,x/length);
           }
-          return {gap,normal:n};
+          return {gap,normal:nx===undefined?undefined:{x:nx,y:ny}};
         };
         let t=0,contact=separation(0);
         const separating=turn===0
@@ -576,12 +595,16 @@ window.LPRCampus = (() => {
   }
   function stepObstacles(seconds,car,onImpact,sessionBodies=bodies) {
     const bodies=sessionBodies;
+    // Same order as bodies; static and resting trees provably do nothing.
+    let active=bodies.__active;
+    if(!active||active.n!==bodies.length){active=bodies.filter(b=>b.kind==='tree'||Number.isFinite(b.mass));active.n=bodies.length;Object.defineProperty(bodies,'__active',{value:active,configurable:true,writable:true});}
     const duration=Math.max(0,Math.min(seconds,.1));
-    const motion=bodies.reduce((max,b)=>Number.isFinite(b.mass)?Math.max(max,
+    const motion=active.reduce((max,b)=>Number.isFinite(b.mass)&&!(b.vx===0&&b.vy===0&&b.spin===0)?Math.max(max,
       Math.hypot(b.vx,b.vy)/spec.metresPerWorldUnit+Math.abs(b.spin)*Math.hypot(b.width,b.depth)/2):max,0);
     const steps=Math.max(1,Math.ceil(duration*Math.max(90,motion*4))),dt=duration/steps;
-    for(let i=0;i<steps;i++) for(const b of bodies) {
+    for(let i=0;i<steps;i++) for(const b of active) {
       if(b.kind==='tree') {
+        if(b.damage===0&&b.bend===0&&b.bendVelocity===0)continue;
         const target=b.damage*.65;
         b.bendVelocity+=((target-b.bend)*14-b.bendVelocity*5)*dt;
         b.bend=Math.max(0,Math.min(1,b.bend+b.bendVelocity*dt));continue;
@@ -599,8 +622,14 @@ window.LPRCampus = (() => {
           impactObstacle(car,contact);onImpact?.(contact);updateBounds(b);break;
         }
       }
+      // Native, conservative copy of overlap()'s own circle rejection: (w+d)/2 bounds
+      // hypot(w,d)/2 from above and the margin covers rounding, so only pairs that
+      // overlap() would reject are skipped. dx/dy are the same subtraction it uses.
+      const reach=(b.width+b.depth)/2;
       for(const other of bodies) {
         if(other===b)continue;
+        const ox=other.x-b.x,oy=other.y-b.y,limit=(reach+(other.width+other.depth)/2)*1.01+1;
+        if(ox*ox+oy*oy>limit*limit)continue;
         const hit=overlap(b,other);if(!hit)continue;
         const n=hit.normal,inv=Number.isFinite(other.mass)?1/other.mass:0;
         b.x-=n.x*(hit.depth+.001);b.y-=n.y*(hit.depth+.001);
@@ -694,7 +723,7 @@ window.LPRCampus = (() => {
         peopleSites:definition.peopleSites,carGeometry:definition.carGeometry,bounds:definition.bounds,
         obstacleBounds:localBounds,buildingBounds:select(definition.buildings),treeBounds:select(definition.trees),
         vehicleBounds:select(definition.vehicles),tyreBarrierBounds:select(definition.tyres),
-        bodies:sessionBodies,poolBody:sessionBodies[definition.pool],carCollisionParts,resolveBoundsCollision,
+        bodies:sessionBodies,poolBody:sessionBodies[definition.pool],carCollisionParts,collisionReach,resolveBoundsCollision,
         resolveBuildingCollision:(state,previous,onImpact)=>resolveBoundsCollision(state,previous,select(definition.buildings),onImpact),
         resolveObstacleCollision:(state,previous,onImpact)=>resolveBoundsCollision(state,previous,localBounds,onImpact),
         registerPerson(index,x,y){
@@ -1123,6 +1152,6 @@ window.LPRCampus = (() => {
   }
   return { track, road, length, finishGate, launchPosition, gantryHalfWidth, crossesFinishLine, finishPostBounds, world, occupied, build, saunaSite, bonfireSite, trees, treeSeed, treeBounds,
     campusCars, studentCarModels, lakesideCars, vehicleBounds, buildingBounds, obstacleBounds, resolveBoundsCollision, resolveBuildingCollision,
-    resolveObstacleCollision, carGeometry, carCollisionParts, tyreBarrier, tyreBarrierBounds,
+    resolveObstacleCollision, carGeometry, carCollisionParts,collisionReach, tyreBarrier, tyreBarrierBounds,
     prepareSessionFactory,bodies,poolSite,poolBody,registerPerson,movePerson,placeBody,makeBody,stepObstacles,resetObstacles,deformPoint, bounds:{width:5200,height:4400} };
 })();

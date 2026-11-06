@@ -1,0 +1,9 @@
+{
+ "_readme": "Exact source hashes (world.cjs sourceRevision) proven bit-identical to an existing revision by tests/physics-golden.test.cjs. They keep that revision, so leaderboards, replays and personal bests stay valid. Add an entry only while the golden recorded on the original revision passes; never for a physics change.",
+ "equivalent": {
+  "deba3d1b1aa8fbc8ad37779289f54389385f1037c04a96e5b4988890aafcb2ec": {
+   "revision": "3c5237068fcb1c7490b265c20f496b5bd0141815d542a7274518df534ed02346",
+   "change": "Allocation-free collision sweep, cached reach values, static and resting obstacles skipped, conservative body-body circle prefilter (perf/physics-allocation-free)"
+  }
+ }
+}

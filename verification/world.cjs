@@ -4,7 +4,13 @@ const files=['shared/dmath.js','shared/vehicle-spec.js','campus.js','shared/trac
  'shared/track-objects.js','vehicle.js','shared/collision-index.js','shared/people.js','shared/driving.js'];
 const sources=files.map(file=>fs.readFileSync(path.join(root,file),'utf8').replaceAll('\r\n','\n'));
 const data=JSON.stringify(JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8')));
-const revision=createHash('sha256').update(JSON.stringify({files,sources,data,protocol:'driving-v1'})).digest('hex');
+const sourceRevision=createHash('sha256').update(JSON.stringify({files,sources,data,protocol:'driving-v1'})).digest('hex');
+// The revision names the physics, not the text: leaderboards, replays and personal
+// bests are only comparable within one revision. A refactor proven bit-identical by
+// tests/physics-golden.test.cjs may keep the revision it replaces. Entries match one
+// exact source hash, so any later edit falls back to a new revision automatically.
+const equivalent=JSON.parse(fs.readFileSync(path.join(__dirname,'equivalent-revisions.json'),'utf8')).equivalent;
+const revision=Object.hasOwn(equivalent,sourceRevision)?equivalent[sourceRevision].revision:sourceRevision;
 // Compile the trusted source once per thread; never evaluate client data.
 const initialize=new Function('window','module',sources.join('\n'));
 function createIsolatedWorld({trackIndexed=true}={}){
@@ -30,4 +36,4 @@ function createWorldFactory(){
 // Isolated worlds remain useful for tools and reference tests. Production pool
 // workers explicitly own a shared factory for their multiple sessions.
 function createWorld(options){return createIsolatedWorld(options);}
-module.exports={createWorld,createWorldFactory,createIsolatedWorld,revision,files};
+module.exports={createWorld,createWorldFactory,createIsolatedWorld,revision,sourceRevision,files};

@@ -121,7 +121,7 @@
       const previous={x:car.x,y:car.y,angle:car.angle};
       dynamics.step(car,input,1/hz,car.grassFraction);
       if(indexed){
-        const reach=Math.max(...LPRCampus.carCollisionParts(car).flat().map(p=>Math.hypot(...p)));
+        const parts=LPRCampus.carCollisionParts(car),reach=LPRCampus.collisionReach?LPRCampus.collisionReach(parts):Math.max(...parts.flat().map(p=>Math.hypot(...p)));
         const padding=reach+Math.hypot(car.x-previous.x,car.y-previous.y)+1;
         LPRCampus.resolveBoundsCollision(car,previous,query(previous.x,previous.y,car.x,car.y,padding),impact);
       }else LPRCampus.resolveObstacleCollision(car,previous,impact);
