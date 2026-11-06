@@ -1,0 +1,50 @@
+name: Build isolated Azure test image
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  image:
+    if: github.repository == 'panulut/lprmotorsport'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate isolated test bootstrap and harness
+        run: npm run test:azure-capacity
+      - name: Archive pinned verification source and build test image
+        id: build
+        run: bash scripts/build-azure-test-image.sh --build-only
+      - name: Scan image before publication
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          version: v0.76.1
+          image-ref: ${{ steps.build.outputs.image }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          timeout: 5m
+      - name: Publish scanned test image and copyable digest
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.build.outputs.image }}
+          SOURCE_COMMIT: ${{ steps.build.outputs.source_commit }}
+          WRAPPER_SHA: ${{ steps.build.outputs.wrapper_sha }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE")
+          [[ "$digest" =~ ^ghcr\.io/panulut/lprmotorsport/verification@sha256:[a-f0-9]{64}$ ]]
+          printf '### Azure test image\n\nCopy this complete digest into LPR_AZURE_TEST_IMAGE:\n\n```text\n%s\n```\n\n' "$digest" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Verification source: `%s`\n\nTest bootstrap SHA-256: `%s`\n\nBuild/tag: `%s`\n\nNo Azure deployment performed.\n' "$SOURCE_COMMIT" "$WRAPPER_SHA" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove registry login
+        if: always()
+        run: docker logout ghcr.io
