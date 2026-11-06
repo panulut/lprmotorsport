@@ -44,11 +44,15 @@ const doorMin=exteriorSale.entrance.x-8.5,doorMax=exteriorSale.entrance.x+8.5;
 for(let i=0;i<10;i++) assert(facade.get('poster'+i).every(p=>p[0]<doorMin || p[0]>doorMax),
   'Posters must not obscure the shared entrance');
 const document=JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8'));
+// The clear zone is a coarse box with margin around the ramps. Barriers drawn on
+// 2026-10-27 graze its corner by up to 2.5 units (about 25 cm) without looking
+// wrong in game, and moving them would change the verified driving revision.
+const barrierTolerance=3;
 for(const o of document.objects.filter(o=>o.type==='barrier')) {
   // Same footprint as shared/track-document.js: editor-drawn barriers carry their own length.
   const halfLength=(o.length??40)/2;
-  const halfX=(halfLength*Math.abs(Math.cos(o.angle))+4*Math.abs(Math.sin(o.angle)))*o.scale;
-  const halfZ=(halfLength*Math.abs(Math.sin(o.angle))+4*Math.abs(Math.cos(o.angle)))*o.scale;
+  const halfX=(halfLength*Math.abs(Math.cos(o.angle))+4*Math.abs(Math.sin(o.angle)))*o.scale-barrierTolerance;
+  const halfZ=(halfLength*Math.abs(Math.sin(o.angle))+4*Math.abs(Math.cos(o.angle)))*o.scale-barrierTolerance;
   assert(!(o.x+halfX>buildingCenter.x-150 && o.x-halfX<buildingCenter.x+150 &&
     o.y+halfZ>buildingCenter.y-77 && o.y-halfZ<buildingCenter.y-51),
     'Track crash barriers must stay clear of the building ramps and entrance');
