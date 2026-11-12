@@ -70,7 +70,7 @@
   // Legacy split detection is centered on track indices 70 and 130. Stored
   // PBs carry the exact progress sampled at their gates; these landmarks are
   // the geometry-based fallback for older sector-only records.
-  const defaultSectorProgress = [0, trackDistances[70] / trackLength, trackDistances[130] / trackLength, 1];
+  const defaultSectorProgress = [0, trackDistances[Math.round(POINTS*70/240)] / trackLength, trackDistances[Math.round(POINTS*130/240)] / trackLength, 1];
   const renderer = new LPRRenderer3D(canvas, document.querySelector('#cockpit'), track);
   const dynamics = new VehicleDynamics();
   const audio = new LPRGameAudio();
@@ -97,9 +97,11 @@
   const keyboard = new Set();
   const touchPointers = new Map();
   let activePad = null;
-  let best = Number(localStorage.getItem('lpr-best-time-lut-20261011-v3')) || 0;
+  const bestTimeKey=window.LPRTrackConfig?.bestTimeKey || 'lpr-best-time-lut-20261011-v3';
+  const bestSectorsKey=window.LPRTrackConfig?.bestSectorsKey || 'lpr-best-sectors-lut-20261011-v3';
+  let best = Number(localStorage.getItem(bestTimeKey)) || 0;
   let storedSectors = null;
-  try { storedSectors = JSON.parse(localStorage.getItem('lpr-best-sectors-lut-20261011-v3')); } catch {}
+  try { storedSectors = JSON.parse(localStorage.getItem(bestSectorsKey)); } catch {}
   if (!storedSectors || storedSectors.lapTime !== best || storedSectors.revision !== window.LPRDrivingRevision) best = 0;
   let demoBest = 0;
   const storedBestSectorsCandidate = window.LPRLapTiming.validSectors(storedSectors?.sectors);
@@ -156,8 +158,8 @@
     } : null;
     timing.setBest(sectors, checkpoints, denseTrace, window.LPRDrivingRevision, lapTime || total, defaultSectorProgress);
     rememberLocalReference();
-    localStorage.setItem('lpr-best-time-lut-20261011-v3', String(best));
-    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify({
+    localStorage.setItem(bestTimeKey, String(best));
+    localStorage.setItem(bestSectorsKey, JSON.stringify({
       lapTime: best, sectors: timing.best, revision: window.LPRDrivingRevision,
       ...(denseTrace ? { trace: denseTrace } : previousReference || {})
     }));
@@ -176,7 +178,7 @@
     }, lapTime, sectors, trace, window.LPRDrivingRevision);
     if (!record || !timing.setReferenceTrace(trace, window.LPRDrivingRevision, lapTime)) return false;
     rememberLocalReference();
-    localStorage.setItem('lpr-best-sectors-lut-20261011-v3', JSON.stringify(record));
+    localStorage.setItem(bestSectorsKey, JSON.stringify(record));
     return true;
   }
   let lastLiveDeltaAt = 0, lastLiveDelta = undefined;
@@ -617,6 +619,7 @@
     saunaLife.leave();
     car = { x: LPRCampus.launchPosition.x, y: LPRCampus.launchPosition.y, angle: startAngle, speed: 0, lap: lapNumber, lapStart: 0, lapTimingArmed:false, stage: 0, started: false, offroad: false, damage:0, crashed:false, pool:false, poolX:0, poolZ:0 };
     dynamics.reset(car);
+    if(LPRCampus.roadAt){car.grassFraction=grassContact(car);dynamics.createSuspension(car);}
     dynamics.parameters.tractionControlEnabled=tractionControlEnabled;
     car.tcEnabled=tractionControlEnabled;
     car.wheelPage=0;
@@ -826,6 +829,7 @@
   }
 
   function nearestTrack(x, y) {
+    if(LPRCampus.monaco){const q=LPRCampus.monaco.mainQuery(x,y),index=q.segment.index;return {index,distance:q.distance,along:trackDistances[index]+q.t*(trackDistances[index+1]-trackDistances[index])};}
     let bestDist = Infinity;
     let index = 0;
     let along = 0;
@@ -857,14 +861,15 @@
         const x = state.x + (axle * forwardX - side * forwardY) * scale;
         const y = state.y + (axle * forwardY + side * forwardX) * scale;
         const contact = nearestTrack(x, y);
-        const distance = contact.distance;
+        const localRoad=LPRCampus.roadAt?.(x,y) || LPRCampus.road;
+        const distance=localRoad.distance ?? contact.distance;
         const loop=trackDistances[POINTS];
         const ribAlong=contact.along*(Math.round(loop*p.metresPerWorldUnit/.45)*.45)/(loop*p.metresPerWorldUnit);
         heights.push((window.LPRTrackObjects?.terrain?.heightAt(x,y)||0)*p.metresPerWorldUnit+
-          dynamics.kerbHeight(distance,ribAlong,LPRCampus.road));
-        if (distance >= ROAD_HALF && distance <= KERB_OUTER) kerbTires++;
+          dynamics.kerbHeight(distance,ribAlong,localRoad));
+        if (distance >= localRoad.halfWidth && distance <= localRoad.kerbOuter && localRoad.kerbOuter>localRoad.halfWidth) kerbTires++;
         const blend = window.LPRTrackObjects?.onAsphalt(x,y) ? 0 :
-          Math.max(0, Math.min(1, (distance - KERB_OUTER) / (SHOULDER_OUTER - KERB_OUTER)));
+          Math.max(0, Math.min(1, (distance - localRoad.kerbOuter) / (localRoad.shoulderOuter - localRoad.kerbOuter)));
         total += blend * blend * (3 - 2 * blend);
       }
     }
@@ -940,6 +945,7 @@
     let crossedFinishLine = false;
     for (let i = 0; i < steps; i++) {
       car.grassFraction = grassContact(car);
+      if(LPRCampus.isPitLane?.(car.x,car.y))car.pitLapInvalid=true;
       const previous = { x:car.x, y:car.y, angle:car.angle };
       dynamics.step(car, input, dt / steps, car.grassFraction);
       const collision=window.LPRCampus.resolveObstacleCollision(car, previous, contact=>{
@@ -966,7 +972,13 @@
     car.offroad = car.grassFraction > .5;
     let completedLap = false;
     if (car.crashed) return;
-    if (!car.crashed && nearest.distance < ROAD_HALF && car.speed > 2.2) {
+    if(car.pitLapInvalid&&crossedFinishLine){
+      car.pitLapInvalid=false;car.lapTimingArmed=true;car.lapStart=now;car.stage=0;
+      timing.reset();startSectorPanel();crossedFinishLine=false;
+      showNotice(t('Varikkokierros päättyi. Uusi ajanottokierros alkoi.'),2500);
+    }
+    const localHalfWidth=LPRCampus.road.halfWidthAt?.(nearest.index) ?? ROAD_HALF;
+    if (!car.crashed && nearest.distance < localHalfWidth && car.speed > 2.2) {
       if (!car.lapTimingArmed && crossedFinishLine) {
         car.lapTimingArmed=true;
         car.lapStart=now;
@@ -976,15 +988,15 @@
         window.LPRAnalytics?.event('lap_start');
         if(!window.LPRVerifiedDriving) window.LPRLeaderboard?.startLap?.();
       }
-      else if (car.lapTimingArmed && car.stage === 0 && nearest.index > 55 && nearest.index < 85) {
+      else if (car.lapTimingArmed && car.stage === 0 && nearest.index*240/POINTS > 55 && nearest.index*240/POINTS < 85) {
         car.stage = 1;
         showSector(now - car.lapStart, lapProgress, now);
       }
-      else if (car.lapTimingArmed && car.stage === 1 && nearest.index > 115 && nearest.index < 145) {
+      else if (car.lapTimingArmed && car.stage === 1 && nearest.index*240/POINTS > 115 && nearest.index*240/POINTS < 145) {
         car.stage = 2;
         showSector(now - car.lapStart, lapProgress, now);
       }
-      else if (car.lapTimingArmed && car.stage === 2 && nearest.index > 175 && nearest.index < 205) car.stage = 3;
+      else if (car.lapTimingArmed && car.stage === 2 && nearest.index*240/POINTS > 175 && nearest.index*240/POINTS < 205) car.stage = 3;
       else if (car.lapTimingArmed && car.stage === 3 && crossedFinishLine) {
         const lapTime = now - car.lapStart;
         if (lapTime > 5000) {

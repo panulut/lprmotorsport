@@ -185,3 +185,5 @@ html.keyboard-active .keyboard-hint{display:flex}
 .topbar>#restart-button span{display:none!important}
 .topbar .language-selector{flex:0 0 44px;width:44px;height:44px;margin-left:0}
 .topbar .language-selector__menu{right:0;left:auto}
+
+.track-choice {display:flex;flex-wrap:wrap;gap:12px;padding:8px 0;font-size:12px}.track-choice a{color:inherit}

@@ -76,6 +76,10 @@ function createServer({production=false}={}) {
     if(!production && pathname==='/data/track-data.js') {
       try{response.writeHead(200,{'Content-Type':mime['.js'],'Cache-Control':'no-store'});return response.end(request.method==='HEAD'?undefined:dataScript(readDocument()));}catch(e){return reply(500,e.message);}
     }
+    if(!production&&pathname==='/monaco.html'){
+      response.writeHead(200,{'Content-Type':mime['.html'],'Cache-Control':'no-store'});
+      return response.end(request.method==='HEAD'?undefined:require('./scripts/monaco-page.cjs').monacoPage(fs.readFileSync(path.join(root,'index.html'),'utf8')));
+    }
     const name=pathname==='/'?'index.html':pathname.slice(1);
     if(!production){
       const stamp=fs.statSync(path.join(root,'scripts/build.cjs')).mtimeMs;
@@ -87,7 +91,7 @@ function createServer({production=false}={}) {
       }
     }
     const asset=/^assets\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(name)||/^assets\/fonts\/[a-zA-Z0-9_-]+\.(ttf|woff2)$/.test(name)||/^assets\/circle-flags-(fi|gb)\.svg$/.test(name)||name==='assets/phosphor-icons.svg';
-    if(!allowed.has(name)&&!asset&&!(production&&name==='data/track-data.js'))return reply(404,'Not found');
+    if(!allowed.has(name)&&!asset&&!(production&&['data/track-data.js','monaco.html'].includes(name)))return reply(404,'Not found');
     const file=path.join(base,name);
     if(!fs.existsSync(file)||!fs.statSync(file).isFile())return reply(404,'Not found');
     response.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'});
