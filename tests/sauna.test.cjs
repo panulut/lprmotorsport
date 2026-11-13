@@ -170,7 +170,21 @@ assert.equal(renderer.poolStop.y,1500);
 const frame=renderer.spectatorFrame,person=renderer.spectatorMeshes[0];
 assert(Math.abs(frame.stop[0]+frame.forwardX*person.forward+frame.rightX*person.side-3100)<1e-8);
 assert(Math.abs(frame.stop[2]+frame.forwardZ*person.forward+frame.rightZ*person.side-1400)<1e-8);
-for(const [buffer,data] of uploads) validateMesh(data,renderer.materialMeshes.some(mesh=>mesh.buffer===buffer) || [renderer.saunaArtwork,renderer.kerbMesh,renderer.roadPaintMesh].some(mesh=>mesh?.buffer===buffer) ? 8 : 6);
+const texturedMeshes=[...renderer.materialMeshes,renderer.gantryLogo,renderer.saunaArtwork,renderer.kerbMesh,renderer.roadPaintMesh];
+for(const [buffer,data] of uploads) validateMesh(data,texturedMeshes.some(mesh=>mesh?.buffer===buffer) ? 8 : 6);
+const gantryLogo=renderer.gantryLogo;
+assert.equal(gantryLogo.count,12,'The finish gantry carries a logo quad on each face');
+assert.equal(gantryLogo.ready,false);
+images.find(image=>image.src==='assets/lpr-logo-transparent.png').onload();
+assert.equal(gantryLogo.ready,true);
+const logo=uploads.get(gantryLogo.buffer);
+const {normalX,normalY}=context.window.LPRCampus.finishGate;
+for(const [offset,direction] of [[0,1],[48,-1]]) {
+  const across=(logo[offset+8]-logo[offset])*normalX+(logo[offset+10]-logo[offset+2])*normalY;
+  assert(across*direction>0,'The logo reads left to right from each direction');
+  assert.deepEqual(Array.from(logo.slice(offset+6,offset+8)),[0,0]);
+  assert.deepEqual(Array.from(logo.slice(offset+14,offset+16)),[1,0]);
+}
 assert(renderer.materialMeshes.every(mesh=>mesh.count>0),'Campus must contain brick, concrete, wood and glass surfaces');
 assert(renderer.saunaArtwork.count > 4000, 'Artwork follows both walls with perspective-correct subdivisions');
 const artwork = uploads.get(renderer.saunaArtwork.buffer);
@@ -218,15 +232,15 @@ const nodes = new Map();
 const documentEvents = {};
 const element = id => {
   if (!nodes.has(id)) nodes.set(id, {
-    tagName: 'DIV', classList: { add() {}, remove() {}, toggle() {} }, style: { setProperty() {} },
+    tagName: 'DIV', dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } }, style: { setProperty() {} },
     setAttribute() {}, addEventListener() {}, querySelector: element, clientWidth: 800
   });
   return nodes.get(id);
 };
 const gameContext = {
-  URLSearchParams,
+  URLSearchParams, CustomEvent,
   window: { LPRVehicleSpec: require('../shared/vehicle-spec.js'),  matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {}, screen: {}, location: {search:''} }, performance: { now: () => 1000 },
-  document: { querySelector: element, querySelectorAll: () => [], addEventListener(type, handler) { documentEvents[type] = handler; }, exitPointerLock() { this.pointerLockElement = null; } },
+  document: { querySelector: element, querySelectorAll: () => [], addEventListener(type, handler) { documentEvents[type] = handler; }, dispatchEvent() {}, exitPointerLock() { this.pointerLockElement = null; } },
   navigator: {}, localStorage: { getItem: () => null }, setTimeout() {}, clearTimeout() {},
   requestAnimationFrame() {}, ResizeObserver: class { observe() {} },
   LPRRenderer3D: class { constructor() { this.saunaStop = { x: 900, y: 650 }; } resize() {} updatePeople() {} },

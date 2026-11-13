@@ -467,17 +467,42 @@ window.LPRRenderer3D = class LPRRenderer3D {
         this.obstacleMeshes.push({body:tree.body,start:treeStart,end:data.length});
       }},window.LPRCampus.treeSeed);
     const gantryHalf = window.LPRCampus.gantryHalfWidth;
+    const beamColor = [.035,.045,.045];
     for (const side of [-1,1]) {
       const x = first.x + normals[0].x * gantryHalf * side;
       const z = first.y + normals[0].z * gantryHalf * side;
-      box(x,0,z,3,30,3,[.035,.17,.12]);
+      box(x,0,z,3,30,3,beamColor);
     }
-    const beamCenter = [first.x, first.y];
-    for (let i = -gantryHalf; i < gantryHalf; i += 4) {
-      const x = beamCenter[0] + normals[0].x * (i + 2);
-      const z = beamCenter[1] + normals[0].z * (i + 2);
-      box(x,26,z,4,5,4,i % 8 === 0 ? [.03,.68,.43] : [.03,.16,.13]);
+    const across = normals[0];
+    const beamPoint = (side, height, depth) => [first.x + across.x * side + across.z * depth,
+      height, first.y + across.z * side - across.x * depth];
+    const beamHalf = gantryHalf + 1.5;
+    const beamBottom = 26, beamTop = 35, beamDepth = 2, signHalf = 12;
+    const beamFace = (left,right,bottom,top,depth,color) => {
+      quad(beamPoint(left,bottom,depth),beamPoint(right,bottom,depth),
+        beamPoint(right,top,depth),beamPoint(left,top,depth),color);
+    };
+    const cellHeight = (beamTop-beamBottom)/3;
+    const cellWidth = (beamHalf-signHalf)/12;
+    for (const depth of [-beamDepth,beamDepth]) {
+      beamFace(-signHalf,signHalf,beamBottom,beamTop,depth,beamColor);
+      for (const start of [-beamHalf,signHalf]) {
+        for (let row = 0; row < 3; row++) for (let col = 0; col < 12; col++) {
+          beamFace(start+col*cellWidth,start+(col+1)*cellWidth,
+            beamBottom+row*cellHeight,beamBottom+(row+1)*cellHeight,depth,
+            (row+col)%2 ? [.96,.96,.96] : beamColor);
+        }
+      }
     }
+    for (const side of [-beamHalf,beamHalf]) {
+      quad(beamPoint(side,beamBottom,-beamDepth),beamPoint(side,beamBottom,beamDepth),
+        beamPoint(side,beamTop,beamDepth),beamPoint(side,beamTop,-beamDepth),beamColor);
+    }
+    for (const height of [beamBottom,beamTop]) {
+      quad(beamPoint(-beamHalf,height,-beamDepth),beamPoint(beamHalf,height,-beamDepth),
+        beamPoint(beamHalf,height,beamDepth),beamPoint(-beamHalf,height,beamDepth),beamColor);
+    }
+    this.makeGantryLogo(beamPoint,(beamBottom+beamTop)/2,signHalf-1,beamDepth+.02);
 
     // Tervahaudanpuisto: the truck, tub and their crowd share this world frame.
     const saunaMeshStart=data.length;
@@ -1310,6 +1335,29 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.uniform1i(this.locations.material,0);
   }
 
+  makeGantryLogo(point, centerHeight, halfWidth, depth) {
+    if(typeof Image==='undefined') return;
+    const gl=this.gl;
+    const halfHeight=halfWidth*309/800;
+    const vertices=[];
+    for(const direction of [-1,1]) {
+      // Flip the horizontal coordinates on the back so both faces read left to right.
+      const left=halfWidth*direction,right=-left;
+      const face=direction*depth;
+      const corners=[point(left,centerHeight+halfHeight,face),point(right,centerHeight+halfHeight,face),
+        point(right,centerHeight-halfHeight,face),point(left,centerHeight-halfHeight,face)];
+      const uv=[[0,0],[1,0],[1,1],[0,1]];
+      for(const i of [0,1,2,0,2,3]) vertices.push(...corners[i],1,1,1,...uv[i]);
+    }
+    const surface=window.LPRTrackObjects?.terrain?.mesh(vertices,8,false)||vertices;
+    const mesh={buffer:gl.createBuffer(),texture:gl.createTexture(),count:surface.length/8,
+      spatial:this.makeSpatialMesh(surface,8),ready:false};
+    this.gantryLogo=mesh;
+    gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(surface),gl.STATIC_DRAW);
+    this.loadArtworkTexture(mesh,'assets/lpr-logo-transparent.png');
+  }
+
   makeSaunaArtwork(point) {
     if(typeof Image==='undefined') return;
     const gl=this.gl;let vertices=[];
@@ -1336,6 +1384,11 @@ window.LPRRenderer3D = class LPRRenderer3D {
     this.saunaArtwork=mesh;
     gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+    this.loadArtworkTexture(mesh,'assets/sauna-reference.jpg');
+  }
+
+  loadArtworkTexture(mesh, src) {
+    const gl=this.gl;
     const image=new Image();
     image.onload=()=>{
       gl.bindTexture(gl.TEXTURE_2D,mesh.texture);
@@ -1347,7 +1400,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
       mesh.ready=true;
     };
-    image.src='assets/sauna-reference.jpg';
+    image.src=src;
   }
 
   makeSaleFacade(faces) {
@@ -2192,6 +2245,7 @@ window.LPRRenderer3D = class LPRRenderer3D {
     this.bindMesh(this.buffer);
     this.drawSpatialMesh(this.worldSpatial,this.vertexCount);
     this.drawCampusMaterials();
+    if(this.gantryLogo?.ready) this.drawKerbs(this.gantryLogo,6);
     if(this.saunaArtwork?.ready) this.drawKerbs(this.saunaArtwork);
     this.drawKerbs();
     this.drawRoadPaint();
