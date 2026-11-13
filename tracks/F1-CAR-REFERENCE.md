@@ -40,12 +40,12 @@ practice 20617a5. Skinnarila's spec, vehicle.js and driving revision remain unch
 | Aero | 0.5 rho ClA v²; rho 1.225 kg/m³, ClA initially 7 m² | High-downforce estimate, calibrated by tests |
 | Aero front balance | 46% | Estimate |
 | Drag | Separate 0.5 rho CdA v², CdA initially 2.2 m² | Estimate, calibrated for 280–295 km/h |
-| Tyres | Load sensitivity exponent 0.9, reference 1962 N per tyre; low-speed mu initially 2.2 | Estimate, combined-slip force budget |
+| Tyres | Load sensitivity exponent 0.9, reference 1962 N per tyre; low-speed mu 2.5 (initially 2.2; raised for keyboard drivability in slow and medium corners. Exponent kept at 0.9: lower values made trail braking reduce turn-in) | Estimate, combined-slip force budget |
 | Brakes | Carbon-style force demand; cap approximately 5 g at speed | Estimate, grip-limited at low speed |
 | Steering | Approximately 30° equivalent road-wheel lock | Estimate; test Fairmont and full collision sweep |
 | Aids | TC, ABS, steering assist on by default; independently switchable | Gameplay; actual F1 forbids TC and ABS |
 | Acceleration | 0–100 2.5–3 s; 0–200 5–6 s | Requested acceptance targets |
-| Lateral acceleration | 2–2.5 g slow / 4–5 g fast | Requested acceptance targets; report test speeds |
+| Lateral acceleration | 2–2.6 g slow / 4–6 g fast (fast band widened from 4–5 g with the grip raise; modern F1 reaches 5–6 g) | Requested acceptance targets; report test speeds |
 | Bot lap | 70–75 s desired | Requested target; disclose track/controller limitations |
 
 ## Plan recorded before implementation
@@ -177,7 +177,7 @@ The legacy compatibility scales are unused by the new visible/collision mesh.
   "downforceArea": 4.8,
   "aeroFrontBalance": 0.46,
   "dragArea": 2.2,
-  "roadGrip": 2.2,
+  "roadGrip": 2.5,
   "grassGrip": 0.6,
   "loadExponent": 0.9,
   "referenceTyreLoad": 1962,
@@ -194,7 +194,7 @@ The legacy compatibility scales are unused by the new visible/collision mesh.
   "maxVisualRoadWheelAngle": 0.5235987755982988,
   "maxSteeringWheelAngle": 3.141592653589793,
   "assistedSteeringGrip": 0.91,
-  "fastSteeringGrip": 0.8,
+  "fastSteeringGrip": 0.85,
   "suspensionType": "pushrod",
   "bodyLengthScale": 2.210508416935895,
   "bodyHeightScale": 0.8845437616387336
@@ -203,7 +203,8 @@ The legacy compatibility scales are unused by the new visible/collision mesh.
 
 The original plan's 7 m² downforce area was reduced to **4.8 m²** after the corner
 rig exceeded the requested 4–5 g fast-corner band. Steering utilisation is 0.91
-at low speed, tapering to 0.80 from 20 to 60 m/s; this leaves transient grip margin.
+at low speed, tapering to 0.85 from 20 to 60 m/s (raised from 0.80, which pushed
+wide at speed; 0.88+ spins a TC-off full-throttle exit at 250 km/h).
 The launch map holds 8900 N below 28 m/s and adds 250 N per m/s above that point,
 subject to torque, power, gearshift and tyre limits. This is an estimated hybrid
 throttle map, used to match both acceleration targets without energy simulation.

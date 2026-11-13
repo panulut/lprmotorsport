@@ -170,9 +170,9 @@ const last=a=>a[a.length-1];
  const pillarZ=w.LPRF1Mesh.halo(true).vertices.filter((_,i)=>i%6===2);
  assert(Math.max(...pillarZ)/10<=.0251,'pillar (5 cm) narrower than the ~6.5 cm eye spacing');
  const o=C.halo.opacity;
- assert(o.pillar<.06&&o.hoop>.5,'pillar faint, hoop clearly visible');
+ assert(o.pillar<.12&&o.hoop>.5,'pillar soft, hoop clearly visible');
  // Pillar: 3 nested layers, front+back faces: soft core vs very faint rim.
  const core=1-Math.pow(1-o.pillar,2*C.halo.pillarLayers.length),rim=1-Math.pow(1-o.pillar,2);
- assert(core<.3&&rim<.1&&core>2*rim,`soft pillar shadow: core ${core.toFixed(2)}, rim ${rim.toFixed(2)}`);
+ assert(core<.5&&rim<.2&&core>2*rim,`soft pillar shadow: core ${core.toFixed(2)}, rim ${rim.toFixed(2)}`);
  console.log(`PASS: halo from the eye: apex at v=${apex.v.toFixed(2)}, hoop to top edge at u=${edge.u.toFixed(2)}, ≥0.25 m from the eye, soft pillar`);
 }

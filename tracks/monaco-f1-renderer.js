@@ -32,11 +32,17 @@
   }};
   return {vertices,normals,tri,quad,box,rod,loft};
  }
+ // Main tub/nose sections: [x, half-width, bottom, top] in metres.
+ const TUB=[[-2.3,.20,.16,.45],[-1.1,.36,.14,.64],[.55,.30,.14,.49],[2.35,.10,.22,.32]];
+ function tubAt(x){
+  const found=TUB.findIndex(r=>r[0]>=x),i=found<0?TUB.length-1:Math.max(1,found),a=TUB[i-1],b=TUB[i],t=b===a?0:Math.max(0,Math.min(1,(x-a[0])/(b[0]-a[0])));
+  return [1,2,3].map(j=>a[j]+(b[j]-a[j])*t);
+ }
  function body(){
   const b=builder(),{box,rod,loft}=b;
   box(-2.4,1.65,.07,.12,-.85,.85,carbon);
   // Sculpted tub, tapered nose, sidepods with black cooling inlets.
-  loft([[-2.3,.20,.16,.45],[-1.1,.36,.14,.64],[.55,.30,.14,.49],[2.35,.10,.22,.32]],paint);
+  loft(TUB,paint);
   for(const side of [-1,1]){
    loft([[-1.95,.10,.15,.30],[-1.4,.20,.12,.46],[.20,.23,.15,.54],[.65,.12,.20,.44]].map(([x,w,y,h])=>[x,w,y,h]),carbon);
    const z0=side>0?.32:-.80,z1=side>0?.80:-.32;
@@ -45,12 +51,21 @@
    box(-1.85,-.7,.445,.455,side>0?.37:-.76,side>0?.76:-.37,carbon);
    // Pinstripe along the sidepod shoulder.
    box(-1.6,.38,.44,.448,side>0?.765:-.80,side>0?.80:-.765,green);
-   // Front/rear pushrods and double wishbones, outside the narrow nose.
-   for(const axle of [p.frontAxle,-p.rearAxle])for(const h of [.20,.43]){
-    rod([axle-.38,h,side*.25],[axle,.3525,side*p.trackWidth/2],.015,steel);
-    rod([axle+.26,h,side*.25],[axle,.3525,side*p.trackWidth/2],.015,carbon);
+   // Double wishbones, upright and pushrod. Inboard pickups sit just inside
+   // the tub surface at their own x, so every arm visibly enters the body;
+   // outboard ends meet a short upright inside the rim instead of one point.
+   for(const front of [true,false]){
+    const axle=front?p.frontAxle:-p.rearAxle,tyre=front?p.frontTyreWidth:p.rearTyreWidth;
+    const hub=p.tyreDiameter/2,uz=side*(p.trackWidth/2-tyre*.25),low=[axle,hub-.15,uz],high=[axle,hub+.13,uz];
+    const pickup=(x,upper,inset=.02)=>{const [half,bottom,top]=tubAt(x);return [x,upper?top-.04:bottom+.04,side*(half-inset)];};
+    for(const dx of [-.38,.26]){
+     rod(pickup(axle+dx,false),low,.014,carbon);
+     rod(pickup(axle+dx,true),high,.014,carbon);
+    }
+    rod(low,high,.028,steel);
+    // Pushrod from the lower outboard joint up to a rocker on the tub shoulder.
+    rod([axle,low[1]+.02,side*(Math.abs(uz)-.04)],pickup(axle+(front?-.30:.30),true,.03),.016,steel);
    }
-   rod([p.frontAxle-.35,.5,side*.22],[p.frontAxle,.3525,side*.70],.018,carbon);
   }
   // Front wing: two separate elements and compact endplates.
   for(const [x,y] of [[2.37,.13],[2.16,.23]])box(x-.21,x+.21,y,y+.035,-.95,.95,carbon);
@@ -66,7 +81,16 @@
   box(-.98,-.94,.73,.84,-.085,.085,dark);
   // Cockpit opening, side bolsters and a continuous halo arch with centre strut.
   box(-.85,.28,.55,.57,-.22,.22,dark);
-  for(const z of [-.29,.29])rod([-.95,.59,z],[.35,.60,z],.035,carbon);
+  // Cockpit rim: the tub's own top edge, body-coloured and flush with the tub
+  // (no free-standing bars), falling toward the front; padded dark inner wall.
+  {
+   const top=x=>tubAt(x)[2]+.012,outer=x=>tubAt(x)[0]+.004,xs=[-.95,-.65,-.3,0,.3],inner=.225,drop=.02;
+   for(const side of [-1,1])for(let i=1;i<xs.length;i++){
+    const a=xs[i-1],c=xs[i];
+    b.quad([a,top(a)-drop,side*inner],[c,top(c)-drop,side*inner],[c,top(c),side*outer(c)],[a,top(a),side*outer(a)],paint);
+    b.quad([a,.50,side*inner],[c,.50,side*inner],[c,top(c)-drop,side*inner],[a,top(a)-drop,side*inner],dark);
+   }
+  }
   // The halo tubes around the head are separate, ghosted meshes (halo()).
   for(const side of [-1,1])rod([-.9,.58,side*.31],[-.9,.80,side*.31],.03,carbon);
   // Two small mirrors and LPR-colour identification stripes; no sponsor marks.
@@ -128,7 +152,8 @@
   }
   return b;
  }
- const HALO_OPACITY={pillar:.03,hoop:.62};
+ // Pillar opacity: a soft but clearly present strut (core ~40 %, rim ~15 %).
+ const HALO_OPACITY={pillar:.08,hoop:.62};
  function wheel(front){
   const b=builder(),width=front?p.frontTyreWidth:p.rearTyreWidth,r=p.tyreDiameter/2,rim=p.rimDiameter/2;
   // Axial silhouette: rounded shoulders, broad slick tread and recessed rims.

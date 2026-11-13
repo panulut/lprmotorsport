@@ -13,7 +13,7 @@
       this.aids={tc:true,abs:true,steering:true,...root.LPRF1Aids?.value};
     }
     reset(s){super.reset(s);s.gear=1;s.engineRpm=spec.idleRpm;s.shiftRemaining=0;s.absActive=false;s.downforce=0;s.frontAeroLoad=0;s.rearAeroLoad=0;s.f1=true;s.tcEnabled=this.aids?.tc??true;
-      s.steerHold=0;s.rearSlip=0;s.frontLocked=false;s.rearLocked=false;
+      s.steerHold=0;s.rearSlip=0;s.bodyPitch=0;s.bodyPitchRate=0;s.bodyRoll=0;s.bodyRollRate=0;s.frontLocked=false;s.rearLocked=false;
       s.roadLoadScale=1;s.roadVerticalAcceleration=0;s.roadFilteredSlope=null;s.roadLoadHeights=null;s.roadContactLoads=[0,0,0,0];
     }
     // Update road history exactly once per physics tick. Presentation and bot
@@ -53,9 +53,19 @@
         b.wheels[i].road=h[i];b.wheels[i].z=h[i];b.wheels[i].travel=0;
       }
       b.heave=((h[0]+h[1])*p.rearAxle+(h[2]+h[3])*p.frontAxle)/(2*p.wheelbase);
-      b.pitch=((h[0]+h[1]-h[2]-h[3])/2)/p.wheelbase-(s.longitudinalG||0)*p.displayPitchPerG;
-      b.roll=(h[1]+h[3]-h[0]-h[2])/(2*p.trackWidth)+(s.lateralG||0)*p.displayRollPerG;
+      // Terrain attitude plus the sprung body's own pitch (nose down under braking)
+      // and roll (outward in a corner), integrated once per tick in stepBody.
+      b.pitch=((h[0]+h[1]-h[2]-h[3])/2)/p.wheelbase+(s.bodyPitch||0);
+      b.roll=(h[1]+h[3]-h[0]-h[2])/(2*p.trackWidth)+(s.bodyRoll||0);
       s.downforce=aero;s.frontAeroLoad=aero*p.aeroFrontBalance;s.rearAeroLoad=aero*(1-p.aeroFrontBalance);
+    }
+    // Second-order spring-damper toward the g-load attitude (semi-implicit
+    // Euler, stable at the 120 Hz cadence), so the body has inertia and settles.
+    stepBody(s,dt){
+      const p=this.parameters,w=2*Math.PI*p.bodyMotionHz,z=p.bodyMotionDamping;
+      for(const [k,r,target] of [['bodyPitch','bodyPitchRate',(s.longitudinalG||0)*p.bodyPitchPerG],['bodyRoll','bodyRollRate',(s.lateralG||0)*p.bodyRollPerG]]){
+        s[r]+=(w*w*(target-s[k])-2*z*w*s[r])*dt;s[k]+=s[r]*dt;
+      }
     }
     capacities(s,grass=0){
       const p=this.parameters,mu=p.roadGrip+(p.grassGrip-p.roadGrip)*clamp(grass,0,1);
@@ -76,7 +86,7 @@
       const steer=clamp(input.steer||0,-1,1),reversing=steer*s.steer<0,centering=steer===0||reversing;
       s.steerHold=input.analog||centering?0:Math.min(p.keyboardHoldMax,(s.steerHold||0)+dt);
       const speedBlend=clamp(speed/p.keyboardSpeedRange,0,1);
-      const rate=input.analog?p.analogSteerRate:centering?p.keyboardReturnRate:
+      const rate=input.analog?p.analogSteerRate:centering?p.keyboardSlowReturnRate+(p.keyboardFastReturnRate-p.keyboardSlowReturnRate)*speedBlend:
         (p.keyboardSlowRate+(p.keyboardFastRate-p.keyboardSlowRate)*speedBlend)*Math.min(1,p.keyboardInitialRate+s.steerHold/p.keyboardHoldRampSeconds);
       s.steer+=clamp((!input.analog&&reversing?0:steer)-s.steer,-rate*dt,rate*dt);
       const linear=p.keyboardSlowLinear+(p.keyboardFastLinear-p.keyboardSlowLinear)*speedBlend;
@@ -91,7 +101,10 @@
       // Neither yaw feedback nor key release can request opposite lock. The
       // physical rack may unwind only toward zero until the key changes sign.
       target=demand>0?clamp(target,0,p.maxRoadWheelAngle):demand<0?clamp(target,-p.maxRoadWheelAngle,0):0;
+      if(centering&&!input.analog)target=clamp(target,Math.min(0,s.steerAngle),Math.max(0,s.steerAngle));
       s.steerAngle+=clamp((target-s.steerAngle)*(1-Math.exp(-p.rackResponse*dt)),-p.rackRate*dt,p.rackRate*dt);
+      // The exponential rack never quite reaches zero; snap a microradian residue.
+      if(target===0&&Math.abs(s.steerAngle)<1e-6)s.steerAngle=0;
       const rpmFor=gear=>speed/(p.tyreDiameter/2)*p.finalDriveRatio*p.gearRatios[gear-1]*p.secondsPerMinute/(2*Math.PI);
       s.shiftRemaining=Math.max(0,s.shiftRemaining-dt);
       if(!s.shiftRemaining&&s.gear<p.gearRatios.length&&rpmFor(s.gear)>p.shiftRpm){s.gear++;s.shiftRemaining=p.shiftSeconds;}
@@ -144,7 +157,7 @@
       s.angle+=s.yawRate*dt;const ca=Math.cos(s.angle),sa=Math.sin(s.angle);
       s.x+=(s.vx*ca-s.vy*sa)*dt/p.metresPerWorldUnit;s.y+=(s.vx*sa+s.vy*ca)*dt/p.metresPerWorldUnit;
       s.speed=Math.hypot(s.vx,s.vy);s.bodySlip=Math.atan2(s.vy,Math.max(s.vx,p.bodySlipSpeedFloor));
-      this.stepSuspension(s,dt);
+      this.stepBody(s,dt);this.stepSuspension(s,dt);
     }
   };
 })(window);

@@ -25,11 +25,11 @@
     // Fixed Monaco aero; drag is independent of downforce.
     airDensity:1.225,downforceArea:4.8,aeroFrontBalance:.46,dragArea:2.2,
     // Wider rears give mild limit understeer; load sensitivity is sublinear.
-    roadGrip:2.2,grassGrip:.60,loadExponent:.90,referenceTyreLoad:1962,rearGripScale:1.12,
+    roadGrip:2.5,grassGrip:.60,loadExponent:.90,referenceTyreLoad:1962,rearGripScale:1.12,
     stiffnessLoadExponent:.75,
     // Front-biased locking without ABS; EBD preserves rear trail-braking grip.
     peakBrakeForce:50000,maxBrakeG:5,brakeBias:.62,lockedGrip:.65,lockedLateralGrip:.25,
-    absRearUse:.8,absRearFloor:.3,absActiveThreshold:.01,
+    absRearUse:.7,absRearFloor:.15,absActiveThreshold:.01,
     // Lift-off deceleration loads the front gently; grass adds rolling drag.
     rollingResistance:95,grassRollingGain:2,coastBrakeForce:500,coastFadeSpeed:4,
     // Progressive combined-slip rear breakaway, not an instantaneous grip switch.
@@ -38,19 +38,28 @@
     // Axle tyre stiffness and yaw inertia. Stiffness follows each axle's load.
     yawInertia:1150,frontCorneringStiffness:190000,rearCorneringStiffness:220000,
     maxRoadWheelAngle:30*Math.PI/180,maxVisualRoadWheelAngle:30*Math.PI/180,
-    // Keyboard: fast hairpin lock, fine high-speed taps, monotone unwind.
-    keyboardSpeedRange:60,keyboardSlowRate:6.5,keyboardFastRate:2.4,
-    keyboardInitialRate:.24,keyboardHoldRampSeconds:.16,keyboardHoldMax:1,
-    keyboardReturnRate:5.5,keyboardSlowLinear:.38,keyboardFastLinear:.26,
+    // Keyboard: lock builds with hold time (a short 0.16 s soft start keeps taps
+    // small, no response curve), so a held key doses the corner; ~0.25 s to full
+    // lock in a hairpin, ~0.3 s at speed (0.5 s lagged turn-in and invited
+    // over-holding, then over-correcting). Monotone unwind.
+    keyboardSpeedRange:60,keyboardSlowRate:5,keyboardFastRate:3.5,
+    keyboardInitialRate:.3,keyboardHoldRampSeconds:.16,keyboardHoldMax:1,
+    // Release unwinds like hands letting the wheel run back, not a spring snap:
+    // ~0.2 s from full lock in a hairpin, ~0.55 s at speed, so a released key
+    // keeps the car rotating briefly instead of flicking it straight.
+    keyboardSlowReturnRate:5,keyboardFastReturnRate:1.8,keyboardSlowLinear:1,keyboardFastLinear:1,
     analogSteerRate:12,rackResponse:22,rackRate:3.5,
     // Assist requests achievable yaw; feedback may not reverse the driver's sign.
-    maxSteeringWheelAngle:180*Math.PI/180,assistedSteeringGrip:.91,fastSteeringGrip:.80,
+    maxSteeringWheelAngle:180*Math.PI/180,assistedSteeringGrip:.91,fastSteeringGrip:.85,
     assistFadeStart:20,assistFadeRange:40,assistSpeedFloor:1.5,assistYawFeedback:.16,bodySlipSpeedFloor:.5,
     // Road-load approximation: filtered grade curvature plus individual contact
     // velocity. Bounds keep crests/kerbs modest; history advances once per step.
     roadSlopeResponseSeconds:.08,roadLoadResponseSeconds:.07,
     roadVerticalAccelerationLimit:1.3,roadContactDamping:650,roadContactLoadFraction:.06,
-    displayPitchPerG:.001,displayRollPerG:.001,
+    // Sprung-body presentation: a stiff F1 still pitches ~1.3° at 5 g braking and
+    // rolls ~1.4° at 4 g, through a lightly underdamped ~2.2 Hz spring with inertia.
+    // Visual only: tyre loads remain the quasi-static transfer above.
+    bodyPitchPerG:.0045,bodyRollPerG:.006,bodyMotionHz:2.2,bodyMotionDamping:.5,
     // Legacy presentation compatibility; F1 meshes use actual SI dimensions.
     suspensionType:'pushrod',bodyLengthScale:5.2/2.9*29/(14.1-.16*1.35+9.64),bodyHeightScale:.95/1.074,
     visualRoadWheelAngle(angle){return angle;},
