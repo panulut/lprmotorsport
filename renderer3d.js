@@ -1,4 +1,7 @@
 const rendererText = text => window.LPRI18n?.t(text) ?? text;
+const studentMirrorOutline = [[-.82,-1],[.82,-1],[1,-.62],[1,.62],
+  [.82,1],[-.82,1],[-1,.62],[-1,-.62]];
+const mirrorTextureWidth = 192, mirrorTextureHeight = 80;
 /* Small dependency-free WebGL renderer for the driver view. World X/Y become 3D X/Z. */
 window.LPRRenderer3D = class LPRRenderer3D {
   constructor(canvas, cockpitCanvas, track) {
@@ -1783,15 +1786,17 @@ window.LPRRenderer3D = class LPRRenderer3D {
     if (this.lastWheelFrame) this.wheelPhase += Math.min((now-this.lastWheelFrame)/1000,.05) * (car.vx || 0) / (spec.tyreDiameter/2);
     this.lastWheelFrame = now;
 
-    const rod = (a,b,width,color) => {
+    const rod = (a,b,width,color,referenceAxis) => {
       const axis=b.map((value,i)=>value-a[i]),length=Math.hypot(...axis)||1;
       const direction=axis.map(value=>value/length);
-      const reference=Math.abs(direction[1])>.95?[1,0,0]:[0,1,0];
+      const reference=referenceAxis ?? (Math.abs(direction[1])>.95?[1,0,0]:[0,1,0]);
       const perpendicular=[direction[1]*reference[2]-direction[2]*reference[1],
         direction[2]*reference[0]-direction[0]*reference[2],direction[0]*reference[1]-direction[1]*reference[0]];
       const span=Math.hypot(...perpendicular)||1;
       const u=perpendicular.map(value=>value/span);
-      const v=[direction[1]*u[2],direction[2]*u[0]-direction[0]*u[2],-direction[1]*u[0]];
+      const v=referenceAxis
+        ? [direction[1]*u[2]-direction[2]*u[1],direction[2]*u[0]-direction[0]*u[2],direction[0]*u[1]-direction[1]*u[0]]
+        : [direction[1]*u[2],direction[2]*u[0]-direction[0]*u[2],-direction[1]*u[0]];
       const normal=angle=>u.map((value,i)=>value*Math.cos(angle)+v[i]*Math.sin(angle));
       const point=(origin,n)=>origin.map((value,i)=>value+n[i]*width);
       for(let segment=0;segment<8;segment++) {
@@ -1799,17 +1804,15 @@ window.LPRRenderer3D = class LPRRenderer3D {
         quad(point(a,n),point(b,n),point(b,next),point(a,next),color,[n,n,next,next]);
       }
     };
+    const chassisOrigin=this.chassisOrigin(car,pose);
     const bodyPoint=(forward,side,height)=> {
       forward*=spec.bodyLengthScale;height*=spec.bodyHeightScale;
       // Crumple the nose and bend the suspension toward the struck side.
       const crush=Math.max(0,forward-2)*damage;
       const damagedForward=forward-crush*.55;
       const damagedSide=side+(car.impactSide || .3)*crush*.25;
-      return [
-        car.x+pose.forward[0]*damagedForward+pose.right[0]*damagedSide+pose.up[0]*(height-crush*.12-(pose.centreHeight || 0)),
-        (pose.heave || 0)+(pose.centreHeight || 0)+pose.forward[1]*damagedForward+pose.right[1]*damagedSide+pose.up[1]*(height-crush*.12-(pose.centreHeight || 0)),
-        car.y+pose.forward[2]*damagedForward+pose.right[2]*damagedSide+pose.up[2]*(height-crush*.12-(pose.centreHeight || 0))
-      ];
+      return chassisOrigin.map((origin,i)=>origin+pose.forward[i]*damagedForward
+        +pose.right[i]*damagedSide+pose.up[i]*(height-crush*.12));
     };
 
     const bodyBlack = [.055,.075,.065];
@@ -1927,6 +1930,24 @@ window.LPRRenderer3D = class LPRRenderer3D {
       }
       quad(bodyPoint(-9.4,-2.7,.85),bodyPoint(-9.4,-2.7,4),
         bodyPoint(-9.4,2.7,4),bodyPoint(-9.4,2.7,.85),cockpitBlack);
+      const {x,y,offset,halfWidth,halfHeight,outline}=this.mirrorGeometry();
+      const [mountForward,mountWidth,mountHeight]=sections.find(([forward])=>forward>=x/spec.bodyLengthScale);
+      for(const side of [-1,1]) {
+        const mirrorPoint=(depth,width,height,u,v)=>bodyPoint(depth/spec.bodyLengthScale,
+          side*(offset+u*halfWidth*width),(y+v*halfHeight*height)/spec.bodyHeightScale);
+        const bezel=outline.map(([u,v])=>mirrorPoint(x,1.13,1.22,u,v));
+        const shell=outline.map(([u,v])=>mirrorPoint(x+.85,.85,.92,u,v));
+        rod(surfacePoint(mountForward,mountWidth,mountHeight,side*.96),
+          mirrorPoint(x+.45,1,1,-.48,-.95),.12,bodyBlack,pose.forward);
+        for(let i=0;i<outline.length;i++) {
+          const next=(i+1)%outline.length;
+          quad(bezel[i],bezel[next],shell[next],shell[i],teamGreen);
+        }
+        for(let i=1;i<outline.length-1;i++) {
+          triangle(bezel[0],bezel[i],bezel[i+1],cockpitBlack);
+          triangle(shell[0],shell[i+1],shell[i],bodyBlack);
+        }
+      }
       // Low side fairings sit inside the tyres and below the cockpit rim.
       for(const side of [-1,1]) {
         quad(bodyPoint(-7.8,side*3.1,2.2),bodyPoint(-7.8,side*5.1,1.7),
@@ -2211,7 +2232,6 @@ window.LPRRenderer3D = class LPRRenderer3D {
     if (car.sale) { this.renderSale(car); return; }
     if (car.pool) { this.renderPool(car, now); return; }
     if (car.sauna) { this.renderSauna(car, now); return; }
-    const gl = this.gl;
     // Camera and body share one rigid pose; the horizon moves, not the nose
     // against the steering wheel. Wheel travel remains visible beside the body.
     const pose=this.vehiclePose=this.updateSuspension(car,now);
@@ -2221,18 +2241,124 @@ window.LPRRenderer3D = class LPRRenderer3D {
     const right = pose.right;
     const up = pose.up.map((value,i)=>value*Math.cos(pitch)+pose.forward[i]*Math.sin(pitch));
     const forward=pose.forward.map((value,i)=>value*Math.cos(pitch)-pose.up[i]*Math.sin(pitch));
+    const verticalFov = this.width < 650 ? 84 : 72;
+    const focal=1 / Math.tan(verticalFov * Math.PI / 360);
+    this.renderMirrors(car,pose);
+    this.drawTrackView({camera,forward,right,up,focal,aspect:this.width/this.height});
+    this.drawSpectators(car,now);
+    this.drawImpactDamage();
+    this.drawWheels(car,now);
+    this.drawMirrorGlass(car,pose);
+    this.drawCockpit(car);
+  }
+
+  mirrorGeometry() {
+    return {x:1.95,y:4.75,offset:3.4,halfWidth:.76,halfHeight:.32,outline:studentMirrorOutline};
+  }
+
+  chassisOrigin(car,pose) {
+    const centreHeight=pose.centreHeight || 0;
+    return [car.x,(pose.heave || 0)+centreHeight,car.y]
+      .map((origin,i)=>origin-pose.up[i]*centreHeight);
+  }
+
+  makeMirror(side) {
+    const gl=this.gl,texture=gl.createTexture(),framebuffer=gl.createFramebuffer(),depth=gl.createRenderbuffer();
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,mirrorTextureWidth,mirrorTextureHeight,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
+    gl.bindRenderbuffer(gl.RENDERBUFFER,depth);
+    gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,mirrorTextureWidth,mirrorTextureHeight);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
+    const ready=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+    if(!ready){
+      gl.deleteFramebuffer(framebuffer);gl.deleteRenderbuffer(depth);gl.deleteTexture(texture);
+      return null;
+    }
+    const {x,y,offset,halfWidth,halfHeight,outline}=this.mirrorGeometry();
+    const vertices=[],center=[x-.01,y,side*offset,1,1,1,.5,.5];
+    const glass=outline.map(([u,v])=>[
+      center[0],center[1]+halfHeight*v,center[2]+halfWidth*u*side,
+      1,1,1,(1+u*side)/2,(1+v)/2
+    ]);
+    for(let i=0;i<glass.length;i++)vertices.push(...center,...glass[i],...glass[(i+1)%glass.length]);
+    const buffer=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+    return {side,framebuffer,texture,buffer,count:vertices.length/8};
+  }
+  renderMirrors(car,pose) {
+    const gl=this.gl;
+    this.mirrors??=[-1,1].map(side=>this.makeMirror(side)).filter(Boolean);
+    if(!this.mirrors.length)return;
+    const {x,y,offset}=this.mirrorGeometry();
+    const origin=this.chassisOrigin(car,pose);
+    const aspect=mirrorTextureWidth/mirrorTextureHeight;
+    try{
+      for(const {side,framebuffer} of this.mirrors){
+        const yaw=.13*side,c=Math.cos(yaw),s=Math.sin(yaw),pitch=.07;
+        const rear=pose.forward.map((value,i)=>-c*value+s*pose.right[i]);
+        const right=pose.right.map((value,i)=>-c*value-s*pose.forward[i]);
+        const forward=rear.map((value,i)=>value*Math.cos(pitch)-pose.up[i]*Math.sin(pitch));
+        const up=pose.up.map((value,i)=>value*Math.cos(pitch)+rear[i]*Math.sin(pitch));
+        const camera=origin.map((value,i)=>
+          value+pose.forward[i]*x+pose.up[i]*y+pose.right[i]*offset*side);
+        gl.bindTexture(gl.TEXTURE_2D,null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
+        gl.viewport(0,0,mirrorTextureWidth,mirrorTextureHeight);
+        this.drawTrackView({camera,forward,right,up,focal:2.15,aspect});
+      }
+    }finally{
+      gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+      gl.viewport(0,0,this.canvas.width,this.canvas.height);
+    }
+  }
+  drawMirrorGlass(car,pose) {
+    if(!this.mirrors?.length)return;
+    const gl=this.gl;
+    gl.uniform1i(this.locations.meshTransform,1);
+    gl.uniform3f(this.locations.meshOrigin,...this.chassisOrigin(car,pose));
+    gl.uniform3f(this.locations.meshForward,...pose.forward);
+    gl.uniform3f(this.locations.meshUp,...pose.up);
+    gl.uniform3f(this.locations.meshRight,...pose.right);
+    gl.uniform1f(this.locations.meshFloor,-100000);
+    for(const {buffer,texture,count} of this.mirrors){
+      this.bindMesh(buffer);
+      gl.vertexAttribPointer(this.locations.position,3,gl.FLOAT,false,32,0);
+      gl.vertexAttribPointer(this.locations.color,3,gl.FLOAT,false,32,12);
+      gl.enableVertexAttribArray(this.locations.uv);
+      gl.vertexAttribPointer(this.locations.uv,2,gl.FLOAT,false,32,24);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D,texture);
+      gl.uniform1i(this.locations.texture,0);
+      gl.uniform1i(this.locations.textured,1);
+      gl.uniform1i(this.locations.material,7);
+      gl.drawArrays(gl.TRIANGLES,0,count);
+    }
+    gl.uniform1i(this.locations.textured,0);
+    gl.uniform1i(this.locations.material,0);
+    gl.uniform1i(this.locations.meshTransform,0);
+  }
+
+  drawTrackView({camera,forward,right,up,focal,aspect}) {
+    const gl=this.gl;
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program);
     this.bindMesh(this.buffer);
     gl.uniform3f(this.locations.camera,...camera);
     gl.uniform3f(this.locations.forward,...forward);
-    gl.uniform3f(this.locations.right,right[0],right[1],right[2]);
-    gl.uniform3f(this.locations.up,up[0],up[1],up[2]);
-    gl.uniform1f(this.locations.aspect,this.width / this.height);
-    const verticalFov = this.width < 650 ? 84 : 72;
-    const focal=1 / Math.tan(verticalFov * Math.PI / 360);
+    gl.uniform3f(this.locations.right,...right);
+    gl.uniform3f(this.locations.up,...up);
+    gl.uniform1f(this.locations.aspect,aspect);
     gl.uniform1f(this.locations.focal,focal);
-    this.viewFrustum=this.makeViewFrustum(camera,forward,right,up,focal,this.width/this.height);
+    this.viewFrustum=this.makeViewFrustum(camera,forward,right,up,focal,aspect);
     gl.uniform1i(this.locations.outdoor,1);
     this.bindMesh(this.skyBuffer);
     gl.uniform1i(this.locations.sky,1);
@@ -2259,10 +2385,6 @@ window.LPRRenderer3D = class LPRRenderer3D {
     gl.uniform1f(this.locations.opacity,1);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
-    this.drawSpectators(car,now);
-    this.drawImpactDamage();
-    this.drawWheels(car,now);
-    this.drawCockpit(car);
   }
 
   updateObstacleMeshes() {
