@@ -3,7 +3,8 @@ const assert=require('node:assert/strict');
  const {allowedName}=await import('../verification/name-policy.mjs');
  const {validName}=await import('../verification/protocol.mjs');
  const blocked=['Neekeri','NEEKERI','neekeri123','N.e.e.k.e.r.i','N e e k e r i','N_e-e.k_eri','N33keri','Neeeeekeri','Nëëkeri','Ｎｅｅｋｅｒｉ',
-  'Nekru','Nigger','n1gga','NIGGA','Ryssä','ryssa','Hintti','Hitler','Hitler88','1488','Sieg Heil','Mutakuono','Rättipää','Vinosilmä','Faggot'];
+  'Nekru','Nigger','n1gga','NIGGA','Ryssä','ryssa','Hintti','Hitler','Hitler88','1488','Sieg Heil','Mutakuono','Rättipää','Vinosilmä','Faggot',
+  'irekeeN','IREKEEN','i.r.e.k.e.e.N','ireke33N','urkeN','reggiN','assyR','reltiH','8841'];
  for(const name of blocked){
   assert(validName(name),`fixture must pass the character check: ${name}`);
   assert.equal(allowedName(name),false,`should be refused: ${name}`);
@@ -11,7 +12,8 @@ const assert=require('node:assert/strict');
  // Latin mixed with Cyrillic or Greek look-alikes (impersonation and filter evasion).
  for(const name of ['Pаnu','Nееkeri','Niggеr','Aino Иван'])assert.equal(allowedName(name),false,`mixed scripts: ${name}`);
  const allowed=['Panu','Aino Korhonen','Hintikka','Larysa','Montenegro','Fagerholm','Väinö','Иван','Νίκος','Torpedo','Tiger','Nikke','Neko','Sneaker',
-  'Pekka_88','Kimi.R','Laila-3','Sini','Kekkonen','Nakkila','Nigella','Nella'];
+  'Pekka_88','Kimi.R','Laila-3','Sini','Kekkonen','Nakkila','Nigella','Nella',
+  'Regina','Reginald','Tagin','Regen','Rekku','Ruken','Asser','Higgins','Biggins'];
  for(const name of allowed)assert.equal(allowedName(name),true,`should be accepted: ${name}`);
  assert.equal(allowedName(undefined),false);
  console.log('PASS: nickname policy refuses slurs and evasions, keeps ordinary names');

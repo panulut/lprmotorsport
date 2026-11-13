@@ -14,6 +14,8 @@ gameFiles.push('series-controls.css');
 gameFiles.push('client-download.js','client-download.css');
 gameFiles.push('numeric-typography.css','spectator-layout.css','mobile-layout.css');
 gameFiles.push('tracks/monaco-reference.js','tracks/monaco.js','tracks/monaco-practice.js','tracks/monaco.css','tracks/MONACO-LICENSE.md','tracks/MONACO-REFERENCE.md');
+gameFiles.push('shared/vehicle-spec-f1.js','shared/vehicle-f1.js','tracks/monaco-f1-aids.js','tracks/monaco-f1-collision.js','tracks/monaco-f1-renderer.js','tracks/monaco-f1-audio.js','tracks/F1-CAR-REFERENCE.md');
+gameFiles.push('tracks/monaco-sponsors.js','tracks/monaco-trackside.js','tracks/monaco-trackside-renderer.js');
 function readDocument(){return {version:1,objects:validate(JSON.parse(fs.readFileSync(path.join(root,'data/track-objects.json'),'utf8')))};}
 function dataScript(doc=readDocument()){return `window.LPRTrackData=${JSON.stringify(doc)};\n`;}
 function build(destination=path.join(root,'dist')) {

@@ -90,7 +90,7 @@ function createServer({production=false}={}) {
         manifestStamp=stamp;
       }
     }
-    const asset=/^assets\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(name)||/^assets\/fonts\/[a-zA-Z0-9_-]+\.(ttf|woff2)$/.test(name)||/^assets\/circle-flags-(fi|gb)\.svg$/.test(name)||name==='assets/phosphor-icons.svg';
+    const asset=/^assets\/(monaco\/sponsors\/)?[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(name)||/^assets\/fonts\/[a-zA-Z0-9_-]+\.(ttf|woff2)$/.test(name)||/^assets\/circle-flags-(fi|gb)\.svg$/.test(name)||name==='assets/phosphor-icons.svg';
     if(!allowed.has(name)&&!asset&&!(production&&['data/track-data.js','monaco.html'].includes(name)))return reply(404,'Not found');
     const file=path.join(base,name);
     if(!fs.existsSync(file)||!fs.statSync(file).isFile())return reply(404,'Not found');

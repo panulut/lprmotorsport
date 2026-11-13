@@ -58,6 +58,7 @@
     "measure:shared-track-state": "node scripts/measure-shared-track-state.cjs",
     "test:worker-pool": "node tests/worker-pool.test.cjs",
     "measure:worker-pool": "node scripts/measure-worker-pool.cjs",
-    "test:monaco": "node tests/monaco.test.cjs"
+    "test:monaco": "node tests/monaco.test.cjs && node tests/monaco-trackside.test.cjs",
+    "test:monaco-f1": "node scripts/build.cjs && node tests/monaco-f1.test.cjs && node tests/monaco-f1-integration.test.cjs && node tests/monaco-f1-cockpit.test.cjs"
   }
 }
