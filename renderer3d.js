@@ -1794,7 +1794,9 @@ window.LPRRenderer3D = class LPRRenderer3D {
         direction[2]*reference[0]-direction[0]*reference[2],direction[0]*reference[1]-direction[1]*reference[0]];
       const span=Math.hypot(...perpendicular)||1;
       const u=perpendicular.map(value=>value/span);
-      const v=[direction[1]*u[2],direction[2]*u[0]-direction[0]*u[2],-direction[1]*u[0]];
+      const v=referenceAxis
+        ? [direction[1]*u[2]-direction[2]*u[1],direction[2]*u[0]-direction[0]*u[2],direction[0]*u[1]-direction[1]*u[0]]
+        : [direction[1]*u[2],direction[2]*u[0]-direction[0]*u[2],-direction[1]*u[0]];
       const normal=angle=>u.map((value,i)=>value*Math.cos(angle)+v[i]*Math.sin(angle));
       const point=(origin,n)=>origin.map((value,i)=>value+n[i]*width);
       for(let segment=0;segment<8;segment++) {
