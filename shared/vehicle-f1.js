@@ -67,6 +67,26 @@
         s[r]+=(w*w*(target-s[k])-2*z*w*s[r])*dt;s[k]+=s[r]*dt;
       }
     }
+    // Same impulse and wall-friction response as the legacy car, with Monaco's
+    // more forgiving damage thresholds (see wallDamageFreeSpeed in the spec).
+    applyImpact(state,normal,impactMaterial,contact){
+      const p=this.parameters,cos=Math.cos(state.angle),sin=Math.sin(state.angle);
+      const worldVx=state.vx*cos-state.vy*sin,worldVy=state.vx*sin+state.vy*cos;
+      const normalVelocity=worldVx*normal.x+worldVy*normal.y;
+      const impactSpeed=contact?.impulse!==undefined?contact.impulse/p.mass:Math.max(0,-normalVelocity);
+      const tyres=impactMaterial==='tyres',free=tyres?p.tyreWallDamageFreeSpeed:p.wallDamageFreeSpeed,disabling=tyres?p.tyreWallDisablingSpeed:p.wallDisablingSpeed;
+      const damage=Math.max(0,impactSpeed*impactSpeed-free*free)/(disabling*disabling-free*free);
+      state.damage=Math.min(1,(state.damage||0)+damage);state.crashed=state.damage>=1;
+      state.impactSpeed=impactSpeed;state.impactEnergy=.5*p.mass*impactSpeed*impactSpeed;state.impactSide=normal.x*(-sin)+normal.y*cos;
+      const tangentVx=worldVx-normalVelocity*normal.x,tangentVy=worldVy-normalVelocity*normal.y;
+      const retention=Math.max(0,1-.15*impactSpeed/Math.max(Math.hypot(tangentVx,tangentVy),1e-12));
+      const remainingNormal=normalVelocity+impactSpeed;
+      const vx=tangentVx*retention+remainingNormal*normal.x,vy=tangentVy*retention+remainingNormal*normal.y;
+      state.vx=state.crashed?0:vx*cos+vy*sin;state.vy=state.crashed?0:-vx*sin+vy*cos;
+      state.yawRate=0;state.speed=Math.hypot(state.vx,state.vy);state.bodySlip=Math.atan2(state.vy,Math.max(state.vx,.5));
+      state.lateralG=state.longitudinalG=0;state.tcActive=false;
+      return damage;
+    }
     capacities(s,grass=0){
       const p=this.parameters,mu=p.roadGrip+(p.grassGrip-p.roadGrip)*clamp(grass,0,1);
       return [0,2].map(i=>(i?p.rearGripScale:1)*s.suspension.wheels.slice(i,i+2).reduce((sum,w)=>sum+mu*p.referenceTyreLoad*Math.pow(Math.max(0,w.load)/p.referenceTyreLoad,p.loadExponent),0));

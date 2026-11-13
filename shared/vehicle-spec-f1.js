@@ -30,6 +30,10 @@
     // Front-biased locking without ABS; EBD preserves rear trail-braking grip.
     peakBrakeForce:50000,maxBrakeG:5,brakeBias:.62,lockedGrip:.65,lockedLateralGrip:.25,
     absRearUse:.7,absRearFloor:.15,absActiveThreshold:.01,
+    // Street-circuit barriers forgive more than Skinnarila's: damage starts at a
+    // perpendicular 4 m/s (tyre stacks 6) and disables the car at 15 m/s (24), so
+    // a brushed wall or one moderate hit no longer ends the run.
+    wallDamageFreeSpeed:4,wallDisablingSpeed:15,tyreWallDamageFreeSpeed:6,tyreWallDisablingSpeed:24,
     // Lift-off deceleration loads the front gently; grass adds rolling drag.
     rollingResistance:95,grassRollingGain:2,coastBrakeForce:500,coastFadeSpeed:4,
     // Progressive combined-slip rear breakaway, not an instantaneous grip switch.
@@ -39,15 +43,15 @@
     yawInertia:1150,frontCorneringStiffness:190000,rearCorneringStiffness:220000,
     maxRoadWheelAngle:30*Math.PI/180,maxVisualRoadWheelAngle:30*Math.PI/180,
     // Keyboard: lock builds with hold time (a short 0.16 s soft start keeps taps
-    // small, no response curve), so a held key doses the corner; ~0.25 s to full
-    // lock in a hairpin, ~0.3 s at speed (0.5 s lagged turn-in and invited
-    // over-holding, then over-correcting). Monotone unwind.
-    keyboardSpeedRange:60,keyboardSlowRate:5,keyboardFastRate:3.5,
+    // small), so a held key doses the corner; ~0.25 s to full lock in a hairpin,
+    // ~0.4 s at speed. At speed a progressive response curve keeps short taps
+    // as fine corrections: a 0.3 s tap at 220 km/h turns the car ~5° rather than
+    // ~17°, which sent keyboard drivers weaving into the walls. Monotone unwind.
+    keyboardSpeedRange:60,keyboardSlowRate:5,keyboardFastRate:2.5,
     keyboardInitialRate:.3,keyboardHoldRampSeconds:.16,keyboardHoldMax:1,
-    // Release unwinds like hands letting the wheel run back, not a spring snap:
-    // ~0.2 s from full lock in a hairpin, ~0.55 s at speed, so a released key
-    // keeps the car rotating briefly instead of flicking it straight.
-    keyboardSlowReturnRate:5,keyboardFastReturnRate:1.8,keyboardSlowLinear:1,keyboardFastLinear:1,
+    // Release unwinds ~0.2 s from full lock in a hairpin and ~0.25 s at speed,
+    // so a released key stops the rotation instead of carrying the car on.
+    keyboardSlowReturnRate:5,keyboardFastReturnRate:4,keyboardSlowLinear:1,keyboardFastLinear:.45,
     analogSteerRate:12,rackResponse:22,rackRate:3.5,
     // Assist requests achievable yaw; feedback may not reverse the driver's sign.
     maxSteeringWheelAngle:180*Math.PI/180,assistedSteeringGrip:.91,fastSteeringGrip:.85,
